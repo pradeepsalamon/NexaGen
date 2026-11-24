@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -585,7 +586,7 @@ function DeleteFolderDialog({
                 void queryClient.invalidateQueries({ queryKey: queryKeys.puzzles.all });
                 onDone(res);
               } catch (error) {
-                toast.error({ title: "Could not delete the folder", message: (error as Error).message });
+                toast.error({ title: "Could not delete the folder", message: getErrorMessage(error) });
               } finally {
                 setBusy(false);
               }
@@ -856,7 +857,7 @@ function ReassignDialog({
               } catch (error) {
                 toast.error({
                   title: "Could not reassign",
-                  message: (error as Error).message
+                  message: getErrorMessage(error)
                 });
               } finally {
                 setBusy(false);

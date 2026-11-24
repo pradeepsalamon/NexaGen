@@ -231,10 +231,19 @@ export interface QuestionRatingSummary {
   count: number;
 }
 
+/**
+ * A coach sees a form's responses (and counts them in their averages) only once
+ * that form has this many responses about them, so a small batch can't tell who
+ * wrote what (review G1, owner 2026-11-24). Admins see every response.
+ */
+export const COACH_FEEDBACK_MIN_RESPONSES = 3;
+
 export interface MyCoachFeedbackResponse {
   summary: CoachRatingSummary;
   questions: QuestionRatingSummary[];
   recent: FeedbackResponseDto[];
+  /** Responses held back because their form has fewer than `COACH_FEEDBACK_MIN_RESPONSES` yet. */
+  withheldCount: number;
 }
 
 /** Mean of the given 1-5 ratings to one decimal place, or null for none. */

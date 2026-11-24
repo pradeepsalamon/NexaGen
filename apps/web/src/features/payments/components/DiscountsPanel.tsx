@@ -1,5 +1,7 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
+import { FieldError, fieldErrorId } from "@/components/ui/FieldError";
 import { useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import {
@@ -26,7 +28,7 @@ import { Select } from "@/components/ui/Select";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Textarea } from "@/components/ui/Textarea";
-import { useBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
+import { useAllBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
 import {
@@ -205,7 +207,7 @@ function DiscountForm({
 }) {
   const create = useCreateDiscount();
   const update = useUpdateDiscount();
-  const { data: batches } = useBatchesQuery();
+  const { data: batches } = useAllBatchesQuery();
   const { data: plans } = useAdminPlans();
 
   const currency = discount?.currency ?? "INR";
@@ -247,11 +249,15 @@ function DiscountForm({
       ? Math.round(Number(form.value) || 0)
       : toMinorUnits(Number(form.value) || 0, form.currency);
 
-  const issue = discountValueIssue({
+  const valueProblem = discountValueIssue({
     type: form.type,
     value: valueForApi,
     currency: form.type === "FIXED" ? form.currency : null
   });
+  // Checked when Save is pressed, not while typing (UI_RULES § "Form errors").
+  const [tried, setTried] = useState(false);
+  const issue = tried ? valueProblem : null;
+  useRevealFormErrors(issue);
 
   const toggle = <T extends string>(list: T[], value: T): T[] =>
     list.includes(value)
@@ -259,6 +265,8 @@ function DiscountForm({
       : [...list, value];
 
   const handleSubmit = () => {
+    setTried(true);
+    if (valueProblem) return;
     const payload = {
       name: form.name.trim(),
       description: form.description.trim() || undefined,
@@ -343,6 +351,7 @@ function DiscountForm({
             {form.type === "PERCENTAGE" ? "Percent off" : `Amount off (${form.currency})`}
           </Label>
           <Input
+            aria-describedby={issue ? fieldErrorId("discount-value") : undefined}
             hasError={Boolean(issue)}
             id="discount-value"
             inputMode="decimal"
@@ -352,9 +361,7 @@ function DiscountForm({
             type="number"
             value={form.value}
           />
-          {issue ? (
-            <p className="mt-1 text-xs text-app-danger-ink">{issue}</p>
-          ) : null}
+          <FieldError id="discount-value" message={issue} standalone />
         </div>
 
         {form.type === "PERCENTAGE" ? (
@@ -561,7 +568,6 @@ function DiscountForm({
         </Button>
         <Button
           disabled={
-            Boolean(issue) ||
             !form.name.trim() ||
             (!discount && !form.code.trim()) ||
             valueForApi <= 0

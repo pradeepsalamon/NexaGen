@@ -42,7 +42,7 @@ function GatewayForm({ gateway }: { gateway: TenantGatewayView }) {
     (!enabled || !needsWebhookSecret || gateway.hasWebhookSecret || webhookSecret.trim().length >= 8);
 
   return (
-    <form
+    <form noValidate
       className="grid gap-4"
       onSubmit={(event) => {
         event.preventDefault();

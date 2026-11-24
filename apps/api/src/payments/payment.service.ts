@@ -36,12 +36,14 @@ import {
   PaymentStatus,
   Prisma,
   UserRole,
+  type Order,
   type Payment,
   type Plan,
+  type Subscription,
   type User
 } from "@prisma/client";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
-import { PrismaService } from "../prisma/prisma.service";
+import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { AcademyLinksService } from "../tenancy/academy-links.service";
 import { BillingProfileService } from "./billing-profile.service";
 import { CreditNoteService } from "./credit-note.service";
@@ -57,10 +59,11 @@ import {
   isUniqueViolationOn,
   normalizePhone,
   priceOrder,
+  type PricedOrder,
   toJson,
   toPlanItem
 } from "./payments.util";
-import type { PaymentDetails } from "./providers/payment-provider.interface";
+import type { PaymentDetails, WebhookResult } from "./providers/payment-provider.interface";
 import { PaymentProviderError } from "./providers/payment-provider.interface";
 import { ProviderRegistry } from "./providers/provider-registry.service";
 import { SubscriptionService } from "./subscription.service";
@@ -134,7 +137,7 @@ export class PaymentService {
     }
 
     const currency = plan.currency;
-    const pricing = priceOrder(plan.amount, plan.taxPercent);
+    const pricing = await this.priceForUser(user.id, plan.amount, plan.taxPercent);
     const recurring = isRecurringInterval(plan.interval);
     const methods = await this.availableMethodsForPlan(plan, currency);
 
@@ -234,10 +237,7 @@ export class PaymentService {
 
     // Tax is charged on the DISCOUNTED subtotal — taxing a price nobody paid
     // would overcharge.
-    const pricing = priceOrder(
-      plan.amount - resolution.amount,
-      plan.taxPercent
-    );
+    const pricing = await this.priceForUser(user.id, plan.amount - resolution.amount, plan.taxPercent);
 
     return {
       valid: true,
@@ -299,6 +299,14 @@ export class PaymentService {
       throw new NotFoundException("This plan is not available.");
     }
 
+    // A plan has one price in one currency. The buyer may not pick another:
+    // nothing converts the amount, so "PKR 999" for a ₹999 plan would be a
+    // discount (review P1). A client that sends the plan's own currency is fine.
+    const currency = plan.currency.toUpperCase();
+    if (dto.currency && dto.currency.toUpperCase() !== currency) {
+      throw new BadRequestException(`This plan is priced in ${currency}.`);
+    }
+
     const existing = await this.prisma.order.findUnique({
       where: { idempotencyKey: dto.idempotencyKey },
       include: {
@@ -312,10 +320,20 @@ export class PaymentService {
         // Someone guessed or replayed another account's key — never reuse it.
         throw new ConflictException("This checkout key is already in use.");
       }
+      // A replay opens attempts at the order's frozen price, never re-reading
+      // the request's code. A different code under the same key would show
+      // one price and charge another: refuse it so the screen starts over
+      // (FE review P2). A paid order still replays (the buyer sees it's done).
+      const requestedCode = dto.discountCode?.trim().toUpperCase() || null;
+      const orderCode = existing.discountCode?.trim().toUpperCase() || null;
+      if (existing.status !== OrderStatus.PAID && requestedCode !== orderCode) {
+        throw new ConflictException({
+          code: "CHECKOUT_CHANGED",
+          message: "This checkout was opened with a different discount code. Reload the page to pay at the new price."
+        });
+      }
       return this.replayOrder(existing.id, dto);
     }
-
-    const currency = (dto.currency ?? plan.currency).toUpperCase();
 
     // Re-resolved here, never taken from the client: a code that expired, hit
     // its limit, or does not apply to the chosen method is simply not applied,
@@ -340,10 +358,11 @@ export class PaymentService {
       : null;
 
     // Tax is charged on the discounted subtotal.
-    const pricing = priceOrder(plan.amount - discountAmount, plan.taxPercent);
+    const pricing = await this.priceForUser(user.id, plan.amount - discountAmount, plan.taxPercent);
 
-    const order = await this.prisma.order
-      .create({
+    // A limited code is re-checked under its row lock while the order that
+    // carries it is written (review P8).
+    const writeOrder = (client: PrismaTransactionClient | PrismaService) => client.order.create({
         data: {
           orderNumber: generateOrderNumber(this.env.PAYMENTS_INVOICE_PREFIX),
           userId: user.id,
@@ -364,8 +383,16 @@ export class PaymentService {
           // taxPercent is frozen here so a later plan edit cannot change the invoice.
           notes: { planCode: plan.code, method: dto.method ?? null, taxPercent: plan.taxPercent }
         }
-      })
-      .catch((error: unknown) => {
+      });
+
+    const order = await (applied
+      ? this.prisma.$transaction(async (tx) => {
+          const rejection = await this.discounts.recheckForCheckout(tx, applied.id, user.id);
+          if (rejection) throw new ConflictException(this.discounts.rejectionMessage(rejection));
+          return writeOrder(tx);
+        })
+      : writeOrder(this.prisma)
+    ).catch((error: unknown) => {
         // Lost the race against a concurrent identical submit; the winner's
         // order is the one we want, so fall through to the replay path.
         if (isUniqueViolationOn(error, "idempotencyKey")) return null;
@@ -560,11 +587,19 @@ export class PaymentService {
       return;
     }
 
+    let details: PaymentDetails;
     try {
-      const details = await adapter.getPayment(handle, payment.providerOrderId);
-      await this.applyProviderState(payment.id, details, "reconcile");
+      details = await adapter.getPayment(handle, payment.providerOrderId);
     } catch (error) {
+      // Never expire on a failed lookup (review P5): the payment may have been
+      // captured, and an expired one sends the student to pay again. The next
+      // sweep asks again.
       this.logProviderError("reconcile", payment.id, error);
+      return;
+    }
+    await this.applyProviderState(payment.id, details, "reconcile");
+    // The gateway answered, and nothing was paid: an old one can expire.
+    if (details.status === PaymentStatus.CREATED || details.status === PaymentStatus.PENDING) {
       await this.expireIfStale(payment);
     }
   }
@@ -627,10 +662,23 @@ export class PaymentService {
       // Provider handles and method detail are always worth recording, even
       // when the status itself has not moved — they are how support traces a
       // disputed charge.
+      // A failed Razorpay attempt and a later success on the same gateway order
+      // carry different payment ids: the one that captured (or authorised) is
+      // the one refunds and reconcile must use (review P7). A row that already
+      // captured keeps its id; a second capture is a different problem.
+      const capturedAlready =
+        payment.status === PaymentStatus.PAID ||
+        payment.status === PaymentStatus.PARTIALLY_REFUNDED ||
+        payment.status === PaymentStatus.REFUND_PENDING ||
+        payment.status === PaymentStatus.REFUNDED;
+      const takesPaymentId =
+        details.providerPaymentId &&
+        details.providerPaymentId !== payment.providerPaymentId &&
+        (!payment.providerPaymentId ||
+          (!capturedAlready &&
+            (details.status === PaymentStatus.PAID || details.status === PaymentStatus.AUTHORIZED)));
       const handleUpdates: Prisma.PaymentUpdateInput = {
-        ...(details.providerPaymentId && !payment.providerPaymentId
-          ? { providerPaymentId: details.providerPaymentId }
-          : {}),
+        ...(takesPaymentId ? { providerPaymentId: details.providerPaymentId } : {}),
         ...(details.providerOrderId && !payment.providerOrderId
           ? { providerOrderId: details.providerOrderId }
           : {}),
@@ -651,23 +699,50 @@ export class PaymentService {
         };
       }
 
-      // An amount mismatch means the customer paid something other than what
-      // we asked for. Record it, never grant on it.
-      if (
-        nextStatus === PaymentStatus.PAID &&
-        details.amount !== null &&
-        details.amount !== payment.amount
-      ) {
+      // A second capture on an order another payment already paid (review
+      // P6): the money is real, but the access is already granted. Park it for
+      // an admin to refund rather than granting or invoicing twice.
+      const orderAlreadyPaid =
+        payment.order.status === OrderStatus.PAID ||
+        payment.order.status === OrderStatus.PARTIALLY_REFUNDED ||
+        payment.order.status === OrderStatus.REFUNDED;
+      if (nextStatus === PaymentStatus.PAID && orderAlreadyPaid) {
         this.logger.error(
-          `Payment ${payment.id} captured ${details.amount} but the order is ${payment.amount} ${payment.currency}. Access withheld for manual review.`
+          `Payment ${payment.id} captured on order ${payment.orderId}, which another payment already paid. Held for a refund.`
         );
         await tx.payment.update({
           where: { id: payment.id },
           data: {
             ...handleUpdates,
             status: PaymentStatus.PROCESSING,
-            failureCode: "amount_mismatch",
-            failureMessage: `Provider reported ${details.amount} against an order of ${payment.amount}.`,
+            failureCode: "duplicate_capture",
+            failureMessage: "A second payment captured on an order that was already paid. Refund this one.",
+            metadata: toJson(details.raw)
+          }
+        });
+        return { changed: true, status: PaymentStatus.PROCESSING, captured: false, invoiceId: null };
+      }
+
+      // An amount mismatch means the customer paid something other than what
+      // we asked for. Record it, never grant on it.
+      // The same for the currency: 999 of another currency is not ₹999.
+      const currencyMismatch =
+        details.currency !== null &&
+        details.currency.toUpperCase() !== payment.currency.toUpperCase();
+      if (
+        nextStatus === PaymentStatus.PAID &&
+        ((details.amount !== null && details.amount !== payment.amount) || currencyMismatch)
+      ) {
+        this.logger.error(
+          `Payment ${payment.id} captured ${details.amount} ${details.currency ?? "?"} but the order is ${payment.amount} ${payment.currency}. Access withheld for manual review.`
+        );
+        await tx.payment.update({
+          where: { id: payment.id },
+          data: {
+            ...handleUpdates,
+            status: PaymentStatus.PROCESSING,
+            failureCode: currencyMismatch ? "currency_mismatch" : "amount_mismatch",
+            failureMessage: `Provider reported ${details.amount} ${details.currency ?? "(currency not given)"} against an order of ${payment.amount} ${payment.currency}.`,
             metadata: toJson(details.raw)
           }
         });
@@ -813,6 +888,142 @@ export class PaymentService {
     }
 
     return { changed: outcome.changed, status: outcome.status };
+  }
+
+  /**
+   * A recurring plan's cycle charge (review P2). The gateway took the money
+   * on its own, so there is no checkout attempt: the charge gets a Payment on
+   * an order of its own (the first cycle uses the order the mandate was opened
+   * from) and goes through `applyProviderState`, so the entitlement, invoice and
+   * receipt follow exactly as for a one-time payment. Idempotent on the
+   * gateway's payment id; a repeat event only re-applies the same state.
+   */
+  async recordSubscriptionCharge(provider: PaymentProvider, result: WebhookResult): Promise<void> {
+    const handle = result.providerSubscriptionId;
+    const providerPaymentId = result.providerPaymentId;
+    if (!handle || !providerPaymentId) {
+      this.logger.warn(`${provider} subscription charge ${result.eventType} has no subscription or payment id; ignored.`);
+      return;
+    }
+    const subscription = await this.prisma.subscription.findFirst({
+      where: { provider, providerSubscriptionId: handle }
+    });
+    if (!subscription) return;
+
+    const paymentId =
+      (await this.prisma.payment.findFirst({ select: { id: true }, where: { provider, providerPaymentId } }))?.id ??
+      (await this.createSubscriptionPayment(subscription, provider, providerPaymentId));
+
+    await this.applyProviderState(
+      paymentId,
+      {
+        amount: result.amount,
+        amountRefunded: 0,
+        currency: result.currency,
+        failureCode: null,
+        failureMessage: null,
+        method: result.method,
+        methodDetail: result.methodDetail,
+        paidAt: result.paidAt,
+        providerOrderId: result.providerOrderId,
+        providerPaymentId,
+        raw: result.raw,
+        status: PaymentStatus.PAID
+      },
+      "subscription-charge"
+    );
+  }
+
+  /** The Payment (and, after the first cycle, the Order) a cycle charge lands on. */
+  private async createSubscriptionPayment(
+    subscription: Subscription,
+    provider: PaymentProvider,
+    providerPaymentId: string
+  ): Promise<string> {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // One cycle charge at a time per subscription, so two events for one
+        // charge (invoice.paid + invoice.payment_succeeded) make one payment.
+        await tx.$queryRaw`SELECT id FROM "subscriptions" WHERE id = ${subscription.id} FOR UPDATE`;
+        const again = await tx.payment.findFirst({ select: { id: true }, where: { provider, providerPaymentId } });
+        if (again) return again.id;
+
+        const initial = subscription.initialOrderId
+          ? await tx.order.findUnique({
+              include: { payments: { select: { id: true }, where: { subscriptionId: subscription.id } } },
+              where: { id: subscription.initialOrderId }
+            })
+          : null;
+        const order =
+          initial && initial.payments.length === 0
+            ? initial
+            : await tx.order.create({ data: this.renewalOrderData(subscription, initial, providerPaymentId) });
+
+        const payment = await tx.payment.create({
+          data: {
+            amount: order.amount,
+            currency: order.currency,
+            orderId: order.id,
+            provider,
+            providerPaymentId,
+            status: PaymentStatus.CREATED,
+            subscriptionId: subscription.id,
+            userId: subscription.userId
+          }
+        });
+        return payment.id;
+      });
+    } catch (error) {
+      // A concurrent event created it first.
+      if (!isUniqueViolationOn(error, "providerPaymentId")) throw error;
+      const winner = await this.prisma.payment.findFirst({ select: { id: true }, where: { provider, providerPaymentId } });
+      if (!winner) throw error;
+      return winner.id;
+    }
+  }
+
+  /**
+   * A renewal is priced like the first cycle: the initial order's figures when
+   * the mandate charges that order's total. An older mandate that charges the
+   * plan's list price gets an order for that amount without tax, so the order,
+   * the charge and the invoice still agree. The discount is not redeemed
+   * again (no `discountId`); its code stays on the invoice.
+   */
+  private renewalOrderData(
+    subscription: Subscription,
+    initial: Order | null,
+    providerPaymentId: string
+  ): Prisma.OrderUncheckedCreateInput {
+    const base = {
+      currency: subscription.currency.toUpperCase(),
+      idempotencyKey: `subscription:${subscription.id}:${providerPaymentId}`,
+      orderNumber: generateOrderNumber(this.env.PAYMENTS_INVOICE_PREFIX),
+      planId: subscription.planId,
+      status: OrderStatus.CREATED,
+      userId: subscription.userId
+    };
+    if (initial && initial.amount === subscription.amount) {
+      return {
+        ...base,
+        amount: initial.amount,
+        discountAmount: initial.discountAmount,
+        discountCode: initial.discountCode,
+        notes: { ...(isJsonObject(initial.notes) ? initial.notes : {}), renewalOf: subscription.id },
+        subtotalAmount: initial.subtotalAmount,
+        taxAmount: initial.taxAmount
+      };
+    }
+    this.logger.warn(
+      `Subscription ${subscription.id} charges ${subscription.amount}, not its first order's total; renewal priced at that amount without tax.`
+    );
+    return {
+      ...base,
+      amount: subscription.amount,
+      discountAmount: 0,
+      notes: { renewalOf: subscription.id, taxPercent: 0 },
+      subtotalAmount: subscription.amount,
+      taxAmount: 0
+    };
   }
 
   // ────────────────────────────────────────────────
@@ -1002,6 +1213,30 @@ export class PaymentService {
       order.attempts.reduce((max, a) => Math.max(max, a.attemptNumber), 0) + 1;
 
     const { payment, attempt } = await this.prisma.$transaction(async (tx) => {
+      // One attempt in the air per order (review P6): retrying an old failed
+      // payment must not open a second charge while another attempt on the
+      // same order may still be captured. The order row lock makes two
+      // concurrent retries take turns. A CREATED/PENDING attempt older than
+      // the order TTL never reached a capture the gateway confirmed and is
+      // left to the reconcile sweep; PROCESSING/AUTHORIZED always block.
+      await tx.$queryRaw`SELECT id FROM "orders" WHERE id = ${order.id} FOR UPDATE`;
+      const staleBefore = new Date(Date.now() - this.env.PAYMENTS_ORDER_TTL_MINUTES * 60_000);
+      const inFlight = await tx.payment.findFirst({
+        select: { id: true },
+        where: {
+          orderId: order.id,
+          OR: [
+            { status: { in: [PaymentStatus.PROCESSING, PaymentStatus.AUTHORIZED] } },
+            { createdAt: { gt: staleBefore }, status: { in: [PaymentStatus.CREATED, PaymentStatus.PENDING] } }
+          ]
+        }
+      });
+      if (inFlight) {
+        throw new ConflictException(
+          "A payment for this order is still being confirmed. Please wait rather than paying again."
+        );
+      }
+
       const created = await tx.payment.create({
         data: {
           orderId: order.id,
@@ -1347,6 +1582,17 @@ export class PaymentService {
     return order;
   }
 
+  /**
+   * What `userId` pays for `amount` before tax: the tax comes from the same
+   * engine, seller and billing profile the invoice uses, so the charge and the
+   * invoice total agree (review P4). A plan without tax skips the lookups.
+   */
+  async priceForUser(userId: string, amount: number, taxPercent: number): Promise<PricedOrder> {
+    if (taxPercent <= 0) return priceOrder(amount, 0);
+    const tax = await this.invoices.taxFor(userId, amount, taxPercent);
+    return { subtotal: amount, taxAmount: tax.taxTotal, total: amount + tax.taxTotal };
+  }
+
   private assertPaymentsEnabled(): void {
     if (!this.env.PAYMENTS_ENABLED) {
       throw new ServiceUnavailableException(
@@ -1392,6 +1638,10 @@ function appliedFromOrder(order: {
 }
 
 /** The tax rate frozen on the order at checkout; absent on orders created before it was stored. */
+function isJsonObject(value: Prisma.JsonValue): value is Prisma.JsonObject {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
 function orderTaxPercent(notes: Prisma.JsonValue): number | null {
   if (!notes || typeof notes !== "object" || Array.isArray(notes)) return null;
   const value = (notes as Prisma.JsonObject).taxPercent;

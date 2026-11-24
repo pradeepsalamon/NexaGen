@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { useEffect, useState } from "react";
 import type { WhatsAppSettingsResponse } from "@nexa-chess/types";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -48,12 +49,18 @@ function Form({ data }: { data: WhatsAppSettingsResponse }) {
   const [enabled, setEnabled] = useState(data.enabled);
   const idOk = /^\d{5,30}$/.test(phoneNumberId.trim());
   const wabaOk = /^(\d{5,30})?$/.test(wabaId.trim());
+  // Checked when Save is pressed (UI_RULES § "Form errors").
+  const [tried, setTried] = useState(false);
+  const wabaError = tried && !wabaOk ? "Digits only." : undefined;
+  useRevealFormErrors(wabaError);
 
   return (
-    <form
+    <form noValidate
       className="grid gap-4"
       onSubmit={(event) => {
         event.preventDefault();
+        setTried(true);
+        if (!wabaOk) return;
         save
           .mutateAsync({
             accessToken: accessToken.trim() || undefined,
@@ -83,7 +90,7 @@ function Form({ data }: { data: WhatsAppSettingsResponse }) {
           <Input id="wa-phone-id" inputMode="numeric" onChange={(event) => setPhoneNumberId(event.target.value)} value={phoneNumberId} />
         </FormField>
         <FormField
-          error={wabaOk ? undefined : "Digits only."}
+          error={wabaError}
           hint="Shown next to the phone number ID. Optional for now."
           id="wa-waba-id"
           label="WhatsApp Business Account ID"
@@ -119,7 +126,7 @@ function Form({ data }: { data: WhatsAppSettingsResponse }) {
       )}
       <Switch checked={enabled} id="wa-enabled" label="Send and receive WhatsApp messages on this number" onCheckedChange={setEnabled} />
       <div className="flex justify-end">
-        <Button disabled={!idOk || !wabaOk || (enabled && !data.hasAccessToken && !accessToken.trim())} isLoading={save.isPending} type="submit">
+        <Button disabled={!idOk || (enabled && !data.hasAccessToken && !accessToken.trim())} isLoading={save.isPending} type="submit">
           Save
         </Button>
       </div>

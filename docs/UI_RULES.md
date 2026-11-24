@@ -5,7 +5,26 @@ to everything under `apps/web/src` except the recording template (`app/recorder`
 The academy marketing site at `/` is the Design System v2 page (`features/academy/v2`), which
 follows every rule here and reads `features/academy/content.ts`. The original page
 (`features/academy/components`, kept at `/academy` since 2026-11-16) follows the colour rules;
-its layout and type keep their own look.
+its layout and type keep their own look. **The auth pages** (`/login`, `/register`,
+password reset, `/verify-email`, `/unsubscribe`; `features/auth/frame/AuthFrame`,
+since 2026-11-22) are one bespoke gold frame whose hero and form side both
+follow the theme (champagne and ivory in light, navy in dark): its colours are the `login-*`
+tokens in `globals.css` ("Login page"; hero colours are `login-hero*`, the navy is
+`--rgb-brand-900`), and sign-in is `useLoginFlow`. **The frame never changes between auth pages
+(owner, 2026-11-24):** the `(auth)` layout renders `AuthFrame` once (same hero text and width on
+every page), and each page renders only its `AuthCard`; `/unsubscribe`, outside the group, uses
+`AuthSplitShell`. The card is sized to its form and centred on the form side (even space on
+opposite sides, at least `--auth-gap`), with the same padding on all four sides
+(`--auth-card-pad`: 20px, 32px from `sm`, 16px on a desktop screen up to 760px high); the
+Privacy/Terms/Help links sit outside it, pinned to the foot of the form side from `lg` so the card
+stays centred (owner, 2026-11-24: not a full-height card, links out of the box). Both registration
+forms stay mounted in one grid cell, so Student and Coach are the same size, and a tab change
+cross-fades them (400ms transition, no keyframes); "Already have an
+account?" sits under the submit button. The hero is 46% wide; its trust row shows only from
+1440px wide and above 760px high, its badge from 1360px. **The card is the app's own look**: app tokens, blue primary
+button and tabs, `PageHeader` heading type, no gold and no serif inside it. Registration must fit
+a 1366×650 desktop viewport without scrolling (its spacing tightens from `lg`). The hero's gold is deliberately not `--rgb-accent`: every
+academy gets this same page, and academy branding would recolour the accent.
 
 **NexaChess Design System v2** is the colour, type and spacing specification
 (`docs/ui-redesign/`). Never branch on `useTheme()` to pick a
@@ -27,9 +46,10 @@ and are mapped in `tailwind.config.ts`.
 
 - **Page body is plain neutral** in both themes (owner, 2026-11-08): white
   page and cards in light; `#0A0A0A` page and `#171717` cards in dark; grey
-  borders and text with no blue tint. Navy stays only on the role nav
-  (`surface-brand`); the app header is a plain surface (white in light), as
-  in the owner's 2026-11-08 layout mock.
+  borders and text with no blue tint. Navy stays on the role nav and the
+  app header (`surface-brand`, owner 2026-11-22, replacing the 2026-11-08
+  white header): one shade (`bg-app-drawer`) and no rule between them, so
+  header and nav read as one frame around the page.
 - **Every blue fill is the light theme's royal blue in both themes**
   (owner, 2026-11-08): `primary` / `button` fills and `on-primary` text are
   not redefined under dark, so buttons, active tabs, switches, chips and the
@@ -37,6 +57,27 @@ and are mapped in `tailwind.config.ts`.
   `primary-ink` (coloured text, kept readable) switch with the theme.
 - **Scrolling rounded panels** (dialogs) take `scroll-clip-panel` so the
   scrollbar is clipped to the rounded corners. Scrollbar tracks are transparent.
+- **Scrollbars** are one global style (globals.css): a thin 8 px solid navy
+  pill (`--color-scroll-thumb`: `brand-800` in light, royal blue `primary` in
+  dark, owner 2026-11-22), no arrows, the same in every scroller. A scrolling body inside a dialog
+  (fields between a fixed title and buttons) takes `dialog-scroll-body`, which
+  puts its bar in the dialog's padding so the fields stay centred; not
+  `overflow-y-auto pr-1`. Never set `scrollbar-width` / `scrollbar-color` on an element to
+  restyle a bar: Chrome then drops the webkit rules and draws its default bar
+  with arrows (`[scrollbar-width:none]` to hide one is fine). **The page's own
+  bar on signed-in pages** (`html[data-nav]`) is not the browser's: that one is
+  hidden and `components/layout/PageScrollbar.tsx` draws a thumb only (no
+  track) from below the header to the window's bottom (owner, 2026-11-22: it
+  never runs beside the header). Nothing reserves width, so the header spans
+  the window and nothing shifts when a page grows or shrinks or a menu or
+  dialog locks scrolling. Signed-out pages keep the browser bar; a fixed
+  element pinned to the right edge there takes `right-scroll-bar-position`
+  (the header does).
+- **Focus rings are for the keyboard.** After a mouse or touch press
+  (`html[data-input="pointer"]`, `lib/inputModality.ts`) buttons, links, tabs,
+  menu items, switches and checkboxes show no `:focus-visible` ring, even
+  when a dialog or Radix moves focus itself; any key press brings rings back.
+  Text fields keep their focus style. Don't add per-component ring hacks.
 - **Role nav** (`components/layout/Sidebar.tsx`): from `xl` a full-height navy
   64 px icon rail with the expand button on top and the user at the foot; the
   header starts beside it. **The page is offset by the rail only
@@ -44,11 +85,16 @@ and are mapped in `tailwind.config.ts`.
   expanded 256 px panel (logo, labels, sections) slides *over* the page like a
   popover and closes on any navigation, Escape, its toggle or a click outside
   it and the header. Every load starts on the rail (nothing is saved). A rail
-  link shows its label as a tooltip; a rail section (admin) opens a flyout of
-  its links on click, on hover after 150 ms (closing 250 ms after the pointer
+  link shows its label as a tooltip; a rail section (admin) opens the rail's
+  one shared flyout of its links (hovering another section while it is open
+  glides it there and swaps the links, `RailFlyoutHost`) on click, on hover after 150 ms (closing 250 ms after the pointer
   leaves icon and flyout) and from the keyboard (Enter / Space / ArrowRight,
   Escape returns to the icon). Never add page padding or width that follows
-  the nav's state. The active link is a solid `bg-primary` fill. Below `xl` it
+  the nav's state. The column is flat navy, flush with the left edge: no
+  border, no rounding, no shadow except while expanded over the page. **Icons
+  never move**: every row keeps its icon at the rail's spot and the panel only
+  widens over it (labels fade, pills widen; sections unfold after the panel is
+  out and fold before it narrows, `NavMotionContext`). The active link is a solid `bg-primary` fill. Below `xl` it
   is the off-canvas drawer with main's gold edge tab.
 
 | Need | Use | Never |
@@ -134,12 +180,12 @@ disagree.
 | Pick one of several cards (themes, piece sets, sounds, payment method) | `ChoiceTile` / `choiceTileClass(selected)` (`components/ui/ChoiceTile.tsx`) | 1px border; chosen = blue border, soft blue fill, inset ring, `aria-pressed`. Never hand-build a `border-2` selection card. |
 | Chessboards | `BoardFrame` (`features/chessboard/components/board/BoardFrame.tsx`) around the board; promotion via `PromotionPicker` (`PromotionDialog` for the board store) | The caller sizes the frame; real pieces in the user's set (`PieceIcon`). Grid tiles (live boards, puzzle tiles) keep their tile frame. |
 | On/off setting | `Switch` | "Lock …", "Enabled", "Send WhatsApp", preferences. |
-| Pick several / row selection / consent | `Checkbox` | Multi-select lists, table rows, "Remember me", "I understand …". 16px box, 12px tick; the label (`label` prop) gives the 40px tap row. |
+| Pick several / row selection / consent | `Checkbox` | Multi-select lists, table rows, "Remember me", "I understand …". 14px box, 10px tick (only the tick animates, popping in; the box never moves; owner 2026-11-24); an invisible 8px area around the box and the label (`label` prop, 40px row) keep it easy to tap. |
 | Text / number fields | `Input`, `Textarea`, `PasswordInput`, `Select`, `Combobox` | Never raw `<input>` / `<textarea>` / `<select>` (file, colour, range and radio inputs are the exceptions). They share one look (`fieldClasses()`: surface fill, `line-strong` border, blue border + ring on focus, red border on error); change it there, not per form. `leadingIcon` puts an icon inside; `density="compact"` (Input, PasswordInput, Select) is the dense field of multi-column forms such as registration. |
 | Formatted text (messages, announcements, help articles) | `TextEditor`; show the result with `FormattedText` | Toolbar over a `Textarea`, stores readable text, never HTML. Only where the output is displayed through `FormattedText`, `markdownToPlainText`/`markdownToWhatsApp` or the email renderer, or readers see raw `**`. Everything else stays `Textarea`. |
 | Showing text someone typed | `LinkedText` (`components/ui/FormattedText.tsx`) | Chat, feedback, notes: addresses become underlined links and nothing else changes. `onColour` on a coloured surface like your own chat bubble. Never `dangerouslySetInnerHTML` or a local URL regex. |
 | Dates and times | `DatePicker`, `DateStringPicker` (for `"YYYY-MM-DD"` / `"YYYY-MM-DDTHH:mm"` state), `TimePicker`, `DateRangePicker` | Never `type="date|time|datetime-local"`. |
-| Tabs | `Tabs` / `TabsList` / `TabsTrigger` | Segmented style: sunken `bg-app-soft` track, active tab is a solid primary chip that slides between tabs (`useSlidingIndicator`); `TabsContent` fades up (`animate-tab-panel-in`). A two-way switch may slide its content sideways instead (`animate-tab-in-left`/`-right`, register page). |
+| Tabs | `Tabs` / `TabsList` / `TabsTrigger` | Segmented style: clear track with a thin `border-app-border` outline (like the Storm/Racer leaderboard toggles), active tab is a solid primary chip that slides between tabs (`useSlidingIndicator`); `TabsContent` fades up (`animate-tab-panel-in`). A two-way switch may slide its content sideways instead (`animate-tab-in-left`/`-right`, register page). |
 | Inline messages / load errors | `Alert` (`error`, `warning`, `info`, `success`), `WidgetError` | Soft fill + `-ink` text. Correct `role`/`aria-live` built in. Toasts are solid fills instead (see Bulk actions). |
 | Confirm before acting | `ConfirmationModal` (+ optional `icon`) | Never `window.confirm`. Undo policy: `lib/undo/README.md`. |
 | Forms in a popup | `Dialog` | Confirmations use `ConfirmationModal`/`AlertDialog`. |
@@ -153,7 +199,7 @@ disagree.
 | Full-page create/edit | `FormPageShell` | Sticky back + title + actions header. |
 | Page title + actions | `PageHeader` | Pass `breadcrumbs` on a detail page instead of a `BackButton`. |
 | Batch card on a "My batches" page | `BatchSummaryCard` (`features/batches/components`) | Title + badges, one-line description, facts as one wrapping row, footer with people left and actions right. Student and coach pages use it. |
-| Sign-in and account pages (`/login`, `/register`, password reset, email verification) | `AuthSplitShell` + `AuthHeader` + `AuthStatus` (`features/auth/components`) | Navy brand panel (text never on the artwork) beside the form card; below `lg` the panel is a navy bar. `AuthHeader` is the card's only `h1`, the panel tagline a `<p>`. `AuthStatus` is every outcome in the card (sent, verified, incomplete link, waiting). Registration groups fields with `RegistrationFieldset` and uses full-size fields, not `density="compact"`. |
+| Sign-in and account pages (`/login`, `/register`, password reset, email verification) | `AuthCard` (in the `(auth)` layout's `AuthFrame`) + `AuthHeader` + `AuthStatus` (`features/auth/components`) | The gold/navy hero beside the form card; the frame stays still between pages, only the card changes; below `lg` the hero stacks over the card. `AuthHeader` is the card's only `h1`, the panel tagline a `<p>`. `AuthStatus` is every outcome in the card (sent, verified, incomplete link, waiting). Registration groups fields with `RegistrationFieldset` and uses full-size fields, not `density="compact"`. |
 | Analytics page | `AnalyticsPageShell` (`features/analytics/components`) | `PageHeader` with the date range, Refresh and Export as its actions; `breadcrumbs` on a detail report. The admin dashboard uses it too. Never a second hand-built analytics header. |
 | Role page frame | `PageContent` | The one ground, padding and `max-w-7xl` content width. Role layouts use it; pages don't add their own. |
 | A class in a list | `ClassRow` inside `ClassRowList` | Status and Join come from `class-availability`. Pass `actions` to replace the buttons, `quietJoin` where another control is the page's primary action. Coach lists use `CoachClassRow` (`features/coach/components`): Start while the start window is open, View class, and a ⋮ menu for notes and requests. |
@@ -199,8 +245,14 @@ disagree.
   opens a menu of every tab. Nothing to do per page; it needs `Tabs` from
   `components/ui/Tabs` (the menu reads the value from its context) and
   `TabsTrigger`s as direct children (fragments and `.map` are fine).
-- **Motion is short and cheap.** Overlays (dialog, popover, menu, tooltip)
-  use the `tailwindcss-animate` classes (`animate-in fade-in-0 zoom-in-95` …);
+- **Motion is short and cheap.** Overlays grow out of what opened them, like
+  an app opening from its icon: `Dialog` / `AlertDialog` point their
+  `transform-origin` at the control last pressed and start about its size
+  (`lib/motion/launchOrigin.ts`; `animate-dialog-in`/`-out` animate `scale`
+  only, never `transform`). A dialog unmounted while open (`{x ? <XDialog open
+  /> : null}`) still shrinks back: its exit plays on a copy. Menus and
+  popovers use `animate-menu-in`/`-out` from Radix's trigger-side origin; tooltips
+  keep the `tailwindcss-animate` classes;
   pages fade in with `animate-fade-in` (opacity only: a transform would trap
   `position: fixed` children); buttons press to 97%. Animate `transform` and
   `opacity`, never a page-wide `padding`/`width` (the nav animates only its
@@ -257,23 +309,38 @@ disagree.
   swapped main stage cross-fades with `animate-stage-in`. Both use `backwards`
   fill so no transform stays on the panel, and are `motion-safe:`.
 - Dates/times: `lib/datetime.ts` + `useUserTimeZone()`; never `toLocale*` in a
-  component (see CLAUDE.md §3.6).
-- **Form errors** (2026-11-17, `docs/FORM_VALIDATION_AUDIT.md`): a field's
-  problem is **`FieldError`** (`components/ui/FieldError.tsx`; `FormField` uses
-  it for you): a danger icon + short human text ("Enter your email", "Use at
-  least 8 characters") absolutely placed under the field, so showing it never
-  changes the form's or dialog's height. Keep field stacks at `gap-4` or more;
-  without a `relative` wrapper use `<FieldError standalone>`; a group's message
-  may sit on its title line. Show it after blur or submit (react-hook-form
-  `mode: "onTouched"`, or `useTouchedFields`), clear it as soon as the value is
-  valid, and focus the first invalid field on a blocked submit
-  (`focusFirstInvalid`). Forms are `noValidate`: no browser bubbles, but keep
-  `type`, `required`, `min`/`max`, `inputMode` and `autoComplete`. Client
-  limits mirror the API's schema or DTO, never looser or invented. Form-level
-  and server errors are a toast through `getErrorMessage` (never raw server or
-  Zod text); only a message the user must keep reading while acting on it (a
-  lockout's wait time) stays on screen, in the field's message slot or a fixed
-  one-line notice. No red banners inside forms.
+  component (see CLAUDE.md §3.6). Plain counts: `formatNumber` (`lib/formatNumber.ts`,
+  fixed `en-IN` grouping), never a bare `toLocaleString()`.
+- Error text: `getErrorMessage(error, fallback?)` (`lib/errors.ts`; `fallback`
+  names the action, e.g. "Could not unlink."), never `(error as Error).message`
+  or `e instanceof Error ? e.message : …`, so a 5xx or driver message never
+  reaches a user word for word (FE review D4). ESLint enforces it
+  (`no-restricted-syntax`); a device, file or local parse error whose own text is
+  meant for people takes an `eslint-disable-next-line` comment saying so.
+- **Form errors** (owner 2026-11-24; replaces the 2026-11-17 under-the-field
+  messages, `docs/FORM_VALIDATION_AUDIT.md`): **nothing is checked while typing or
+  on leaving a field.** A blocked submit (1) turns every bad field red
+  (`aria-invalid` / `hasError`), (2) focuses the first, and (3) raises **one toast**
+  naming its problem ("Enter your email", "+ 2 more fields need a look"); the same
+  toast id replaces itself, so pressing Submit again never stacks them. After that
+  the fields re-check as you type, so a fixed field turns back to normal at once.
+  The message itself is **`FieldError`** (`FormField` uses it for you), which is
+  screen-reader text only (`sr-only`, wired by `aria-describedby`): never text drawn
+  under a field. How a form raises it: react-hook-form `mode: "onSubmit"` and
+  `handleSubmit(onValid, onInvalidSubmit)` (`components/forms/Form` does it); a form
+  that checks in its own submit handler calls `focusFirstInvalid(form)` /
+  `revealFormErrors()` or, when it keeps error state, `useRevealFormErrors(errors)`
+  (toasts only right after a Submit click/Enter, never while typing; `immediate` for
+  a problem found when a file is picked). A value that is merely invalid never
+  disables Submit (pressing it is how the user finds out); "disabled until the
+  required fields are filled" is fine. **Drawn on purpose** (`FormField
+  errorVisible` / `FieldError visible`): only a message the user must keep reading
+  while acting on it (a sign-in lockout's wait time) and a live filter with no
+  Submit (the lead funnel's date range). Forms are `noValidate`: no browser
+  bubbles, but keep `type`, `required`, `min`/`max`, `inputMode` and
+  `autoComplete`. Client limits mirror the API's schema or DTO, never looser or
+  invented. Server errors are a toast through `getErrorMessage` (never raw server or
+  Zod text). No red banners or red text inside forms.
 
 ## 6. Typography
 

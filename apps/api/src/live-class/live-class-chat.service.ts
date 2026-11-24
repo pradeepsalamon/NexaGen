@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  Logger,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import {
@@ -14,13 +15,18 @@ import {
   UserStatus,
 } from "@prisma/client";
 import { LiveClassAccessService } from "./live-class-access.service";
+import { effectiveClassSettings } from "./live-class-effective-settings";
+import { LiveClassSettingsService } from "./live-class-settings.service";
 
 /** Persisted room chat and student <-> coach private messages. */
 @Injectable()
 export class LiveClassChatService {
+  private readonly logger = new Logger(LiveClassChatService.name);
+
   constructor(
     private readonly prisma: PrismaService,
-    private readonly access: LiveClassAccessService
+    private readonly access: LiveClassAccessService,
+    private readonly settings: LiveClassSettingsService
   ) {}
 
   async saveChatMessage(
@@ -41,6 +47,17 @@ export class LiveClassChatService {
     }
 
     const liveSession = await this.access.getAccessibleLiveSession(user, classId);
+
+    // The class's chat settings hold on the server too (review L5): a student
+    // can't post to a chat that is switched or locked off.
+    if (user.role === UserRole.STUDENT) {
+      const { student } = await effectiveClassSettings(liveSession, this.settings, this.logger);
+      if (recipientId ? student.privateChat === "DISABLED" : student.chat === "DISABLED") {
+        throw new ForbiddenException(
+          recipientId ? "Private messages are switched off in this class." : "Chat is switched off in this class."
+        );
+      }
+    }
 
     if (recipientId) {
       await this.assertPrivateChatAllowed(user, liveSession, recipientId);
@@ -110,6 +127,9 @@ export class LiveClassChatService {
     }
   }
 
+  /** How many of a class's newest messages the room loads on join. */
+  static readonly CHAT_HISTORY_LIMIT = 500;
+
   async getChatHistory(
     accessToken: string | undefined,
     classId: string
@@ -128,11 +148,14 @@ export class LiveClassChatService {
           { senderId: user.id, recipientId: { not: null } },
         ],
       },
-      orderBy: { createdAt: "asc" },
-      take: 500, // Limit to last 500 messages
+      // The newest CHAT_HISTORY_LIMIT, returned oldest first. One class's chat
+      // is bounded; a room that ran past it shows its latest messages, never
+      // its first ones (review L10).
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: LiveClassChatService.CHAT_HISTORY_LIMIT,
     });
 
-    return rows.map(LiveClassChatService.toChatMessage);
+    return rows.reverse().map(LiveClassChatService.toChatMessage);
   }
 
   private static toChatMessage(row: {

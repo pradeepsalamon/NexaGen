@@ -1,12 +1,12 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { getApiEnv } from "@nexa-chess/config/api";
-import { DEFAULT_TENANT_ID } from "@nexa-chess/types";
-import type { Lead } from "@prisma/client";
+import { DEFAULT_TENANT_ID, WHATSAPP_AD_LEAD_SOURCE, isWhatsAppLeadSource, leadChildDetailsGiven } from "@nexa-chess/types";
+import type { Lead, LeadStatus } from "@prisma/client";
 import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { currentTenantId, runInTenant } from "../tenancy/tenant-context";
-import { WHATSAPP_LEAD_REUSE_DAYS, WHATSAPP_LEAD_SOURCE } from "./lead-constants";
+import { WHATSAPP_LEAD_REUSE_DAYS } from "./lead-constants";
 
 /** Waits before each retry; after the last one the push is FAILED. */
 export const CRM_PUSH_BACKOFF_MS = [60_000, 5 * 60_000, 30 * 60_000, 2 * 60 * 60_000, 12 * 60 * 60_000];
@@ -19,23 +19,82 @@ export const CRM_SAME_NUMBER_DAYS = WHATSAPP_LEAD_REUSE_DAYS;
 /** Fewer digits than this is not a number worth matching on. */
 const MIN_MATCH_DIGITS = 7;
 
+/**
+ * Each NexaGen stage's `CRM Lead Status` in Frappe (docs/LEAD_STAGES.md). They must exist there
+ * before FRAPPE_CRM_STAGE_SYNC is switched on.
+ */
+export const FRAPPE_LEAD_STAGES: Record<LeadStatus, string> = {
+  ACTIVE_STUDENT: "Enrolled",
+  CONTACTED: "Contacted",
+  CONVERTED: "Enrolled",
+  DEMO_ATTENDED: "Demo Attended",
+  DEMO_CONFIRMED: "Demo Confirmed",
+  DEMO_SCHEDULED: "Demo Booked",
+  FOLLOW_UP: "Follow Up",
+  INTERESTED: "Interested",
+  LOST: "Lost",
+  NEW: "Demo Requested",
+  NO_SHOW: "Missed Demo",
+  PAYMENT_PENDING: "Payment Pending"
+};
+
+/** Open stages in pipeline order; older Frappe names sit beside the stage they meant. */
+const FRAPPE_STAGE_RANK: Record<string, number> = {
+  "Demo Requested": 0,
+  New: 0,
+  "New Inquiry": 0,
+  Contacted: 1,
+  Interested: 2,
+  "Demo Booked": 3,
+  "Demo Scheduled": 3,
+  "Demo Confirmed": 4,
+  "Missed Demo": 5,
+  "Demo Attended": 6,
+  "Demo Completed": 6,
+  "Follow Up": 7,
+  Nurture: 7,
+  "Offer Sent": 7,
+  "Payment Pending": 8
+};
+const FRAPPE_FINAL_STAGES = new Set(["Enrolled", "Lost"]);
+const BEFORE_DEMO_RANK = 4;
+
+/**
+ * Whether a stage change may overwrite Frappe's current stage. Forward only; a stage a
+ * salesperson closed (won or lost) or one this list doesn't know is theirs and stays. A
+ * missed demo may go back to Demo Booked (booked again); Enrolled and Lost always pass,
+ * since only a person (or a payment) sets them.
+ */
+export function frappeStageMayMove(current: string | null | undefined, target: string): boolean {
+  if (!current) return true;
+  if (current === target) return false;
+  const from = FRAPPE_STAGE_RANK[current];
+  if (from === undefined) return false;
+  if (FRAPPE_FINAL_STAGES.has(target)) return true;
+  const to = FRAPPE_STAGE_RANK[target];
+  if (to === undefined) return false;
+  return to > from || (current === "Missed Demo" && to <= BEFORE_DEMO_RANK);
+}
+
 export type FrappeCrmConfig = {
   apiKey: string;
   apiSecret: string;
   countryCode: string;
   leadSource: string;
   leadStatus: string;
+  /** Copy stage changes after the first push (FRAPPE_CRM_STAGE_SYNC). */
+  stageSync: boolean;
   url: string;
   websiteLeadSource: string;
 };
 
 type PushLead = Pick<
   Lead,
-  "campaign" | "createdAt" | "email" | "experienceLevel" | "id" | "parentName" | "phone" | "source" | "studentAge" | "studentName"
+  "campaign" | "createdAt" | "email" | "experienceLevel" | "id" | "parentName" | "phone" | "source" | "status" | "studentAge" | "studentName"
 >;
 
 function fromWhatsApp(lead: Pick<Lead, "source">): boolean {
-  return lead.source === WHATSAPP_LEAD_SOURCE;
+  return isWhatsAppLeadSource(lead.source);
 }
 
 /** A Frappe answer that retrying can't fix (bad data, missing source/status). */
@@ -68,8 +127,9 @@ export function frappeLeadDocument(lead: PushLead, config: FrappeCrmConfig) {
     first_name: lead.parentName.trim().slice(0, 140) || (whatsapp ? "WhatsApp lead" : "Website lead"),
     mobile_no: frappePhone(lead.phone, config.countryCode),
     source: whatsapp ? config.leadSource : config.websiteLeadSource,
-    status: config.leadStatus,
-    student_name: lead.studentName.trim().slice(0, 140)
+    status: config.stageSync ? FRAPPE_LEAD_STAGES[lead.status] : config.leadStatus,
+    // A lead captured from a WhatsApp chat has no child details yet: nothing pretends otherwise.
+    ...(leadChildDetailsGiven(lead) ? { student_name: lead.studentName.trim().slice(0, 140) } : {})
   };
 }
 
@@ -81,12 +141,22 @@ export function frappeNoteMarker(leadId: string): string {
 /** The `FCRM Note` on that lead: the child's age and level, and where the booking came from. HTML, escaped. */
 export function frappeLeadNote(lead: PushLead): { content: string; title: string } {
   const whatsapp = fromWhatsApp(lead);
-  const cameFrom = !whatsapp && lead.source ? `Came from: ${lead.source.slice(0, 200)}${lead.campaign ? ` (campaign ${lead.campaign.slice(0, 100)})` : ""}` : null;
+  const details = leadChildDetailsGiven(lead);
+  const cameFrom =
+    lead.source === WHATSAPP_AD_LEAD_SOURCE
+      ? `Came from: a Click-to-WhatsApp ad${lead.campaign ? ` (${lead.campaign.slice(0, 100)})` : ""}`
+      : !whatsapp && lead.source
+        ? `Came from: ${lead.source.slice(0, 200)}${lead.campaign ? ` (campaign ${lead.campaign.slice(0, 100)})` : ""}`
+        : null;
   const lines = [
-    `Student: ${lead.studentName} (age ${lead.studentAge}, ${lead.experienceLevel})`,
+    details ? `Student: ${lead.studentName} (age ${lead.studentAge}, ${lead.experienceLevel})` : "Student: not given yet",
     `Parent: ${lead.parentName}`,
     lead.email ? `Email: ${lead.email}` : null,
-    whatsapp ? "Booked a demo through the WhatsApp assistant." : "Booked a demo through the website form.",
+    whatsapp
+      ? details
+        ? "Booked a demo through the WhatsApp assistant."
+        : "Wrote to the academy on WhatsApp; no demo booked yet."
+      : "Booked a demo through the website form.",
     cameFrom,
     frappeNoteMarker(lead.id)
   ].filter((line): line is string => line !== null);
@@ -142,6 +212,7 @@ export class FrappeCrmPushService {
       countryCode: env.WHATSAPP_DEFAULT_COUNTRY_CODE ?? "",
       leadSource: env.FRAPPE_CRM_LEAD_SOURCE,
       leadStatus: env.FRAPPE_CRM_LEAD_STATUS,
+      stageSync: env.FRAPPE_CRM_STAGE_SYNC,
       url,
       websiteLeadSource: env.FRAPPE_CRM_WEBSITE_LEAD_SOURCE
     };
@@ -152,6 +223,31 @@ export class FrappeCrmPushService {
     if (currentTenantId() !== DEFAULT_TENANT_ID || !this.config()) return false;
     await tx.crmLeadPush.create({ data: { leadId } });
     return true;
+  }
+
+  /**
+   * In the transaction that changed a lead's stage: send it again (stage sync only; a lead never
+   * copied has no row). A send already running finds the newer stage when it finishes.
+   */
+  async markStageChanged(tx: Pick<PrismaTransactionClient, "crmLeadPush">, leadId: string): Promise<void> {
+    if (!this.config()?.stageSync) return;
+    await tx.crmLeadPush.updateMany({
+      data: { attempts: 0, error: null, nextAttemptAt: new Date(), status: "PENDING" },
+      where: { leadId }
+    });
+  }
+
+  /**
+   * In the transaction that filled a chat lead's child details (a demo booked later on the same
+   * number): the next send sets `student_name` and adds a note on the Frappe lead (review Part 1 #1).
+   * A lead never copied has no row; one not copied yet goes with its details anyway.
+   */
+  async markDetailsChanged(tx: Pick<PrismaTransactionClient, "crmLeadPush">, leadId: string): Promise<void> {
+    if (!this.config()) return;
+    await tx.crmLeadPush.updateMany({
+      data: { attempts: 0, detailsPending: true, error: null, nextAttemptAt: new Date(), status: "PENDING" },
+      where: { leadId }
+    });
   }
 
   /** After commit: try it now. Never throws (the sweep retries). */
@@ -199,34 +295,72 @@ export class FrappeCrmPushService {
     if (!row) return;
 
     try {
-      // Frappe may already have this family: from an ad form, the other channel, a lead the sales
-      // team typed in, or an earlier attempt of this push whose answer was lost.
-      const existing = await this.findSameNumber(config, row.lead, now);
-      const name = existing ?? (await this.create(config, row.lead));
-      if (existing) {
-        // Here the note is the whole copy, so it must arrive (a retry never adds it twice).
-        if (!(await this.hasNote(config, existing, row.lead))) await this.addNote(config, existing, row.lead);
-      } else {
-        // The child's age and level ride on a note; a lead without it is still a lead.
-        try {
-          await this.addNote(config, name, row.lead);
-        } catch (error) {
-          this.logger.warn(`Frappe CRM note for ${name} not added: ${(error as Error).message}`);
+      let name = row.externalId;
+      const createdNow = !name;
+      if (!name) {
+        // Frappe may already have this family: from an ad form, the other channel, a lead the sales
+        // team typed in, or an earlier attempt of this push whose answer was lost.
+        const existing = await this.findSameNumber(config, row.lead, now);
+        name = existing ?? (await this.create(config, row.lead));
+        if (existing) {
+          // Here the note is the whole copy, so it must arrive (a retry never adds it twice).
+          if (!(await this.hasNote(config, existing, row.lead))) await this.addNote(config, existing, row.lead);
+        } else {
+          // The child's age and level ride on a note; a lead without it is still a lead.
+          try {
+            await this.addNote(config, name, row.lead);
+          } catch (error) {
+            this.logger.warn(`Frappe CRM note for ${name} not added: ${(error as Error).message}`);
+          }
         }
+        // Saved before the stage step, so a retry never makes the lead twice.
+        await this.prisma.$transaction([
+          this.prisma.crmLeadPush.update({
+            data: { externalId: name, sentStatus: existing || !config.stageSync ? null : row.lead.status },
+            where: { id }
+          }),
+          this.prisma.leadActivity.create({
+            data: existing
+              ? {
+                  activityType: "CRM_PUSHED",
+                  description: `Frappe CRM already had lead ${name} for this number; a note was added there.`,
+                  leadId: row.leadId,
+                  title: "Added to a Frappe CRM lead"
+                }
+              : { activityType: "CRM_PUSHED", description: `Frappe CRM lead ${name}.`, leadId: row.leadId, title: "Sent to Frappe CRM" }
+          })
+        ]);
+        row.sentStatus = existing || !config.stageSync ? null : row.lead.status;
       }
-      await this.prisma.$transaction([
-        this.prisma.crmLeadPush.update({ data: { claimedAt: null, error: null, externalId: name, sentAt: new Date(), status: "SENT" }, where: { id } }),
-        this.prisma.leadActivity.create({
-          data: existing
-            ? {
-                activityType: "CRM_PUSHED",
-                description: `Frappe CRM already had lead ${name} for this number; a note was added there.`,
-                leadId: row.leadId,
-                title: "Added to a Frappe CRM lead"
-              }
-            : { activityType: "CRM_PUSHED", description: `Frappe CRM lead ${name}.`, leadId: row.leadId, title: "Sent to Frappe CRM" }
-        })
+      // Details that came after the first copy (a lead made from it already has them).
+      const detailsGiven = leadChildDetailsGiven(row.lead);
+      if (row.detailsPending && !createdNow && detailsGiven) {
+        await this.sendDetails(config, name, row.lead);
+      }
+      let sentStatus = row.sentStatus;
+      if (config.stageSync && sentStatus !== row.lead.status) {
+        await this.syncStage(config, name, row.lead.status);
+        sentStatus = row.lead.status;
+      }
+      // A stage that changed while this ran is sent next time (the row stays PENDING), and so are
+      // details that arrived while it ran.
+      const [latest, latestRow] = await Promise.all([
+        this.prisma.lead.findUnique({ select: { status: true }, where: { id: row.leadId } }),
+        this.prisma.crmLeadPush.findUnique({ select: { detailsPending: true }, where: { id } })
       ]);
+      const detailsLeft = Boolean(latestRow?.detailsPending) && !detailsGiven;
+      const done = (!config.stageSync || !latest || latest.status === sentStatus) && !detailsLeft;
+      await this.prisma.crmLeadPush.update({
+        data: {
+          claimedAt: null,
+          error: null,
+          sentAt: new Date(),
+          sentStatus,
+          ...(detailsLeft ? {} : { detailsPending: false }),
+          ...(done ? { status: "SENT" } : {})
+        },
+        where: { id }
+      });
     } catch (error) {
       const message = (error as Error).message.slice(0, 300);
       const final = error instanceof FrappeCrmRejectedError || row.attempts >= CRM_PUSH_MAX_ATTEMPTS;
@@ -246,7 +380,17 @@ export class FrappeCrmPushService {
     }
   }
 
-  private async request(config: FrappeCrmConfig, method: "GET" | "POST", path: string, body?: unknown): Promise<unknown> {
+  /** Moves the Frappe lead to the stage's name, unless Frappe's own stage must stay (`frappeStageMayMove`). */
+  private async syncStage(config: FrappeCrmConfig, name: string, status: LeadStatus): Promise<void> {
+    const path = `/api/resource/CRM%20Lead/${encodeURIComponent(name)}`;
+    const found = (await this.request(config, "GET", path)) as { data?: { status?: unknown } };
+    const current = typeof found?.data?.status === "string" ? found.data.status : null;
+    const target = FRAPPE_LEAD_STAGES[status];
+    if (frappeStageMayMove(current, target)) await this.request(config, "PUT", path, { status: target });
+  }
+
+  /** One call to Frappe's REST API; also used by the stage return path. */
+  async request(config: FrappeCrmConfig, method: "GET" | "POST" | "PUT", path: string, body?: unknown): Promise<unknown> {
     const res = await fetch(`${config.url}${path}`, {
       body: body === undefined ? undefined : JSON.stringify(body),
       headers: {
@@ -285,6 +429,19 @@ export class FrappeCrmPushService {
 
   private async addNote(config: FrappeCrmConfig, name: string, lead: PushLead): Promise<void> {
     await this.request(config, "POST", "/api/resource/FCRM%20Note", { ...frappeLeadNote(lead), reference_docname: name, reference_doctype: "CRM Lead" });
+  }
+
+  /** The child's details on a Frappe lead copied before they were given. */
+  private async sendDetails(config: FrappeCrmConfig, name: string, lead: PushLead): Promise<void> {
+    await this.request(config, "PUT", `/api/resource/CRM%20Lead/${encodeURIComponent(name)}`, {
+      student_name: lead.studentName.trim().slice(0, 140)
+    });
+    await this.request(config, "POST", "/api/resource/FCRM%20Note", {
+      ...frappeLeadNote(lead),
+      reference_docname: name,
+      reference_doctype: "CRM Lead",
+      title: "Child details (NexaGen)"
+    });
   }
 
   private async hasNote(config: FrappeCrmConfig, name: string, lead: PushLead): Promise<boolean> {

@@ -133,6 +133,7 @@ export function MeetingVideoEffects() {
       toast.success("Background updated", { duration: 2000 });
     } catch (error) {
       toast.error("Couldn't use that image", {
+        // eslint-disable-next-line no-restricted-syntax -- the image loader's error says why the file can't be used
         description: error instanceof Error ? error.message : undefined,
       });
     } finally {

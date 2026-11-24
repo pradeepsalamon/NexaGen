@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -52,7 +53,7 @@ import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { WidgetError } from "@/components/ui/WidgetError";
-import { useBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
+import { useAllBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDateTime } from "@/lib/datetime";
 import { queryKeys } from "@/lib/queryKeys";
@@ -214,7 +215,7 @@ function Editor({ article }: { article: KnowledgeAdminArticleDetail | null }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const categories = useKnowledgeCategories();
-  const batches = useBatchesQuery({ pageSize: 100 });
+  const batches = useAllBatchesQuery();
   const others = useKnowledgeArticles({});
 
   // A freshly saved draft resets "what changed".
@@ -238,7 +239,7 @@ function Editor({ article }: { article: KnowledgeAdminArticleDetail | null }) {
       if (success) toast.success({ title: success });
       return result;
     } catch (err) {
-      toast.error({ message: err instanceof Error ? err.message : undefined, title: `Could not ${label}` });
+      toast.error({ message: getErrorMessage(err), title: `Could not ${label}` });
       return undefined;
     } finally {
       setBusy(null);

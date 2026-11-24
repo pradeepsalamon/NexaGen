@@ -11,7 +11,7 @@ import { WidgetError } from "@/components/ui/WidgetError";
 import { BatchStatusBadge } from "@/features/batches/components/BatchStatusBadge";
 import { BatchSummaryCard, BatchSummaryCardSkeleton, type BatchSummaryFact } from "@/features/batches/components/BatchSummaryCard";
 import { BatchTypeBadge } from "@/features/batches/components/BatchTypeBadge";
-import { useBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
+import { useAllBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
 import { formatFullDate } from "@/lib/datetime";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -21,7 +21,7 @@ const CLASSMATES_SHOWN = 8;
 const STATUS_ORDER: Record<Batch["status"], number> = { ACTIVE: 0, ARCHIVED: 3, COMPLETED: 2, UPCOMING: 1 };
 
 export function StudentBatchesClient() {
-  const { data, error, isLoading, refetch } = useBatchesQuery();
+  const { data, error, isLoading, refetch } = useAllBatchesQuery();
   const batches = [...(data?.batches ?? [])].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
 
   return (

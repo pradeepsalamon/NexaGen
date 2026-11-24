@@ -1,5 +1,7 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
+import { FieldError, fieldErrorId } from "@/components/ui/FieldError";
 import { useMemo, useRef, useState } from "react";
 import { Chess } from "@/lib/chess";
 import type { SolutionMove } from "@nexa-chess/types";
@@ -102,6 +104,8 @@ function ImportPanel({ onImport }: { onImport: (line: ImportedLine) => void }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // A notation that can't be read: the box turns red and one toast says why (UI_RULES § "Form errors").
+  useRevealFormErrors(error);
   const [games, setGames] = useState<{ raw: string; titles: string[] } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -121,6 +125,7 @@ function ImportPanel({ onImport }: { onImport: (line: ImportedLine) => void }) {
       setGames(null);
       setOpen(false);
     } catch (e) {
+      // eslint-disable-next-line no-restricted-syntax -- a PGN/FEN parse error from the text the coach pasted, meant to be read
       setError(e instanceof Error ? e.message : "Couldn't import that.");
     }
   };
@@ -144,6 +149,8 @@ function ImportPanel({ onImport }: { onImport: (line: ImportedLine) => void }) {
             and solution.
           </p>
           <Textarea
+            aria-describedby={error ? fieldErrorId("solution-import") : undefined}
+            aria-invalid={Boolean(error)}
             rows={4}
             className="font-mono text-xs"
             value={text}
@@ -170,7 +177,7 @@ function ImportPanel({ onImport }: { onImport: (line: ImportedLine) => void }) {
               />
             </div>
           ) : null}
-          {error ? <p className="text-xs text-app-danger-ink">{error}</p> : null}
+          <FieldError id="solution-import" message={error} />
           <div className="flex flex-wrap gap-2">
             <Button type="button" size="sm" onClick={() => apply(text)}>
               Import

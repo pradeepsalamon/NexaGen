@@ -1,5 +1,6 @@
 "use client";
 
+import { onInvalidSubmit } from "@/lib/forms";
 import Link from "next/link";
 import { useRouter } from "@/lib/navigation";
 import { useRef, useState, type ReactNode } from "react";
@@ -115,7 +116,7 @@ function EditorForm({ tournament }: { tournament?: TournamentDetailDto }) {
   const qc = useQueryClient();
   const toast = useToast();
   const initial = defaultTournamentForm(tournament);
-  const form = useForm<TournamentForm>({ mode: "onTouched", defaultValues: initial, resolver: zodResolver(tournamentFormSchema) });
+  const form = useForm<TournamentForm>({ mode: "onSubmit", defaultValues: initial, resolver: zodResolver(tournamentFormSchema) });
   const { errors } = form.formState;
   const format = form.watch("format");
   const roundStartMode = form.watch("roundStartMode");
@@ -189,7 +190,7 @@ function EditorForm({ tournament }: { tournament?: TournamentDetailDto }) {
   );
 
   return (
-    <form className="flex flex-col gap-5" noValidate onSubmit={form.handleSubmit(submit)}>
+    <form className="flex flex-col gap-5" noValidate onSubmit={form.handleSubmit(submit, onInvalidSubmit)}>
       {started ? <Alert variant="info">This tournament has started: only its name, texts, spectator delay and how the next rounds start can change.</Alert> : null}
       <SectionCard description="What players see first." title="Basics">
         <div className="flex flex-col gap-4">

@@ -324,6 +324,7 @@ export class ReferralVouchersService {
       const redemption = await tx.referralRedemption.create({
         data: {
           amountOffMinor: voucher.amountOffMinor,
+          codeValidDays: voucher.codeValidDays,
           currency: settings.currency,
           freeDays: voucher.freeDays,
           maxDiscountMinor: voucher.maxDiscountMinor,
@@ -334,7 +335,8 @@ export class ReferralVouchersService {
           type: voucher.type,
           userId: user.id,
           voucherId: voucher.id,
-          voucherName: voucher.name
+          voucherName: voucher.name,
+          voucherPlanIds: voucher.planIds
         }
       });
       await this.credits.debitRedemption(tx, {
@@ -344,7 +346,7 @@ export class ReferralVouchersService {
         redemptionId: redemption.id,
         userId: user.id
       });
-      if (!voucher.requiresApproval) await this.fulfil(tx, redemption.id, null, displayName(user), voucher);
+      if (!voucher.requiresApproval) await this.fulfil(tx, redemption.id, null, displayName(user));
       return redemption.id;
     });
     return this.getItem(id);
@@ -378,14 +380,11 @@ export class ReferralVouchersService {
     throw new BadRequestException("Free days need an active plan to add to.");
   }
 
-  /** PENDING → FULFILLED, issuing the code or the free days. */
-  private async fulfil(
-    tx: PrismaTransactionClient,
-    redemptionId: string,
-    reviewerId: string | null,
-    userName: string,
-    voucher: Pick<ReferralVoucher, "codeValidDays" | "planIds">
-  ) {
+  /**
+   * PENDING → FULFILLED, issuing the code or the free days, on the terms the
+   * redemption froze when it was made, never the voucher's current ones (review R4).
+   */
+  private async fulfil(tx: PrismaTransactionClient, redemptionId: string, reviewerId: string | null, userName: string) {
     const now = new Date();
     const { count } = await tx.referralRedemption.updateMany({
       data: { fulfilledAt: now, reviewedAt: reviewerId ? now : null, reviewedById: reviewerId, status: "FULFILLED" },
@@ -393,9 +392,10 @@ export class ReferralVouchersService {
     });
     if (count === 0) await this.throwState(tx, redemptionId);
     const redemption = await tx.referralRedemption.findUniqueOrThrow({ where: { id: redemptionId } });
+    const terms = { codeValidDays: redemption.codeValidDays, planIds: redemption.voucherPlanIds };
 
     if (redemption.type === "FREE_DAYS") {
-      const planId = redemption.planId ?? (await this.resolveFreeDaysPlan(tx, voucher, redemption.userId, undefined, now));
+      const planId = redemption.planId ?? (await this.resolveFreeDaysPlan(tx, terms, redemption.userId, undefined, now));
       const { entitlement } = await this.entitlements.grantFreeDays(tx, {
         days: redemption.freeDays ?? 0,
         now,
@@ -412,11 +412,11 @@ export class ReferralVouchersService {
     const discount = await this.discounts.createPersonalVoucherCode(tx, {
       createdById: reviewerId,
       currency: redemption.currency,
-      endsAt: voucher.codeValidDays ? new Date(now.getTime() + voucher.codeValidDays * DAY_MS) : null,
+      endsAt: terms.codeValidDays ? new Date(now.getTime() + terms.codeValidDays * DAY_MS) : null,
       maxDiscountMinor: redemption.maxDiscountMinor,
       minOrderMinor: redemption.minOrderMinor,
       name: `${redemption.voucherName} — ${userName}`,
-      planIds: voucher.planIds,
+      planIds: terms.planIds,
       type: redemption.type === "PERCENT_DISCOUNT" ? "PERCENTAGE" : "FIXED",
       userId: redemption.userId,
       value: redemption.type === "PERCENT_DISCOUNT" ? (redemption.percentOff ?? 0) : (redemption.amountOffMinor ?? 0)
@@ -449,11 +449,11 @@ export class ReferralVouchersService {
   async approve(adminId: string, redemptionId: string) {
     await this.prisma.$transaction(async (tx) => {
       const redemption = await tx.referralRedemption.findUnique({
-        include: { user: { select: { firstName: true, lastName: true } }, voucher: { select: { codeValidDays: true, planIds: true } } },
+        include: { user: { select: { firstName: true, lastName: true } } },
         where: { id: redemptionId }
       });
       if (!redemption) throw new NotFoundException("Redemption not found.");
-      await this.fulfil(tx, redemption.id, adminId, displayName(redemption.user), redemption.voucher);
+      await this.fulfil(tx, redemption.id, adminId, displayName(redemption.user));
     });
   }
 

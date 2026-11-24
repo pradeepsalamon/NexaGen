@@ -9,6 +9,8 @@ import * as path from "path";
  * proven against the real app in test/integration/access/admin-routes.int-spec.ts.
  */
 const PUBLIC_ROUTES = new Set([
+  // An invited demo guest asks for their link again; the answer never says who is invited.
+  "demo-class/demo-guest.controller.ts#resendDemoInvite",
   "auth/auth.controller.ts#forgotPassword",
   "auth/auth.controller.ts#resetPassword",
   "auth/auth.controller.ts#verifyEmail",
@@ -22,6 +24,9 @@ const PUBLIC_ROUTES = new Set([
   "health/health.controller.ts#live",
   "health/health.controller.ts#ready",
   "live-class/live-class.controller.ts#getDemoInfo",
+  // Puzzle of the Day's WhatsApp board picture (docs/PUZZLE_OF_THE_DAY.md step 3):
+  // the signed, expiring link is the credential; a position, no student data.
+  "puzzle/daily-puzzle.controller.ts#picture",
   "live-class/live-class.controller.ts#joinDemoClass",
   // Anonymous tournament spectating (docs/TOURNAMENTS.md §4.1): a 404 unless the
   // academy allows it; only the public projection (no user ids or personal data).

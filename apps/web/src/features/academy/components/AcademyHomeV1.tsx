@@ -15,6 +15,7 @@ import { SessionTimingSection } from "./SessionTimingSection";
 import { StatsSection } from "./StatsSection";
 import { SundayTrainingSection } from "./SundayTrainingSection";
 import { TestimonialsSection } from "./TestimonialsSection";
+import { AdMeasurement } from "@/features/ad-consent/components/AdMeasurement";
 import { TrackingProvider } from "./TrackingProvider";
 import { WhyChooseUsSection } from "./WhyChooseUsSection";
 
@@ -29,6 +30,7 @@ export function AcademyHomeV1() {
     <div className="academy-page relative font-[family-name:var(--font-inter)]">
       <style dangerouslySetInnerHTML={{ __html: academyFontVariablesCss }} />
       <TrackingProvider />
+      <AdMeasurement />
       <ScrollObserver />
       <main className="relative">
         <AcademyNavbar />

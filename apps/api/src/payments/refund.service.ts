@@ -62,6 +62,9 @@ const REFUND_INCLUDE = {
  * PENDING/PROCESSING; only a provider webhook — or a reconciliation read of the
  * provider's own record — settles it to SUCCEEDED.
  */
+/** How a refund request marks the access it revoked, so a failed refund can restore it. */
+const REFUND_REVOKE_REASON = "Refund requested: ";
+
 @Injectable()
 export class RefundService {
   private readonly logger = new Logger(RefundService.name);
@@ -111,42 +114,50 @@ export class RefundService {
       );
     }
 
-    // Money already promised out counts against the balance, even before it
-    // settles — otherwise two quick partial refunds could exceed the payment.
-    const committed = payment.refunds
-      .filter((refund) => refund.status !== RefundStatus.FAILED && refund.status !== RefundStatus.CANCELLED)
-      .reduce((sum, refund) => sum + refund.amount, 0);
+    // The balance is read and the refund written under the payment's row lock
+    // (review P10): two admins refunding at once can't both pass on the same
+    // balance.
+    const { amount, refund } = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "payments" WHERE id = ${payment.id} FOR UPDATE`;
+      const refunds = await tx.refund.findMany({ select: { amount: true, status: true }, where: { paymentId: payment.id } });
+      // Money already promised out counts against the balance, even before it
+      // settles — otherwise two quick partial refunds could exceed the payment.
+      const committed = refunds
+        .filter((row) => row.status !== RefundStatus.FAILED && row.status !== RefundStatus.CANCELLED)
+        .reduce((sum, row) => sum + row.amount, 0);
 
-    const remaining = payment.amount - committed;
-    if (remaining <= 0) {
-      throw new ConflictException("This payment has already been fully refunded.");
-    }
-
-    const amount = dto.amount ?? remaining;
-    if (amount > remaining) {
-      throw new BadRequestException(
-        `The most that can still be refunded on this payment is ${remaining} (minor units).`
-      );
-    }
-
-    const refund = await this.prisma.refund.create({
-      data: {
-        paymentId: payment.id,
-        provider: payment.provider,
-        amount,
-        currency: payment.currency,
-        status: RefundStatus.PENDING,
-        reason: dto.reason,
-        // The row id is the provider idempotency key, so a retried request can
-        // never issue a second refund for the same intent.
-        idempotencyKey: `refund_${payment.id}_${Date.now().toString(36)}`,
-        requestedById: admin.id
+      const remaining = payment.amount - committed;
+      if (remaining <= 0) {
+        throw new ConflictException("This payment has already been fully refunded.");
       }
-    });
 
-    await this.prisma.payment.update({
-      where: { id: payment.id },
-      data: { status: PaymentStatus.REFUND_PENDING }
+      const requested = dto.amount ?? remaining;
+      if (requested > remaining) {
+        throw new BadRequestException(
+          `The most that can still be refunded on this payment is ${remaining} (minor units).`
+        );
+      }
+
+      const created = await tx.refund.create({
+        data: {
+          paymentId: payment.id,
+          provider: payment.provider,
+          amount: requested,
+          currency: payment.currency,
+          status: RefundStatus.PENDING,
+          reason: dto.reason,
+          // The provider idempotency key, so a retried request can never issue
+          // a second refund for the same intent.
+          idempotencyKey: `refund_${payment.id}_${Date.now().toString(36)}`,
+          requestedById: admin.id
+        }
+      });
+
+      await tx.payment.update({
+        where: { id: payment.id },
+        data: { status: PaymentStatus.REFUND_PENDING }
+      });
+      return { amount: requested, refund: created };
     });
 
     // Revoked only once the gateway has not definitively refused the refund.
@@ -156,7 +167,7 @@ export class RefundService {
         await this.entitlements.revokeForOrder(
           tx,
           payment.orderId,
-          `Refund requested: ${dto.reason}`.slice(0, 500)
+          `${REFUND_REVOKE_REASON}${dto.reason}`.slice(0, 500)
         );
       });
     };
@@ -467,6 +478,12 @@ export class RefundService {
               : PaymentStatus.PARTIALLY_REFUNDED
       }
     });
+
+    // Access a refund request took away comes back when no money went back
+    // after all (review P9): the refund failed and none succeeded.
+    if (succeeded === 0) {
+      await this.entitlements.restoreRevokedForOrder(tx, payment.orderId, REFUND_REVOKE_REASON);
+    }
   }
 
   private toItem(row: RefundRow): RefundItem {

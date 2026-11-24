@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import "./academy-v2.css";
 import { TrackingProvider } from "@/features/academy/components/TrackingProvider";
+import { AdMeasurement } from "@/features/ad-consent/components/AdMeasurement";
 import { cn } from "@/lib/utils";
 import { AcademyFloatingElements } from "./AcademyFloatingElements";
 import { AcademyFooter } from "./AcademyFooter";
@@ -23,6 +24,7 @@ export function AcademyHomeV2({ children, className }: { children?: ReactNode; c
     <div className={cn("academy-v2 relative", className)}>
       {children}
       <TrackingProvider />
+      <AdMeasurement />
       <AcademyNavbar />
       <main className="relative">
         <HeroSection />

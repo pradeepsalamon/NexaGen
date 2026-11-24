@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useEffect, useState } from "react";
 import { CHAT_GROUP_NAME_MAX_LENGTH, type ChatContact } from "@nexa-chess/types";
 import { MessageCirclePlus, Search } from "lucide-react";
@@ -53,7 +54,7 @@ export function NewChatDialog({ canCreateGroup, onOpenChange, onOpened, open }: 
 
   const openDirect = (contact: ChatContact) => {
     startDirect.mutate(contact.id, {
-      onError: (err) => toast.error(err instanceof Error ? err.message : "Could not open the conversation."),
+      onError: (err) => toast.error(getErrorMessage(err, "Could not open the conversation.")),
       onSuccess: (detail) => {
         onOpenChange(false);
         onOpened(detail.id);
@@ -65,7 +66,7 @@ export function NewChatDialog({ canCreateGroup, onOpenChange, onOpened, open }: 
     createGroup.mutate(
       { memberIds: [...members], name: groupName.trim() },
       {
-        onError: (err) => toast.error(err instanceof Error ? err.message : "Could not create the group."),
+        onError: (err) => toast.error(getErrorMessage(err, "Could not create the group.")),
         onSuccess: (detail) => {
           toast.success(`Group "${detail.title}" created.`);
           onOpenChange(false);

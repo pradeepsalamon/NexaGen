@@ -1,5 +1,6 @@
 "use client";
 
+import { onInvalidSubmit } from "@/lib/forms";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -30,6 +31,16 @@ import { Textarea } from "@/components/ui/Textarea";
 import { referralAdminApi } from "../../api/referralAdminApi";
 import { useReferralAdminMutation, useReferralBonusRules, useReferralSettings, useReferralStages } from "../../hooks/useReferralAdmin";
 import { money, parseMajorAmount, parseWhole } from "../../lib/referralFormat";
+
+/**
+ * What actually happens to a bonus (review R5): a "link opened" stage never
+ * pays, a "demo booked" one always waits for an admin; the API enforces both.
+ */
+function BonusApprovalBadge({ rule, trigger }: { rule: ReferralBonusRuleItem; trigger?: ReferralStageItem["trigger"] }) {
+  if (trigger === "LINK_VISITED") return <Badge variant="secondary">Never paid</Badge>;
+  const automatic = rule.autoApprove && trigger !== "DEMO_BOOKED";
+  return <Badge variant={automatic ? "success" : "warning"}>{automatic ? "Automatic" : "Admin approves"}</Badge>;
+}
 
 /** Milestone bonuses: every N of a referrer's referrals reaching a stage pays extra. */
 export function BonusRulesPanel() {
@@ -84,7 +95,7 @@ export function BonusRulesPanel() {
                 </TableCell>
                 <TableCell className="text-sm">{REFERRAL_BONUS_AUDIENCE_LABELS[rule.audience]}</TableCell>
                 <TableCell>
-                  <Badge variant={rule.autoApprove ? "success" : "warning"}>{rule.autoApprove ? "Automatic" : "Admin approves"}</Badge>
+                  <BonusApprovalBadge rule={rule} trigger={stages.find((stage) => stage.id === rule.stageId)?.trigger} />
                 </TableCell>
                 <TableCell className="text-right font-bold tabular-nums">{amount(rule)}</TableCell>
                 <TableCell pin="end">
@@ -153,7 +164,7 @@ function BonusDialog({
 }) {
   const defaultStage = stages.find((stage) => stage.trigger === "CONVERTED") ?? stages[0];
   const form = useForm<BonusForm>({
-    mode: "onTouched",
+    mode: "onSubmit",
     defaultValues: {
       amount: rule ? (rule.audience === "STUDENTS" ? String(rule.amount) : String(toMajorUnits(rule.amount, rule.currency))) : "",
       audience: rule?.audience ?? "STUDENTS",
@@ -168,6 +179,8 @@ function BonusDialog({
   });
   const { errors } = form.formState;
   const isPoints = form.watch("audience") === "STUDENTS";
+  const stageTrigger = stages.find((stage) => stage.id === form.watch("stageId"))?.trigger;
+  const alwaysHeld = stageTrigger === "DEMO_BOOKED";
 
   const save = useReferralAdminMutation(
     async (values: BonusForm) => {
@@ -196,10 +209,10 @@ function BonusDialog({
           <DialogDescription>Changes apply to bonuses earned from now on.</DialogDescription>
         </DialogHeader>
         <form
-          className="grid max-h-[65dvh] gap-4 overflow-y-auto pr-1"
+          className="grid max-h-[65dvh] gap-4 dialog-scroll-body"
           id="bonus-form"
           noValidate
-          onSubmit={form.handleSubmit((values) => save.mutate(values, { onSuccess: onClose }))}
+          onSubmit={form.handleSubmit((values) => save.mutate(values, { onSuccess: onClose }), onInvalidSubmit)}
         >
           <FormField error={errors.name?.message} id="bonus-name" label="Name" required>
             <Input id="bonus-name" placeholder="Super referrer" {...form.register("name")} />
@@ -221,7 +234,10 @@ function BonusDialog({
             <FormField error={errors.stageId?.message} id="bonus-stage" label="That reach">
               <Select
                 id="bonus-stage"
-                options={stages.filter((stage) => stage.trigger !== "LOST").map((stage) => ({ label: stage.name, value: stage.id }))}
+                options={stages
+                  // A "link opened" stage never pays a referrer (review R5); kept only for a rule already on it.
+                  .filter((stage) => stage.trigger !== "LOST" && (stage.trigger !== "LINK_VISITED" || stage.id === rule?.stageId))
+                  .map((stage) => ({ label: stage.name, value: stage.id }))}
                 {...form.register("stageId")}
               />
             </FormField>
@@ -232,10 +248,15 @@ function BonusDialog({
           <label className="flex items-center justify-between gap-3 text-sm text-app-text" htmlFor="bonus-auto">
             <span>
               Credit automatically
-              <span className="block text-xs text-app-muted">Off: each bonus waits for an admin to approve it.</span>
+              <span className="block text-xs text-app-muted">
+                {alwaysHeld
+                  ? "Bonuses for booking a demo always wait for an admin: anyone can book one."
+                  : "Off: each bonus waits for an admin to approve it."}
+              </span>
             </span>
             <Switch
-              checked={form.watch("autoApprove")}
+              checked={form.watch("autoApprove") && !alwaysHeld}
+              disabled={alwaysHeld}
               id="bonus-auto"
               onCheckedChange={(checked) => form.setValue("autoApprove", checked, { shouldDirty: true })}
             />

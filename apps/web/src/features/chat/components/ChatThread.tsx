@@ -302,7 +302,7 @@ export function ChatThread({ conversationId, onBack, initialDraft }: Props) {
             You can read this conversation but can no longer send messages in it.
           </p>
         ) : (
-          <form
+          <form noValidate
             className="flex items-end gap-2"
             onSubmit={(e) => {
               e.preventDefault();

@@ -103,6 +103,7 @@ export class TournamentRealtimeService implements OnModuleInit, OnModuleDestroy 
             blackClockMs: true,
             blackPlayer: { select: { userId: true } },
             fen: true,
+            finishedAt: true,
             firstMoveDeadline: true,
             movesJson: true,
             ply: true,
@@ -138,10 +139,14 @@ export class TournamentRealtimeService implements OnModuleInit, OnModuleDestroy 
               }
             : undefined;
         await send(TOURNAMENT_REALTIME_TOPICS.game, { gameId: event.gameId, ply: game.ply, type: "game", ...(move ? { move } : {}) }, players);
-        const lastAt = last?.at ?? Date.now();
-        const visibleAt = new Date(lastAt + game.tournament.spectatorDelaySec * 1000).toISOString();
+        // Spectators learn only *when* to look again, never what happened: a
+        // result shows once its own delay has passed (review F5).
+        const changedAt =
+          game.status === TournamentGameStatus.FINISHED
+            ? (game.finishedAt?.getTime() ?? Date.now())
+            : (last?.at ?? Date.now());
+        const visibleAt = new Date(changedAt + game.tournament.spectatorDelaySec * 1000).toISOString();
         await send(TOURNAMENT_REALTIME_TOPICS.spectate, {
-          finished: game.status === TournamentGameStatus.FINISHED,
           gameId: event.gameId,
           type: "spectate",
           visibleAt

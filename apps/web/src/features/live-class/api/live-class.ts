@@ -1,4 +1,5 @@
 import { API_BASE_URL, apiFetch } from "@/lib/api";
+import { sendOnUnload } from "@/lib/sendOnUnload";
 import {
   API_ROUTES,
   type ClassSummaryResponse,
@@ -68,13 +69,7 @@ export const saveBoardState = (roomId: string, state: LiveBoardState): Promise<L
 
 /** Fire-and-forget save that survives the page unloading (axios cannot keepalive). */
 export const saveBoardStateOnUnload = (roomId: string, state: LiveBoardState) => {
-  void fetch(`${API_BASE_URL}${API_ROUTES.liveClass.boardState(roomId)}`, {
-    method: "PUT",
-    credentials: "include",
-    keepalive: true,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(state),
-  }).catch(() => undefined);
+  sendOnUnload(`${API_BASE_URL}${API_ROUTES.liveClass.boardState(roomId)}`, "PUT", state, "board state");
 };
 
 export const getChatHistory = (roomId: string): Promise<LiveChatMessageResponse[]> => {

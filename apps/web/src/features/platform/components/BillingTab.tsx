@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import Link from "next/link";
 import { useState } from "react";
 import { formatMoney, isValidGstin, type PlatformSellerDetails } from "@nexa-chess/types";
@@ -25,12 +26,19 @@ function SellerForm({ saved, seller }: { seller: PlatformSellerDetails; saved: b
   const [rateText, setRateText] = useState(String(seller.gstRateBps / 100));
   const rate = Number(rateText);
   const rateOk = rateText.trim() !== "" && Number.isFinite(rate) && rate >= 0 && rate <= 50; // the API allows 0–5000 bps
+  // Checked when Save is pressed (UI_RULES § "Form errors").
+  const [tried, setTried] = useState(false);
+  const gstinError = tried && !gstinOk ? "That GSTIN isn't valid." : undefined;
+  const rateError = tried && !rateOk ? "Enter a rate from 0 to 50." : undefined;
+  useRevealFormErrors({ gstin: gstinError, rate: rateError });
 
   return (
-    <form
+    <form noValidate
       className="grid gap-4"
       onSubmit={(event) => {
         event.preventDefault();
+        setTried(true);
+        if (!gstinOk || !rateOk) return;
         save.mutate({ ...form, gstin: form.gstin.toUpperCase(), gstRateBps: Math.round(rate * 100) });
       }}
     >
@@ -39,7 +47,7 @@ function SellerForm({ saved, seller }: { seller: PlatformSellerDetails; saved: b
         <FormField id="seller-name" label="Legal name">
           <Input id="seller-name" onChange={set("legalName")} value={form.legalName} />
         </FormField>
-        <FormField error={gstinOk ? undefined : "That GSTIN isn't valid."} hint="Blank = no GST is charged." id="seller-gstin" label="GSTIN">
+        <FormField error={gstinError} hint="Blank = no GST is charged." id="seller-gstin" label="GSTIN">
           <Input id="seller-gstin" onChange={set("gstin")} value={form.gstin} />
         </FormField>
         <FormField id="seller-email" label="Billing email">
@@ -49,7 +57,7 @@ function SellerForm({ saved, seller }: { seller: PlatformSellerDetails; saved: b
           <FormField hint="e.g. NXP" id="seller-prefix" label="Invoice prefix">
             <Input id="seller-prefix" maxLength={12} onChange={set("invoicePrefix")} value={form.invoicePrefix} />
           </FormField>
-          <FormField error={rateOk ? undefined : "Enter a rate from 0 to 50."} id="seller-rate" label="GST rate (%)">
+          <FormField error={rateError} id="seller-rate" label="GST rate (%)">
             <Input
               id="seller-rate"
               inputMode="decimal"
@@ -63,7 +71,7 @@ function SellerForm({ saved, seller }: { seller: PlatformSellerDetails; saved: b
         <Textarea id="seller-address" onChange={set("address")} rows={2} value={form.address} />
       </FormField>
       <div>
-        <Button disabled={!gstinOk || !rateOk || !form.invoicePrefix.trim()} isLoading={save.isPending} type="submit">
+        <Button disabled={!form.invoicePrefix.trim()} isLoading={save.isPending} type="submit">
           Save seller details
         </Button>
       </div>

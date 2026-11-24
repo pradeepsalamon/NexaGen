@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useCallback, useContext, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { PuzzleListQuery, PuzzleSummary } from "@nexa-chess/types";
@@ -123,7 +124,7 @@ export function useLoadNextPuzzle({
           savePuzzleCursor({ puzzleId: puzzle.id });
           toast.success({ title: `Loaded: ${puzzle.title}` });
         } catch (error) {
-          toast.error({ title: "Couldn't load the puzzle", message: (error as Error).message });
+          toast.error({ title: "Couldn't load the puzzle", message: getErrorMessage(error) });
         }
       }),
     [run, findStep, loadOnBoard, toast]
@@ -140,7 +141,7 @@ export function useLoadNextPuzzle({
           const puzzle = await loadOnBoard(activePuzzleId);
           toast.success({ title: `Loaded: ${puzzle.title}` });
         } catch (error) {
-          toast.error({ title: "Couldn't load the puzzle", message: (error as Error).message });
+          toast.error({ title: "Couldn't load the puzzle", message: getErrorMessage(error) });
         }
       }),
     [run, activePuzzleId, loadOnBoard, toast]
@@ -153,7 +154,7 @@ export function useLoadNextPuzzle({
         try {
           target = await findStep(step);
         } catch (error) {
-          toast.error({ title: "Couldn't find the puzzle", message: (error as Error).message });
+          toast.error({ title: "Couldn't find the puzzle", message: getErrorMessage(error) });
           return;
         }
         if (!target) return;
@@ -175,7 +176,7 @@ export function useLoadNextPuzzle({
         try {
           putPuzzleOnBoard(store, assignment.fen, assignment.orientation);
         } catch (error) {
-          toast.error({ title: "Shared, but the main board couldn't show it", message: (error as Error).message });
+          toast.error({ title: "Shared, but the main board couldn't show it", message: getErrorMessage(error) });
         }
       }),
     [run, assign, findStep, store, classId, toast]

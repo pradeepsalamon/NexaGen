@@ -1,4 +1,4 @@
-import { ConflictException } from "@nestjs/common";
+import { ConflictException, ForbiddenException } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -24,7 +24,10 @@ describe("PayrollLifecycleService", () => {
     notes: null
   });
 
-  const build = async (initialStatus: string) => {
+  const build = async (
+    initialStatus: string,
+    { ownRecord = null, otherAdmin = null }: { ownRecord?: unknown; otherAdmin?: unknown } = {}
+  ) => {
     const recalculatePeriod = jest.fn().mockResolvedValue(undefined);
     const auditLog = jest.fn().mockResolvedValue(undefined);
     let currentStatus = initialStatus;
@@ -50,9 +53,11 @@ describe("PayrollLifecycleService", () => {
               findUniqueOrThrow: jest.fn().mockImplementation(() => period(currentStatus))
             },
             coachPayrollRecord: {
+              findFirst: jest.fn().mockResolvedValue(ownRecord),
               updateMany: jest.fn().mockResolvedValue({ count: 1 }),
               findMany: jest.fn().mockResolvedValue([])
-            }
+            },
+            user: { findFirst: jest.fn().mockResolvedValue(otherAdmin) }
           })
         },
         {
@@ -132,6 +137,30 @@ describe("PayrollLifecycleService", () => {
     });
   });
 
+  describe("own pay (review R8)", () => {
+    const own = { id: "record_own" };
+    const other = { id: "admin_2" };
+
+    it.each([
+      ["approve", "REVIEW"],
+      ["finalize", "APPROVED"],
+      ["markPaid", "FINALIZED"]
+    ] as const)("%s is refused when the period pays the actor and another admin exists", async (step, status) => {
+      const { service } = await build(status, { otherAdmin: other, ownRecord: own });
+      await expect(service[step]("period_1", "admin_1")).rejects.toThrow(ForbiddenException);
+    });
+
+    it("lets the only admin approve a period with their own pay in it", async () => {
+      const { service } = await build("REVIEW", { otherAdmin: null, ownRecord: own });
+      await expect(service.approve("period_1", "admin_1")).resolves.toMatchObject({ status: "APPROVED" });
+    });
+
+    it("lets an admin approve a period with no pay of their own", async () => {
+      const { service } = await build("REVIEW", { otherAdmin: other, ownRecord: null });
+      await expect(service.approve("period_1", "admin_1")).resolves.toMatchObject({ status: "APPROVED" });
+    });
+  });
+
   describe("cancel", () => {
     it.each(["DRAFT", "REVIEW"])("succeeds from %s", async (status) => {
       const { service } = await build(status);
@@ -149,7 +178,7 @@ describe("PayrollLifecycleService", () => {
   });
 
   it("bulk-syncs every CoachPayrollRecord in the period on each transition", async () => {
-    const bulkRecords = { updateMany: jest.fn().mockResolvedValue({ count: 3 }) };
+    const bulkRecords = { findFirst: jest.fn().mockResolvedValue(null), updateMany: jest.fn().mockResolvedValue({ count: 3 }) };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PayrollLifecycleService,

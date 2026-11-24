@@ -4,8 +4,9 @@ import type {
   PayrollPeriodItem,
   PayrollPeriodListResponse
 } from "@nexa-chess/types";
-import { Prisma, type PayrollPeriod } from "@prisma/client";
+import { PayrollPeriodStatus, Prisma, type PayrollPeriod } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { requireTenantId } from "../tenancy/tenant-sql";
 
 /**
  * Payroll period CRUD + read access. Status transitions past DRAFT live in
@@ -25,14 +26,33 @@ export class PayrollPeriodService {
     }
 
     try {
-      const period = await this.prisma.payrollPeriod.create({
-        data: {
-          periodType: body.periodType,
-          startDate,
-          endDate,
-          notes: body.notes,
-          createdById: adminId
+      const period = await this.prisma.$transaction(async (tx) => {
+        // Periods are [startDate, endDate). One that overlaps a live period
+        // would pay its classes twice and count them twice for TDS (review
+        // R3). The academy-wide lock makes two concurrent creates take turns.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`payroll-period:${requireTenantId("payroll")}`}))`;
+        const overlapping = await tx.payrollPeriod.findFirst({
+          select: { endDate: true, startDate: true },
+          where: {
+            endDate: { gt: startDate },
+            startDate: { lt: endDate },
+            status: { not: PayrollPeriodStatus.CANCELLED }
+          }
+        });
+        if (overlapping) {
+          throw new ConflictException(
+            `This overlaps the payroll period ${overlapping.startDate.toISOString().slice(0, 10)} to ${overlapping.endDate.toISOString().slice(0, 10)}. Cancel that one first, or pick other dates.`
+          );
         }
+        return tx.payrollPeriod.create({
+          data: {
+            periodType: body.periodType,
+            startDate,
+            endDate,
+            notes: body.notes,
+            createdById: adminId
+          }
+        });
       });
       return this.toItem(period);
     } catch (error) {

@@ -19,7 +19,7 @@ export const ACADEMY_DESCRIPTION =
   "Nexa Chess Academy runs live, interactive online chess classes for beginner, intermediate and advanced players — one-on-one, buddy and group formats with FIDE-rated coaches, weekly lessons, Sunday tournament training and a free demo class.";
 
 export const ACADEMY_EMAIL = "nexachessacademy@gmail.com";
-export const ACADEMY_PHONE = "+91-7010854643";
+export const ACADEMY_PHONE = "+91-9344967940";
 export const ACADEMY_WHATSAPP = "+91-9344967940";
 export const ACADEMY_LOGO_PATH = "/academy/nexa_logo_light1.png";
 
@@ -141,6 +141,6 @@ export const ACADEMY_FAQ: { question: string; answer: string }[] = [
   },
   {
     question: "How do I book a free demo class?",
-    answer: `Fill in the "Book Your Free Demo Class" form on nexachess.in, message us on WhatsApp at ${ACADEMY_WHATSAPP.replace("-", " ")}, call ${ACADEMY_PHONE.replace("-", " ")} or email ${ACADEMY_EMAIL}.`
+    answer: `Fill in the "Book Your Free Demo Class" form on nexachess.in, message or call us on ${ACADEMY_WHATSAPP.replace("-", " ")} (WhatsApp) or email ${ACADEMY_EMAIL}.`
   }
 ];

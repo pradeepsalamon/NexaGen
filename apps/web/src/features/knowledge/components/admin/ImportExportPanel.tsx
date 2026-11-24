@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useRef, useState } from "react";
 import { Download, FileUp } from "lucide-react";
 import {
@@ -47,7 +48,7 @@ export function ImportExportPanel() {
       URL.revokeObjectURL(url);
       toast.success({ title: `Exported ${file.items.length} article(s).` });
     } catch (err) {
-      toast.error({ message: err instanceof Error ? err.message : undefined, title: "Export failed" });
+      toast.error({ message: getErrorMessage(err), title: "Export failed" });
     } finally {
       setBusy(null);
     }
@@ -76,7 +77,7 @@ export function ImportExportPanel() {
       await invalidate();
       toast.success({ message: "They are drafts: choose an audience and publish each one.", title: `Imported ${result.created} article(s)` });
     } catch (err) {
-      toast.error({ message: err instanceof Error ? err.message : undefined, title: "Import failed" });
+      toast.error({ message: getErrorMessage(err), title: "Import failed" });
     } finally {
       setBusy(null);
       if (input.current) input.current.value = "";

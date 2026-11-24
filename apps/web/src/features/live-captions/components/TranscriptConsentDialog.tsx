@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useState } from "react";
 import { TRANSCRIPT_RETENTION_DAYS } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
@@ -38,7 +39,7 @@ export function TranscriptConsentDialog({
       onOpenChange(false);
     } catch (error) {
       toast.error({
-        message: error instanceof Error ? error.message : undefined,
+        message: getErrorMessage(error),
         title: "Couldn't save your consent",
       });
     }

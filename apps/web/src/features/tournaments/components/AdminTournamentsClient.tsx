@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Archive, Check, CheckCircle2, Inbox, Pencil, Plus, Trophy, Users, X } from "lucide-react";
@@ -318,6 +319,7 @@ function TemplateDialog({ template, onClose }: { template: CertificateTemplateDt
         };
   const [form, setForm] = useState<CertificateTemplateRequest>(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  useRevealFormErrors(errors);
   const toast = useToast();
   const save = useAdminMutation((body: CertificateTemplateRequest) => (template === "new" ? api.createTemplate(body) : api.updateTemplate(template.id, body)));
   const set = (patch: Partial<CertificateTemplateRequest>) => setForm({ ...form, ...patch });
@@ -348,7 +350,7 @@ function TemplateDialog({ template, onClose }: { template: CertificateTemplateDt
           <DialogTitle>{template === "new" ? "New certificate template" : `Edit ${template.name}`}</DialogTitle>
           <DialogDescription>Placeholders: {CERTIFICATE_PLACEHOLDERS.map((p) => `{{${p}}}`).join(" ")}</DialogDescription>
         </DialogHeader>
-        <div className="grid max-h-[65dvh] gap-4 overflow-y-auto pr-1">
+        <div className="grid max-h-[65dvh] gap-4 dialog-scroll-body">
           <div className="grid gap-4 sm:grid-cols-2">
             {field("name", "Template name")}
             {field("title", "Certificate title")}

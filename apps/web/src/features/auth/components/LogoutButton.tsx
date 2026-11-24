@@ -2,41 +2,14 @@
 
 import { useState } from "react";
 import { LogOut } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
-import { useRouter } from "@/lib/navigation";
 import { ConfirmationModal } from "@/components/common/ConfirmationModal";
 import { Button } from "@/components/ui/Button";
-import { getErrorMessage } from "@/lib/errors";
-import { useToast } from "@/providers/ToastProvider";
-import { useAuthStore } from "@/stores/authStore";
-import { logout } from "../api/authApi";
+import { useLogout } from "../hooks/useLogout";
 
 export function LogoutButton() {
-  const router = useRouter();
-  const toast = useToast();
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const clearSession = useAuthStore((state) => state.clearSession);
-  const logoutMutation = useMutation({
-    mutationFn: logout,
-    onError: (error) => {
-      toast.error({
-        message: getErrorMessage(error),
-        title: "Logout request failed"
-      });
-    },
-    onSuccess: () => {
-      toast.success({
-        message: "You have been signed out.",
-        title: "Logout successful"
-      });
-    },
-    onSettled: () => {
-      setIsConfirmOpen(false);
-      clearSession();
-      router.replace("/login");
-      router.refresh();
-    }
-  });
+  // Leaves the page only once the server ended the session (FE review AU2).
+  const logoutMutation = useLogout(() => setIsConfirmOpen(false));
 
   return (
     <>

@@ -5,6 +5,7 @@ import { AssignmentEvaluationService } from "../assignment/assignment-evaluation
 import { PrismaService } from "../prisma/prisma.service";
 import type { StockfishService } from "../stockfish/stockfish.service";
 import { createUser, resetDatabase } from "../test/integration/db";
+import { EntitlementService } from "../platform/entitlement.service";
 import { TrashRepository } from "../trash/trash.repository";
 import { PuzzleCatalogService } from "./puzzle-catalog.service";
 
@@ -26,7 +27,7 @@ describe("Lichess catalogue (real Postgres)", () => {
   const evaluation = new AssignmentEvaluationService({ isAvailable: () => false } as unknown as StockfishService);
   let userId = "";
   const jwt = { verifyAsync: async () => ({ sub: userId, type: "access" }) } as unknown as JwtService;
-  const service = new PuzzleCatalogService(jwt, prisma, new TrashRepository(prisma), evaluation);
+  const service = new PuzzleCatalogService(jwt, prisma, new TrashRepository(prisma, new EntitlementService(prisma)), evaluation);
 
   beforeEach(async () => {
     await resetDatabase(prisma);

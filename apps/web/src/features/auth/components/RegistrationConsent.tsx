@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 import { FieldError, fieldErrorId } from "@/components/ui/FieldError";
 import { forwardRef } from "react";
 import { Checkbox } from "@/components/ui/Checkbox";
@@ -58,9 +59,9 @@ export const TermsConsent = forwardRef<
 });
 
 /** Under each registration form, like "Don't have an account?" under the login form. */
-export function LoginPrompt() {
+export function LoginPrompt({ className }: { className?: string }) {
   return (
-    <p className="text-center text-sm text-app-muted">
+    <p className={cn("text-center text-sm text-app-muted", className)}>
       Already have an account?{" "}
       <Link className="font-medium text-primary-ink hover:underline" href="/login">
         Log in

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import type {
   CompleteCourseModuleResponse,
@@ -8,11 +8,12 @@ import type {
   StudentCourseSummary
 } from "@nexa-chess/types";
 import { CourseStatus, Prisma, PuzzleAttemptStatus } from "@prisma/client";
+import { studentVisiblePgn } from "../assignment/assignment-evaluation.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { assertStudent, authenticateUser } from "./course-auth.helper";
 
 const courseModuleInclude = {
-  assignment: { select: { id: true, title: true, activityType: true, pgn: true } },
+  assignment: { select: { id: true, title: true, activityType: true, pgn: true, startFen: true } },
   puzzle: { select: { id: true, title: true, puzzleType: true } }
 } satisfies Prisma.CourseModuleInclude;
 
@@ -169,6 +170,21 @@ export class CourseProgressService {
     if (!courseModule || courseModule.courseId !== courseId) {
       throw new NotFoundException("Module not found.");
     }
+    // A puzzle module is complete only once the puzzle is solved (review S6);
+    // getForStudent records that by itself. An assignment module is study
+    // material read in the course (its PGN), so "Mark complete" stays the
+    // student's own call.
+    if (courseModule.contentType === "PUZZLE") {
+      const solved = courseModule.puzzleId
+        ? await this.prisma.puzzleAttempt.findFirst({
+            where: { studentId: user.id, puzzleId: courseModule.puzzleId, status: PuzzleAttemptStatus.SOLVED },
+            select: { id: true }
+          })
+        : null;
+      if (!solved) {
+        throw new BadRequestException("Solve this puzzle to complete the module.");
+      }
+    }
 
     const progressPercent = await this.prisma.$transaction(async (tx) => {
       await tx.studentModuleProgress.upsert({
@@ -205,7 +221,8 @@ export class CourseProgressService {
               id: row.assignment.id,
               title: row.assignment.title,
               activityType: row.assignment.activityType,
-              pgn: row.assignment.pgn
+              // A course never reveals a SOLVE_LINE answer (review S1).
+              pgn: studentVisiblePgn(row.assignment, false)
             },
             puzzle: null
           }

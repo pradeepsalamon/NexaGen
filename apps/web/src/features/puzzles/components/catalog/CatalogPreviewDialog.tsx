@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { ExternalLink } from "lucide-react";
 import { lichessThemeLabel } from "@nexa-chess/types";
 import { Alert } from "@/components/ui/Alert";
@@ -44,7 +45,7 @@ export function CatalogPreviewDialog({
         </DialogHeader>
 
         {error ? (
-          <Alert variant="error">{(error as Error).message}</Alert>
+          <Alert variant="error">{getErrorMessage(error)}</Alert>
         ) : isLoading || !puzzle ? (
           <Skeleton className="aspect-square w-full" />
         ) : (

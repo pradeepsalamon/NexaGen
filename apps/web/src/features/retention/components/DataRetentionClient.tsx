@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { useEffect, useState } from "react";
 import { Lock } from "lucide-react";
 import {
@@ -159,17 +160,22 @@ function EditPolicyDialog({
   }, [policy]);
 
   const days = enabled ? Number(daysText) : null;
-  const daysError = policy && enabled ? (daysText.trim() === "" ? "Enter a number of days." : retentionDaysError(policy.category, days)) : null;
+  const daysProblem = policy && enabled ? (daysText.trim() === "" ? "Enter a number of days." : retentionDaysError(policy.category, days)) : null;
+  // Shown when Save is pressed, not while typing (UI_RULES § "Form errors").
+  const [tried, setTried] = useState(false);
+  const daysError = tried ? daysProblem : null;
+  useRevealFormErrors(daysError);
   const debouncedDays = useDebouncedValue(days, 300);
   const preview = useRetentionPreview(
-    policy && enabled && !daysError && debouncedDays === days ? policy.category : null,
+    policy && enabled && !daysProblem && debouncedDays === days ? policy.category : null,
     days
   );
   const unchanged = policy ? policy.days === days : true;
   const deletes = enabled && preview.data ? preview.data.eligibleCount : 0;
 
   const save = () => {
-    if (!policy || !info || daysError) return;
+    setTried(true);
+    if (!policy || !info || daysProblem) return;
     update.mutate(
       { body: { days }, category: policy.category },
       {
@@ -233,7 +239,7 @@ function EditPolicyDialog({
                   </div>
                 </FormField>
 
-                {daysError ? null : preview.isError ? (
+                {daysProblem ? null : preview.isError ? (
                   <Alert variant="error">{getErrorMessage(preview.error)}</Alert>
                 ) : !preview.data || preview.isFetching ? (
                   <Skeleton className="h-16 w-full rounded-app" />
@@ -267,9 +273,8 @@ function EditPolicyDialog({
             disabled={
               !policy ||
               unchanged ||
-              !!daysError ||
               update.isPending ||
-              (enabled && (!preview.data || preview.isFetching || preview.isError))
+              (enabled && !daysProblem && (!preview.data || preview.isFetching || preview.isError))
             }
             onClick={save}
             type="button"

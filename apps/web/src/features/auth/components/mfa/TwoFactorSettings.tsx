@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@/lib/navigation";
 import { type FormEvent, useState } from "react";
@@ -50,6 +51,8 @@ function TwoFactorPanel() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.auth.mfa });
     }
   });
+  const disableError = disable.isError ? getErrorMessage(disable.error) : undefined;
+  useRevealFormErrors(disableError);
 
   function handleDisable(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -128,7 +131,7 @@ function TwoFactorPanel() {
             </Alert>
           )}
           <FormField
-            error={disable.isError ? getErrorMessage(disable.error) : undefined}
+            error={disableError}
             id="mfa-disable-code"
             label="Current code or a recovery code"
           >

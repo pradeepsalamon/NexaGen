@@ -65,7 +65,7 @@ export function DirectEmailDialog({
     labelOf: (recipient) => recipient.name
   });
   const form = useForm<SendDirectEmailRequest>({
-    mode: "onTouched",
+    mode: "onSubmit",
     defaultValues: { body: "", subject: "" },
     resolver: zodResolver(sendDirectEmailRequestSchema)
   });

@@ -41,6 +41,15 @@ export class CreateBatchDto implements CreateBatchRequest {
   @IsOptional()
   puzzleTrainingEnabled?: boolean;
 
+  /** Batch Battles: null = automatic (group batches take part). */
+  @IsBoolean()
+  @IsOptional()
+  battlesEnabled?: boolean | null;
+
+  @IsBoolean()
+  @IsOptional()
+  battlesShowNames?: boolean;
+
   @IsString()
   @MaxLength(1000)
   @IsOptional()
@@ -90,6 +99,15 @@ export class UpdateBatchDto implements UpdateBatchRequest {
   @IsBoolean()
   @IsOptional()
   puzzleTrainingEnabled?: boolean;
+
+  /** Batch Battles: null = automatic (group batches take part). */
+  @IsBoolean()
+  @IsOptional()
+  battlesEnabled?: boolean | null;
+
+  @IsBoolean()
+  @IsOptional()
+  battlesShowNames?: boolean;
 
   @IsString()
   @MaxLength(1000)

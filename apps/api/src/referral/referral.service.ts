@@ -17,7 +17,7 @@ import {
   type RequestReferralWithdrawalRequest
 } from "@nexa-chess/types";
 import { type Prisma, UserRole } from "@prisma/client";
-import { authenticateUser } from "../auth/authenticate";
+import { authenticateUser, primaryRoleOf } from "../auth/authenticate";
 import { paginationMeta, resolveOrderBy, resolvePagination } from "../common/pagination";
 import { queryString } from "../common/query-params";
 import { PrismaService } from "../prisma/prisma.service";
@@ -36,7 +36,7 @@ import {
   toWithdrawalItem,
   WITHDRAWAL_ITEM_INCLUDE
 } from "./referral.mappers";
-import { isReferrerRole } from "./referral.util";
+import { referralRoleOf } from "./referral.util";
 
 /**
  * The referrer's own board (students, coaches, SALES). Every query is scoped
@@ -55,8 +55,11 @@ export class ReferralService {
 
   private async getReferrer(accessToken: string | undefined) {
     const user = await authenticateUser(this.jwtService, this.prisma, accessToken, { allowSales: true });
-    if (!isReferrerRole(user.role)) throw new ForbiddenException("Referrals are for students, coaches and sales staff.");
-    return user;
+    // The account's referral role, whichever role this session acts in (review R6):
+    // the same rule the link check and the rewards use.
+    const role = referralRoleOf({ extraRoles: user.extraRoles, role: primaryRoleOf(user) });
+    if (!role) throw new ForbiddenException("Referrals are for students, coaches and sales staff.");
+    return { ...user, role };
   }
 
   async getSummary(accessToken: string | undefined): Promise<MyReferralSummary> {

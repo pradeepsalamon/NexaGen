@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -277,7 +278,7 @@ export function SimulCoachView({ stageSwitch }: { stageSwitch?: ReactNode } = {}
       const uci = result.bestMoveUci;
       if (uci) setHint({ gameId: game.id, ply: game.ply, from: uci.slice(0, 2), to: uci.slice(2, 4) });
     } catch (error) {
-      toast.error({ title: "Engine hint unavailable", message: error instanceof Error ? error.message : undefined });
+      toast.error({ title: "Engine hint unavailable", message: getErrorMessage(error) });
     } finally {
       setHintLoading(false);
     }

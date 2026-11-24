@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useState } from "react";
 import type { GameAutoSyncPolicy } from "@nexa-chess/types";
 import { toast } from "sonner";
@@ -69,7 +70,7 @@ export function AdminGameSyncClient() {
               disabled={policy === saved || save.isPending}
               onClick={() =>
                 save.mutate(policy, {
-                  onError: (err) => toast.error(err instanceof Error ? err.message : "Could not save."),
+                  onError: (err) => toast.error(getErrorMessage(err, "Could not save.")),
                   onSuccess: () => {
                     setDraft(null);
                     toast.success("Saved. It applies from the next hourly run.");

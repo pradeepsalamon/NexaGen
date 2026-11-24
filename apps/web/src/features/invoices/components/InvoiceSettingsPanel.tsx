@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useEffect, useState } from "react";
 import {
   financialYear,
@@ -314,7 +315,7 @@ export function InvoiceSettingsPanel() {
       ) : null}
       {update.isError ? (
         <Alert variant="error">
-          {update.error instanceof Error ? update.error.message : "The billing details could not be saved."}
+          {getErrorMessage(update.error, "The billing details could not be saved.")}
         </Alert>
       ) : null}
 

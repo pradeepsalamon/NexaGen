@@ -40,7 +40,7 @@ export function useTournamentRealtime(tournamentId: string, options: { publicVie
       void qc.invalidateQueries({ queryKey: K.live(tournamentId) });
       // The start, a pause, a moved round: the detail carries the status the page is built on.
       void qc.invalidateQueries({ queryKey: K.detail(tournamentId) });
-      void qc.invalidateQueries({ queryKey: ["tournaments", "standings", tournamentId] });
+      void qc.invalidateQueries({ queryKey: queryKeys.tournaments.standingsAll(tournamentId) });
       void qc.invalidateQueries({ queryKey: K.rounds(tournamentId) });
       void qc.invalidateQueries({ queryKey: K.myGame(tournamentId) });
     };

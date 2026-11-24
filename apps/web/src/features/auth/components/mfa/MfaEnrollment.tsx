@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { useMutation } from "@tanstack/react-query";
 import type { MfaEnableResponse } from "@nexa-chess/types";
 import { Copy } from "lucide-react";
@@ -33,6 +34,8 @@ export function MfaEnrollment({ challengeToken, onCancel, onComplete }: MfaEnrol
     mutationFn: () => enableMfa({ challengeToken, code: code.trim() }),
     onSuccess: setEnabled
   });
+  const enableError = enable.isError ? getErrorMessage(enable.error) : undefined;
+  useRevealFormErrors(enableError);
 
   useEffect(() => {
     // Each call issues a new secret, so only ever start once per mount.
@@ -140,7 +143,7 @@ export function MfaEnrollment({ challengeToken, onCancel, onComplete }: MfaEnrol
         <Skeleton className="mx-auto size-[192px]" />
       )}
       <FormField
-        error={enable.isError ? getErrorMessage(enable.error) : undefined}
+        error={enableError}
         id="mfa-enroll-code"
         label="6-digit code"
       >

@@ -30,7 +30,7 @@ export function AddMemberDialog({ members, onAdd, type }: AddMemberDialogProps) 
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <Input placeholder="Search name or email..." value={search} onChange={e => setSearch(e.target.value)} autoFocus />
-          <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
+          <div className="flex flex-col gap-2 max-h-[300px] dialog-scroll-body">
              {filtered.map(m => (
                <div key={m.id} className="flex items-center justify-between p-3 border border-app-border rounded-control shadow-card hover:border-primary/40 transition-colors">
                  <div className="flex items-center gap-3">

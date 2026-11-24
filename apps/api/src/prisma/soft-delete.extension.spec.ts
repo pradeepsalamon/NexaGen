@@ -71,13 +71,13 @@ describe("soft-delete.extension", () => {
 
     it("hides deployments and student copies of a trashed assignment, keeping a findUnique key on top", () => {
       const deployment = applySoftDeleteArgs("AssignmentBatch", "findMany", { where: { batchId: "b1" } });
-      expect(deployment.where).toEqual({ AND: [{ assignment: { isDeleted: false } }], batchId: "b1" });
+      expect(deployment.where).toEqual({ AND: [{ assignment: { isDeleted: false }, withdrawnAt: null }], batchId: "b1" });
 
       const copy = applySoftDeleteArgs("StudentAssignment", "findUnique", {
         where: { AND: { studentId: "s1" }, id: "sa1" }
       });
       expect(copy.where).toEqual({
-        AND: [{ studentId: "s1" }, { assignmentBatch: { assignment: { isDeleted: false } } }],
+        AND: [{ studentId: "s1" }, { assignmentBatch: { assignment: { isDeleted: false }, withdrawnAt: null } }],
         id: "sa1"
       });
     });

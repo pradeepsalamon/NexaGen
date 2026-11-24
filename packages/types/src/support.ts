@@ -305,7 +305,12 @@ export const updateSupportSettingsRequestSchema = z.object({
   /** The main menu (DEFAULT_SUPPORT_MENU until changed). */
   menu: supportMenuSchema,
   /** Numbers linked to a student by a staff-issued code may ask for its next class. */
-  accountAnswers: z.boolean()
+  accountAnswers: z.boolean(),
+  /**
+   * Every new number that writes in becomes a lead (bot on or off; sends nothing). Nexa's academy
+   * only for now; another academy's value is ignored. Optional so older clients keep working.
+   */
+  captureLeads: z.boolean().optional()
 });
 export type UpdateSupportSettingsRequest = z.infer<typeof updateSupportSettingsRequestSchema>;
 
@@ -326,6 +331,8 @@ export interface SupportSettingsValues {
   /** All six options in the academy's order, including switched-off ones. */
   menu: SupportMenuItem[];
   accountAnswers: boolean;
+  /** Each new WhatsApp number (not an account, no open lead) becomes a lead (docs/LEAD_STAGES.md). */
+  captureLeads: boolean;
 }
 
 export interface SupportSettingsResponse extends SupportSettingsValues {

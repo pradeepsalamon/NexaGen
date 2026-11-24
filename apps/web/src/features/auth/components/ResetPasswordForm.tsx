@@ -13,7 +13,7 @@ import { focusFirstInvalid, getConfirmPasswordError, getNewPasswordError } from 
 import { useToast } from "@/providers/ToastProvider";
 import { resetPassword } from "../api/authApi";
 import { AuthHeader } from "./AuthHeader";
-import { AuthSplitShell } from "./AuthSplitShell";
+import { AuthCard } from "../frame/AuthFrame";
 import { AuthStatus } from "./AuthStatus";
 
 export function ResetPasswordForm() {
@@ -58,7 +58,7 @@ export function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <AuthSplitShell variant="forgot-password">
+      <AuthCard>
         <AuthStatus
           actions={
             <>
@@ -76,12 +76,12 @@ export function ResetPasswordForm() {
           The link is missing its reset code. Open the latest link from your email, or
           request a new one.
         </AuthStatus>
-      </AuthSplitShell>
+      </AuthCard>
     );
   }
 
   return (
-    <AuthSplitShell variant="forgot-password">
+    <AuthCard>
       <AuthHeader
         description="Use at least 8 characters, with at least one letter and one number."
         title="Reset your password"
@@ -93,7 +93,6 @@ export function ResetPasswordForm() {
             hasError={Boolean(passwordError)}
             id="reset-password"
             minLength={8}
-            onBlur={() => setTouched((current) => ({ ...current, password: true }))}
             onChange={(event) => setPassword(event.target.value)}
             placeholder="Create a password"
             required
@@ -107,7 +106,6 @@ export function ResetPasswordForm() {
             id="reset-confirm-password"
             minLength={8}
             name="confirmPassword"
-            onBlur={() => setTouched((current) => ({ ...current, confirmPassword: true }))}
             onChange={(event) => setConfirmPassword(event.target.value)}
             placeholder="Confirm your password"
             required
@@ -124,6 +122,6 @@ export function ResetPasswordForm() {
           </Link>
         </p>
       </form>
-    </AuthSplitShell>
+    </AuthCard>
   );
 }

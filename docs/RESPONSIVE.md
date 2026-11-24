@@ -365,7 +365,8 @@ theme is persisted in `localStorage` (`nexa-chess-theme`).
    `Dialog`, not `Popover`, so they don't clip on phones.
 12. **Never `scrollIntoView` to follow a list** (moves, chat): it scrolls every
     ancestor too, so the whole page or dialog jumps on each update. Set the
-    list's own `scrollTop` / `scrollTo` instead.
+    list's own `scrollTop` / `scrollTo` instead, or `scrollWithinNearest(item)`
+    (`lib/scrollWithin.ts`), which scrolls only the nearest scrollable box.
 13. **Fields are 16px on touch** (a `pointer: coarse` rule in `globals.css`);
     iOS zooms the page into any smaller field on focus and stays zoomed.
 9. **Both themes, always** — verify light and dark; colours come from tokens.

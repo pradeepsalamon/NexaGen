@@ -1,5 +1,6 @@
 "use client";
 
+import { onInvalidSubmit } from "@/lib/forms";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "@/lib/navigation";
 import { useState } from "react";
@@ -50,7 +51,7 @@ export function CreateAcademyDialog({ onClose, rootDomain }: { onClose: () => vo
   const [idempotencyKey] = useState(() => crypto.randomUUID());
   const [slugTouched, setSlugTouched] = useState(false);
   const form = useForm<FormValues>({
-    mode: "onTouched",
+    mode: "onSubmit",
     defaultValues: {
       country: "IN",
       email: "",
@@ -78,7 +79,7 @@ export function CreateAcademyDialog({ onClose, rootDomain }: { onClose: () => vo
     });
     onClose();
     router.push(`/admin/platform/academies/${result.tenant.id}`);
-  });
+  }, onInvalidSubmit);
 
   return (
     <Dialog onOpenChange={(open) => !open && onClose()} open>

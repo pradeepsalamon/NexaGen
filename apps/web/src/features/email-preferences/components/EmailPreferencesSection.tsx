@@ -1,6 +1,7 @@
 "use client";
 
-import { EMAIL_CATEGORIES, EMAIL_CATEGORY_DEFINITIONS, type EmailCategory } from "@nexa-chess/types";
+import { EMAIL_CATEGORY_DEFINITIONS, emailCategoriesForRole, type EmailCategory } from "@nexa-chess/types";
+import { useAuthStore } from "@/stores/authStore";
 import { Alert } from "@/components/ui/Alert";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Switch } from "@/components/ui/Switch";
@@ -14,6 +15,7 @@ import { useEmailPreferences, useUpdateEmailPreferences } from "../hooks/useEmai
  */
 export function EmailPreferencesSection() {
   const toast = useToast();
+  const role = useAuthStore((state) => state.user?.role);
   const preferences = useEmailPreferences();
   const update = useUpdateEmailPreferences();
   const data = preferences.data;
@@ -76,7 +78,7 @@ export function EmailPreferencesSection() {
           aria-label="Kinds of email"
           className="mt-4 grid gap-3 border-t border-app-border pt-4"
         >
-          {EMAIL_CATEGORIES.map((category) => {
+          {emailCategoriesForRole(role).map((category) => {
             const definition = EMAIL_CATEGORY_DEFINITIONS[category];
             const id = `email-category-${category.toLowerCase()}`;
             return (

@@ -35,11 +35,16 @@ const config: Config = {
         "theme-icon-in": "themeIconIn 360ms cubic-bezier(0.22, 1, 0.36, 1) backwards",
         "overlay-in": "fadeIn 220ms ease both",
         "overlay-out": "fadeOut 180ms ease both",
-        // Centred dialogs. These animate the standalone `scale` / `translate` properties, never
-        // `transform`: the panel is centred with a -50% transform, and a keyframe that replaces it
-        // makes the dialog fly in from the bottom right.
-        "dialog-in": "dialogIn 240ms cubic-bezier(0.22, 1, 0.36, 1) both",
-        "dialog-out": "dialogOut 160ms ease-in both",
+        // Centred dialogs grow out of the control that opened them and shrink back into it
+        // (`lib/motion/launchOrigin.ts` sets the transform-origin there and the start size). They animate the
+        // standalone `scale` property, never `transform`: the panel is centred with a -50%
+        // transform, which a keyframe on `transform` would replace. `translate` (the standalone
+        // property) is free: Tailwind's -translate-* classes set `transform`.
+        "dialog-in": "dialogIn 440ms cubic-bezier(0.2, 0.9, 0.1, 1) both",
+        "dialog-out": "dialogOut 300ms cubic-bezier(0.5, 0, 0.75, 0.3) both",
+        // Menus and popovers: the same grow-out, from the trigger side Radix reports as the origin.
+        "menu-in": "menuIn 300ms cubic-bezier(0.2, 0.9, 0.1, 1) both",
+        "menu-out": "menuOut 170ms cubic-bezier(0.4, 0, 0.8, 0.4) both",
         "drawer-in": "slideInRight 300ms cubic-bezier(0.32, 0.72, 0, 1) both",
         "drawer-out": "slideOutRight 240ms ease-in both"
       },
@@ -70,6 +75,31 @@ const config: Config = {
           700: "rgb(var(--rgb-brand-700) / <alpha-value>)",
           800: "rgb(var(--rgb-brand-800) / <alpha-value>)",
           900: "rgb(var(--rgb-brand-900) / <alpha-value>)"
+        },
+        // Login page only (globals.css "Login page", features/auth/frame).
+        login: {
+          card: "rgb(var(--rgb-login-card) / <alpha-value>)",
+          gold: {
+            DEFAULT: "rgb(var(--rgb-login-gold) / <alpha-value>)",
+            deep: "rgb(var(--rgb-login-gold-deep) / <alpha-value>)",
+            ink: "var(--color-login-gold-ink)",
+            light: "rgb(var(--rgb-login-gold-light) / <alpha-value>)"
+          },
+          hero: {
+            DEFAULT: "rgb(var(--rgb-login-hero) / <alpha-value>)",
+            2: "rgb(var(--rgb-login-hero-2) / <alpha-value>)",
+            gold: "rgb(var(--rgb-login-hero-gold) / <alpha-value>)",
+            line: "rgb(var(--rgb-login-hero-line) / <alpha-value>)"
+          },
+          line: "rgb(var(--rgb-login-line) / <alpha-value>)",
+          muted: "rgb(var(--rgb-login-muted) / <alpha-value>)",
+          "on-gold": "rgb(var(--rgb-login-on-gold) / <alpha-value>)",
+          "on-hero": {
+            DEFAULT: "rgb(var(--rgb-login-on-hero) / <alpha-value>)",
+            muted: "rgb(var(--rgb-login-on-hero-muted) / <alpha-value>)"
+          },
+          page: "rgb(var(--rgb-login-page) / <alpha-value>)",
+          text: "rgb(var(--rgb-login-text) / <alpha-value>)"
         },
         "on-accent": "rgb(var(--rgb-on-accent) / <alpha-value>)",
         "on-danger": "rgb(var(--rgb-on-danger) / <alpha-value>)",
@@ -183,15 +213,36 @@ const config: Config = {
           from: { opacity: "0", transform: "scale(0.96)" },
           to: { opacity: "1", transform: "scale(1)" }
         },
-        // `scale` also shrinks the panel's -50% centring offset, which would drift it right and down
-        // by half the lost size; the percentages in `translate` (of the panel's own size) cancel that.
+        // `--launch-scale`: small when growing out of a control, near 1 when there is none.
+        // Opacity is done early on the way in and late on the way out, so the panel reads as
+        // moving, not fading.
+        // Visible from the first frames, at the control's size on top of it, so the eye can follow it.
         dialogIn: {
-          from: { opacity: "0", scale: "0.96", translate: "-2% calc(-2% + 8px)" },
-          to: { opacity: "1", scale: "1", translate: "0 0" }
+          from: {
+            opacity: "0",
+            scale: "var(--launch-scale, 0.9)",
+            translate: "var(--launch-dx, 0px) var(--launch-dy, 0px)"
+          },
+          "12%": { opacity: "1" },
+          to: { opacity: "1", scale: "1", translate: "0px 0px" }
         },
         dialogOut: {
-          from: { opacity: "1", scale: "1", translate: "0 0" },
-          to: { opacity: "0", scale: "0.97", translate: "-1.5% calc(-1.5% + 4px)" }
+          from: { opacity: "1", scale: "1", translate: "0px 0px" },
+          "75%": { opacity: "1" },
+          to: {
+            opacity: "0",
+            scale: "var(--launch-scale, 0.9)",
+            translate: "var(--launch-dx, 0px) var(--launch-dy, 0px)"
+          }
+        },
+        menuIn: {
+          from: { opacity: "0", transform: "scale(0.6)" },
+          "45%": { opacity: "1" },
+          to: { opacity: "1", transform: "scale(1)" }
+        },
+        menuOut: {
+          from: { opacity: "1", transform: "scale(1)" },
+          to: { opacity: "0", transform: "scale(0.7)" }
         },
         shimmer: {
           from: { transform: "translateX(-100%)" },

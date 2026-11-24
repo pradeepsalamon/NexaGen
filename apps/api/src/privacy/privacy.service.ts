@@ -79,6 +79,7 @@ export class PrivacyService {
       movePollAnswers,
       mcqAttempts,
       soloPuzzleRushRuns,
+      dailyPuzzleEntries,
       playoutGames,
       chatMessages,
       classTranscriptLines,
@@ -115,7 +116,8 @@ export class PrivacyService {
       tournamentAuditActions,
       tournamentCommentary,
       tournamentCertificates,
-      whatsAppLinks
+      whatsAppLinks,
+      roleChanges
     ] = await Promise.all([
       // Soft-deleted rows are still personal data held about the user, so they are exported too.
       p.withDeleted.studentProfile.findMany({ where: { userId: id } }),
@@ -171,6 +173,7 @@ export class PrivacyService {
       p.liveClassMcqAttempt.findMany({ where: { studentId: id } }),
       // The frozen puzzle list is catalogue data, not the student's.
       p.soloPuzzleRushRun.findMany({ omit: { puzzles: true }, where: { studentId: id } }),
+      p.dailyPuzzleEntry.findMany({ where: { studentId: id } }),
       p.liveClassPlayoutGame.findMany({ where: { studentId: id } }),
       p.liveChatMessage.findMany({
         select: { createdAt: true, id: true, liveSessionId: true, message: true, recipientId: true },
@@ -264,7 +267,10 @@ export class PrivacyService {
       p.supportContactLink.findMany({
         select: { contact: { select: { waId: true } }, createdAt: true, id: true },
         where: { studentId: id }
-      })
+      }),
+      // Extra roles granted to / removed from this account (docs/MULTI_ROLE_ACCOUNTS.md);
+      // who made the change is someone else's account, so only the fact.
+      p.userRoleChange.findMany({ omit: { actorId: true }, where: { userId: id } })
     ]);
 
     return {
@@ -305,6 +311,7 @@ export class PrivacyService {
         playoutGames: records(playoutGames),
         practice: records(practice),
         soloPuzzleRushRuns: records(soloPuzzleRushRuns),
+        dailyPuzzleEntries: records(dailyPuzzleEntries),
         progress: records(progress),
         puzzleAttempts: records(puzzleAttempts),
         puzzleRatingChanges: records(puzzleRatingChanges),
@@ -318,6 +325,7 @@ export class PrivacyService {
         referralRedemptions: records(referralRedemptions),
         referredBy: records(referredBy),
         referralsMade: records(referralsMade),
+        roleChanges: records(roleChanges),
         sessions: records(sessions),
         tournamentAuditActions: records(tournamentAuditActions),
         tournamentCertificates: records(tournamentCertificates),

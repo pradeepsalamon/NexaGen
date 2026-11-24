@@ -134,9 +134,10 @@ const TabsList = React.forwardRef<
   }, [canCollapse, collapsed]);
 
   // Page tabs sit on the right like every page control (UI_RULES §4); a caller's `w-full` or
-  // `justify-self-start` still wins.
+  // `justify-self-start` still wins. A clear track with a thin border (owner, 2026-11-22: like the
+  // Storm/Racer leaderboard toggles), the selected tab a solid blue chip.
   const base =
-    "group/tabs relative inline-flex w-fit max-w-full justify-self-end items-center gap-1 overflow-x-auto rounded-control bg-app-soft p-1 text-app-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+    "group/tabs relative inline-flex w-fit max-w-full justify-self-end items-center gap-0.5 overflow-x-auto rounded-control border border-app-border bg-app-surface p-[3px] text-app-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
   if (canCollapse && collapsed && context) {
     const active = triggers.find((t) => t.value === context.value) ?? triggers[0];
@@ -215,7 +216,7 @@ const TabsTrigger = React.forwardRef<
   return (
   <TabsPrimitive.Trigger
     className={cn(
-      "group relative inline-flex min-h-[var(--control-h-sm)] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md px-4 text-sm font-medium text-app-muted transition-colors duration-200 hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-button data-[state=active]:text-on-button data-[state=active]:hover:text-on-button group-data-[indicator]/tabs:data-[state=active]:bg-transparent",
+      "group relative inline-flex min-h-[var(--control-h-sm)] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md px-4 text-sm font-semibold text-app-muted transition-colors duration-200 hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-button data-[state=active]:text-on-button data-[state=active]:hover:text-on-button group-data-[indicator]/tabs:data-[state=active]:bg-transparent",
       className
     )}
     ref={ref}

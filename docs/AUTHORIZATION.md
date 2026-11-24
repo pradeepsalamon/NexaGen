@@ -53,6 +53,19 @@ Moved out of CLAUDE.md §3.2 on 2026-10-31; the text is unchanged in substance.
   token** — the 25 copies this replaced had drifted (admin/backup skipped the
   ACTIVE check, Stockfish trusted the token's role). The module
   `*-auth.helper.ts` files re-export it.
+- **Active role (multi-role accounts, [MULTI_ROLE_ACCOUNTS.md](MULTI_ROLE_ACCOUNTS.md)).**
+  An ADMIN / SUPER_ADMIN account may also hold COACH (`User.extraRoles`). The
+  login session acts in one role (`AuthSession.activeRole`, null = primary;
+  carried to the successor on refresh), and `authenticateUser` returns the
+  user with **`role` replaced by that active role** while the account still
+  holds it, plus non-enumerable `primaryRole` / `roles`. So every role check
+  judges the role the session acts in. Use `primaryRoleOf(user)` only for
+  account-level facts (MFA is judged on the primary role, so a switched view
+  never makes it optional). The access token is minted with the active role.
+  Switch: `POST /auth/switch-role` (same session, new access cookie). A query
+  that looks users up *as coaches* uses `coachWhere()` / `isCoachAccount()`
+  (`common/coach-accounts.ts`; `coach-accounts.spec.ts` fails a raw
+  `role: COACH` filter).
 - **Params and queries.** Parse a param/query inside a handler with
   `parseOrBadRequest` (`common/zod-body.pipe.ts`), never a bare `schema.parse` —
   a ZodError is a 500, thrown before the handler has even authenticated anyone.
@@ -105,10 +118,21 @@ can't silently switch off.
   or a completed password reset clears it; by hand:
   `UPDATE users SET "loginLockedUntil" = NULL, "failedLoginAttempts" = 0 WHERE email = '…'`.
   The IP throttle (5/min) alone missed guessing spread across many IPs.
+  `auth/password-lockout.ts` holds the rule. **Password confirmations count too**
+  (a profile change's `currentPassword`, account deletion): a wrong one adds to
+  the same counter and a locked account gets the same 429 (review A7). **An email
+  with no account locks the same way** (in memory, per academy + email, bounded),
+  so a 429 never tells a guesser that an account exists (review A8).
 - Changing the account email (`PATCH /auth/profile`) requires `currentPassword`
   (400 if missing or wrong; the route is throttled 10/min), revokes every other
   session family, and mails a notice to the old address — the email is what
   password reset trusts, so a stolen session alone must not move it.
+- Changing the account phone needs `currentPassword` too, because with WhatsApp on
+  for resets the phone is a reset channel. The account is told by the
+  `PHONE_CHANGED` system message (to its email, old phone and inbox; it never
+  shows the new number). Platform-support accounts (`isPlatformSupport`) can't use
+  password sign-in or forgot-password: they are entered only through a support
+  visit. Both from review A2, 2026-11-23.
 - Email verification is an academy setting, off by default. When `REQUIRED`,
   password sign-in refuses unverified students and coaches with a 401; admins are
   exempt. [EMAIL_ADMIN](EMAIL_ADMIN.md)
@@ -124,7 +148,15 @@ can't silently switch off.
   logout / password reset / reuse and is **never** revived. Within 30s of a
   rotation the old token may mint a sibling in the same `familyId` (concurrent
   tabs); after that a replay revokes the whole family. Logout revokes the
-  family.
+  family. A refresh that loses the rotation claim re-reads the row and gets a
+  401 when a logout or reset revoked it meanwhile, so the grace path never
+  mints into an ended family (review A5).
+- **Web refresh** (`apps/web/src/lib/api.ts`): only a refused refresh (401/403)
+  clears the session and opens `/login`. A network error or 5xx rejects the
+  waiting requests and leaves the store and page alone, so the next request
+  tries again (FE review AU1). **Sign-out** (`useLogout`) leaves the page only
+  once the server ended the session (or answered 401); a failed logout keeps
+  the user where they are with a retry (AU2).
 - `getCookieBaseOptions` (`@nexa-chess/config/api`) sets every cookie: `secure`
   when `FRONTEND_URL` is https, `sameSite` from `COOKIE_SAME_SITE` (default
   `lax` — web and API are same-site subdomains).
@@ -176,7 +208,8 @@ can't silently switch off.
 | Logout | Refresh family revoked **and** every access token of that session refused at once (`authenticateUser` checks `auth_sessions.revokedAt` for the token's `sessionId`). |
 | Password reset (self) / refresh-token reuse | Same: family revoked, access tokens die immediately. |
 | Admin sets a new password or a non-ACTIVE status | All of that user's sessions revoked (`UserService.update`). |
-| Account archived / deleted | Next request is a 401 (`status !== ACTIVE`). |
+| Account archived / deleted | Next request is a 401 (`status !== ACTIVE`), and every session is revoked, so a restore doesn't revive an old refresh token (review A3, 2026-11-23). |
+| Email changed (self or admin), admin sets a password, or a reset completes | Every unused password-reset and invite link of that user is spent (`usedAt`), so a link sent to an old or mistyped address can't take the account (review A1). |
 | Role changed | Takes effect on the next request — the role is read from the DB, never the token. |
 | Kicked from a live class | `getToken` refuses a new LiveKit token; a reconnect with an older token is removed by the `participant_joined` webhook (`LiveClassModerationService.enforceRemovalOnJoin`). |
 | Removed from a batch | Loses API access to the batch's classes/chat at once. An already-issued LiveKit token still connects until it expires, at most 10 minutes (`LIVEKIT_TOKEN_TTL`). |
@@ -253,7 +286,7 @@ exercise the API in-process; LiveKit itself was not running.
 | 1 | High | `POST /live-class/:id/recording/start` and `/stop` checked only the role: **any coach could record (or stop recording) another coach's live class** of minors. Found by the sweep (coach A's call reached LiveKit). | Both use `LiveClassAccessService.resolveClassManager`. Unit + cross-user rows. |
 | 2 | Medium | Access tokens outlived logout, password reset and refresh-reuse revocation for up to 15 min; `/auth/me` and profile update hand-rolled their own user load. | `authenticateUser` rejects a token whose `sessionId` row is missing, revoked or another user's; `AuthService.me`/`updateProfile` use it. |
 | 3 | Medium | Admin resetting a user's password (or deactivating them) left their refresh tokens valid (7 days). | `UserService.update` revokes all sessions on a new password or non-ACTIVE status. |
-| 4 | Medium | `DELETE /upload/image` trusted "the URL equals my `avatarUrl`", but `avatarUrl` is a free-form profile field: copy someone's avatar URL into your profile, then delete their image. | Non-admins may delete only a `nexa_chess/profiles/` upload that no other account (incl. deleted) uses. |
+| 4 | Medium | `DELETE /upload/image` trusted "the URL equals my `avatarUrl`", but `avatarUrl` is a free-form profile field: copy someone's avatar URL into your profile, then delete their image. | Non-admins may delete only a `nexa_chess/profiles/` upload that no other account (incl. deleted) uses. Since 2026-11-23 (review S5) admins too are held to a profile upload of their own academy's folder (`tenantStorageRoot`): one Cloudinary account serves every academy. |
 | 5 | Medium | Receivers of API-only topics (`live_class_settings`, `live_class_puzzle` assign/update/end, `live_class_simul`, `live_class_match`, `recording`, `waiting_room`, `screen_share_request`, `classroom_tools`, `move_poll`) accepted packets from any participant: a student could push fake settings (client-side mic/camera locks) to classmates, pop a fake puzzle, fake simul/match boards, or flip the recording indicator. | Each drops a packet with a sender (`if (msg.from) return`), as moderation / Puzzle Storm / activity queue already did. `LEADERBOARD_DIRTY` stays peer-sendable. |
 | 6 | Medium | The recording template and the admin spectator seat applied every `board_sync` packet from anyone: a student could rewrite the board the recording (and an admin) sees. | `reduceReadOnlyBoard` applies `senderMayMutateBoard` + the one-legal-move check, tracking `UPDATE_PERMISSIONS`; the coach restates grants after answering `REQUEST_SYNC` so a viewer joining mid-grant still accepts the controller's moves. |
 | 7 | Medium | A kicked student holding a pre-kick LiveKit token could reconnect straight to the SFU. | `participant_joined` webhook removes a student whose waiting-room row is `DENIED`, and records no attendance for it. |

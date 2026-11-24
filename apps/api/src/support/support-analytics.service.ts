@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import {
+  LEAD_DETAILS_NOT_GIVEN,
   SUPPORT_ANALYTICS_DAYS,
   SUPPORT_CATEGORIES,
   isKnownTimeZone,
@@ -84,7 +85,8 @@ export class SupportAnalyticsService {
       }),
       this.prisma.supportTicket.findMany({ select: { category: true }, where: { createdAt: inWindow } }),
       this.prisma.supportTicket.count({ where: { resolvedAt: inWindow } }),
-      this.prisma.lead.count({ where: { createdAt: inWindow, source: WHATSAPP_LEAD_SOURCE } })
+      // Demo bookings only: a lead captured from a chat (no child details) isn't one.
+      this.prisma.lead.count({ where: { createdAt: inWindow, source: WHATSAPP_LEAD_SOURCE, studentAge: { gt: LEAD_DETAILS_NOT_GIVEN.studentAge } } })
     ]);
 
     const handedConversationIds = [...new Set(handoffs.map((event) => event.conversationId))];

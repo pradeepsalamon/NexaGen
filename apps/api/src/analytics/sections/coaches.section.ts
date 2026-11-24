@@ -13,6 +13,7 @@ import {
 import { densifySeries, roundTo, toCategoryCounts } from "../analytics-math";
 import { buildMeta, pct, sqlTimestamp, type AnalyticsContext } from "../analytics-support";
 import { tenantFilter } from "../../tenancy/tenant-sql";
+import { coachWhere } from "../../common/coach-accounts";
 
 type CoachAggRow = {
   coach_id: string;
@@ -56,7 +57,7 @@ export class CoachesAnalyticsSection {
        AND c."startsAt" >= ${sqlTimestamp(start)} AND c."startsAt" < ${sqlTimestamp(end)}
       LEFT JOIN "coach_attendance" cca ON cca."classId" = c.id
       LEFT JOIN "live_sessions" ls ON ls."classId" = c.id
-      WHERE ${tenantFilter("u")} AND u.role = 'COACH' AND u."isDeleted" = false
+      WHERE ${tenantFilter("u")} AND (u.role = 'COACH' OR 'COACH' = ANY(u."extraRoles")) AND u."isDeleted" = false
       ${coachId ? Prisma.sql`AND u.id = ${coachId}` : Prisma.empty}
       GROUP BY 1, 2, 3, 4, 5
     `;
@@ -132,7 +133,7 @@ export class CoachesAnalyticsSection {
         this.teachingSecondsTrend(range),
         this.prisma.user.groupBy({
           by: ["status"],
-          where: { role: "COACH", isDeleted: false },
+          where: { isDeleted: false, ...coachWhere() },
           _count: { _all: true }
         })
       ]);

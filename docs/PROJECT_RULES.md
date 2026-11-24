@@ -452,12 +452,14 @@ Pre-commit hook auto-runs `typecheck` + `lint`. Also confirm:
   throwaway container built from the new image *before* `docker compose up -d`.
   A migration that cannot apply aborts the deploy with the previous API still
   serving, instead of being discovered by the health-check timeout after the
-  swap. `entrypoint.sh` still runs `migrate deploy` on container start — it is
-  idempotent, and remains the safety net for manually started containers.
+  swap, and only after a checked pre-deploy backup. A container start never
+  migrates (`entrypoint.sh`, `MIGRATE_ON_START=false`); see
+  [DEPLOY_ROLLBACK_HARDENING.md](DEPLOY_ROLLBACK_HARDENING.md).
 - **A failed deploy rolls itself back** to the last healthy images (tagged
   `:last-good`, restored without a rebuild). To undo a deploy that succeeded but
   misbehaves: Actions → Deploy Production → Run workflow → `action: rollback`.
-  Neither reverses migrations — keep them additive.
+  Neither reverses migrations, and both refuse to go back past a class C
+  (contract) migration — keep them additive.
 - **Deploys never overlap or go backwards**: one at a time (GitHub concurrency
   group + a server-side flock), and a commit older than the live one is skipped.
 - Either way, an un-committed migration = broken prod.

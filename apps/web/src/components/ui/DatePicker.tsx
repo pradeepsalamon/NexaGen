@@ -17,8 +17,12 @@ import { fieldClasses } from "./fieldStyles";
 
 
 type DatePickerProps = {
+  /** Filled in by `FormField` (hint + error), so the trigger announces the field's message. */
+  "aria-describedby"?: string;
+  "aria-invalid"?: boolean | "true" | "false";
   "aria-label"?: string;
   className?: string;
+  /** Give it the `FormField`'s id, so the field's label names the trigger. */
   id?: string;
   onChange: (date: Date | undefined) => void;
   placeholder?: string;
@@ -27,6 +31,8 @@ type DatePickerProps = {
 };
 
 export function DatePicker({
+  "aria-describedby": ariaDescribedBy,
+  "aria-invalid": ariaInvalid,
   "aria-label": ariaLabel,
   className,
   id,
@@ -115,6 +121,8 @@ export function DatePicker({
     <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogTrigger asChild>
         <Button
+          aria-describedby={ariaDescribedBy}
+          aria-invalid={ariaInvalid}
           aria-label={ariaLabel}
           id={id}
           variant="neutral"

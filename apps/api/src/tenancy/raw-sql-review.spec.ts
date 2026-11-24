@@ -17,10 +17,20 @@ import { join, relative } from "node:path";
  * - `infra`: not a query on academy data (client bindings, docs, advisory locks).
  * - `integrity`: reads across every academy on purpose to find rows linked to
  *   another academy (monitoring only, read-only, platform operators).
+ * - `closure`: one academy's rows by an explicit `"tenantId" = $1` (its id from a
+ *   closure row or the operator's route, never a filter from the request): the
+ *   academy export and, after an operator approved deleting it, the purge
+ *   (docs/ACADEMY_CLOSURE.md). Table/column names come from the schema catalogue.
  */
-type Kind = "global-claim" | "id-keyed" | "infra" | "integrity" | "platform" | "tenant-filtered";
+type Kind = "closure" | "global-claim" | "id-keyed" | "infra" | "integrity" | "platform" | "tenant-filtered";
 
 const REVIEWED: Record<string, { calls: number; kind: Kind; why: string }> = {
+  "academy-closure/academy-export.service.ts": { calls: 3, kind: "closure", why: "column catalogue; one academy's rows per table (keyset or ctid pages)" },
+  "academy-closure/academy-purge.service.ts": {
+    calls: 6,
+    kind: "closure",
+    why: "FK catalogue; clear references, delete unreferenced rows, anonymise users, count kept rows and cross-academy links — one academy"
+  },
   "activity-queue/activity-queue.service.ts": { calls: 2, kind: "id-keyed", why: "FOR UPDATE on one queue by id" },
   "analytics/analytics-support.ts": { calls: 1, kind: "tenant-filtered", why: "bucketedCounts filters its table" },
   "analytics/analytics.service.ts": { calls: 2, kind: "tenant-filtered", why: "classes c" },
@@ -44,22 +54,25 @@ const REVIEWED: Record<string, { calls: number; kind: Kind; why: string }> = {
   "approval/handlers/tournament-publish.handler.ts": { calls: 1, kind: "id-keyed", why: "FOR UPDATE on one tournament by id" },
   "attendance/attendance.service.ts": { calls: 4, kind: "tenant-filtered", why: "stale-log sweeps filtered; correction locks by id" },
   "game-analysis/game-analysis.worker.ts": { calls: 2, kind: "global-claim", why: "claim, then run in the row's academy; heartbeat by id" },
-  "health/health.service.ts": { calls: 1, kind: "platform", why: "SELECT 1" },
   "knowledge/knowledge.service.ts": { calls: 1, kind: "tenant-filtered", why: "ranks articles a" },
   "live-class/live-class-settings.service.ts": { calls: 5, kind: "id-keyed", why: "policy/batch/class locks by id" },
   "messaging/messaging-delivery.worker.ts": { calls: 1, kind: "global-claim", why: "outbox claim; each row sent in its academy" },
   "payments/credit-note.service.ts": { calls: 1, kind: "id-keyed", why: "locks one invoice" },
-  "payments/payment.service.ts": { calls: 1, kind: "id-keyed", why: "locks one payment" },
-  "payments/refund.service.ts": { calls: 1, kind: "id-keyed", why: "locks a refund's payment" },
+  "payments/discount.service.ts": { calls: 1, kind: "id-keyed", why: "locks one discount while a checkout writes its order" },
+  "payments/payment.service.ts": { calls: 3, kind: "id-keyed", why: "locks one payment; locks one order (one attempt in the air); locks one subscription (one cycle charge at a time)" },
+  "payments/refund.service.ts": { calls: 2, kind: "id-keyed", why: "locks a refund's payment (settling, and creating one)" },
+  "payroll/payroll-period.service.ts": { calls: 1, kind: "infra", why: "advisory lock keyed by the academy (no overlapping periods)" },
   "payroll/payroll-record-totals.util.ts": { calls: 1, kind: "id-keyed", why: "locks one payroll record" },
   "platform/entitlement.service.ts": { calls: 1, kind: "infra", why: "advisory lock keyed by the academy" },
+  "platform/subscription-transition.ts": { calls: 1, kind: "platform", why: "locks one academy's subscription row (platform table)" },
   "prisma/job-lock.service.ts": { calls: 3, kind: "platform", why: "job_locks" },
   "prisma/prisma.service.ts": { calls: 12, kind: "infra", why: "the client's own $queryRaw/$executeRaw bindings" },
   "progress/activity-history.service.ts": { calls: 10, kind: "id-keyed", why: "every subquery is one student's rows" },
   "progress/progress-recorder.service.ts": { calls: 1, kind: "id-keyed", why: "locks one student's progress row" },
   "puzzle-activity/library-activity.service.ts": { calls: 2, kind: "tenant-filtered", why: "GLOBAL means academy-wide" },
   "puzzle-rush/puzzle-rush-run.ts": { calls: 4, kind: "platform", why: "lichess_puzzles + SET LOCAL" },
-  "puzzle-rush/solo-puzzle-rush.service.ts": { calls: 1, kind: "tenant-filtered", why: "solo_puzzle_rush_runs r" },
+  "puzzle-rush/solo-puzzle-rush.service.ts": { calls: 2, kind: "tenant-filtered", why: "solo_puzzle_rush_runs r + batch battles" },
+  "puzzle/daily-puzzle.service.ts": { calls: 3, kind: "platform", why: "lichess_puzzles + SET LOCAL" },
   "puzzle/live-class-puzzle.service.ts": { calls: 1, kind: "id-keyed", why: "locks one assignment" },
   "puzzle/puzzle-catalog.service.ts": { calls: 3, kind: "platform", why: "lichess_puzzles + SET LOCAL" },
   "puzzle/puzzle-training.service.ts": { calls: 4, kind: "platform", why: "lichess_puzzles + SET LOCAL" },
@@ -71,6 +84,7 @@ const REVIEWED: Record<string, { calls: number; kind: Kind; why: string }> = {
   "support/support-admin.service.ts": { calls: 4, kind: "infra", why: "advisory lock per WhatsApp contact id (global cuid)" },
   "support/support-conversation.service.ts": { calls: 2, kind: "infra", why: "advisory lock per WhatsApp contact id (global cuid)" },
   "support/support-follow-up.service.ts": { calls: 1, kind: "infra", why: "advisory lock per WhatsApp contact id (global cuid)" },
+  "support/support-lead-capture.service.ts": { calls: 1, kind: "infra", why: "advisory lock per academy + phone tail (lead capture)" },
   "support/support-tickets.service.ts": { calls: 1, kind: "infra", why: "nextval of the ticket reference sequence" },
   "tenancy/integrity/tenant-integrity.service.ts": {
     calls: 4,

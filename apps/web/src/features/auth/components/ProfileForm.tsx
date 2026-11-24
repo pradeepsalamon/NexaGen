@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useMutation } from "@tanstack/react-query";
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
@@ -159,7 +160,7 @@ export function ProfileForm() {
       // The server's reason matters here ("Current password is incorrect.").
       toast.error({
         title: "Failed to update profile.",
-        message: error instanceof Error ? error.message : undefined
+        message: getErrorMessage(error)
       });
     }
   }
@@ -169,7 +170,7 @@ export function ProfileForm() {
     "NC";
 
   return (
-    <form className="mt-6 grid gap-6" onSubmit={handleSubmit}>
+    <form noValidate className="mt-6 grid gap-6" onSubmit={handleSubmit}>
       <AvatarUploader
         avatarUrl={values.avatarUrl}
         initials={initials}

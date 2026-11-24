@@ -87,7 +87,11 @@ describe("RefundService.create", () => {
               Promise.resolve(
                 callback({
                   $queryRaw: jest.fn().mockResolvedValue([]),
-                  refund: { findUnique: jest.fn().mockResolvedValue(null) },
+                  refund: {
+                    create: jest.fn().mockResolvedValue(refundRow),
+                    findMany: jest.fn().mockResolvedValue(payment.refunds),
+                    findUnique: jest.fn().mockResolvedValue(null)
+                  },
                   payment: {
                     findUnique: jest.fn().mockResolvedValue(payment),
                     // A definitive rejection restores the payment's status.
@@ -98,7 +102,7 @@ describe("RefundService.create", () => {
               )
           }
         },
-        { provide: EntitlementService, useValue: { revokeForOrder: jest.fn() } },
+        { provide: EntitlementService, useValue: { restoreRevokedForOrder: jest.fn().mockResolvedValue(0), revokeForOrder: jest.fn() } },
         { provide: CreditNoteService, useValue: { issueForRefund: jest.fn() } },
         { provide: InvoiceAuditService, useValue: { recordTx: jest.fn() } },
         {
@@ -242,11 +246,13 @@ describe("RefundService.applyProviderState", () => {
     const orderUpdate = jest.fn().mockResolvedValue({});
     const recordRefund = jest.fn();
     const dispatch = jest.fn();
+    const restoreRevokedForOrder = jest.fn().mockResolvedValue(1);
+    const paymentFindUnique = jest.fn();
 
     const tx = {
       $queryRaw: jest.fn().mockResolvedValue([]),
       refund: { findUnique: jest.fn().mockResolvedValue(refund), update: refundUpdate },
-      payment: { update: paymentUpdate, findUnique: jest.fn() },
+      payment: { update: paymentUpdate, findUnique: paymentFindUnique },
       order: { update: orderUpdate }
     };
 
@@ -261,7 +267,7 @@ describe("RefundService.applyProviderState", () => {
               Promise.resolve(callback(tx))
           }
         },
-        { provide: EntitlementService, useValue: {} },
+        { provide: EntitlementService, useValue: { restoreRevokedForOrder } },
         {
           provide: CreditNoteService,
           useValue: {
@@ -286,8 +292,10 @@ describe("RefundService.applyProviderState", () => {
       service: module.get(RefundService),
       refundUpdate,
       paymentUpdate,
+      paymentFindUnique,
       orderUpdate,
       recordRefund,
+      restoreRevokedForOrder,
       dispatch
     };
   };
@@ -379,6 +387,38 @@ describe("RefundService.applyProviderState", () => {
 
     expect(paymentUpdate).not.toHaveBeenCalled();
     expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  // Review P9: access revoked at the request comes back when the refund fails.
+  it("restores the revoked access when the refund fails and nothing went back", async () => {
+    const { service, paymentFindUnique, restoreRevokedForOrder } = await buildModule(baseRefund);
+    paymentFindUnique.mockResolvedValue({
+      amount: 99900,
+      id: "pmt_1",
+      orderId: "ord_1",
+      refunds: [{ amount: 99900, id: "rfnd_1", status: RefundStatus.FAILED }]
+    });
+
+    await service.applyProviderState("rfnd_1", { amount: 99900, providerRefundId: "r", raw: {}, status: RefundStatus.FAILED });
+
+    expect(restoreRevokedForOrder).toHaveBeenCalledWith(expect.anything(), "ord_1", "Refund requested: ");
+  });
+
+  it("keeps access revoked when an earlier refund did go through", async () => {
+    const { service, paymentFindUnique, restoreRevokedForOrder } = await buildModule(baseRefund);
+    paymentFindUnique.mockResolvedValue({
+      amount: 99900,
+      id: "pmt_1",
+      orderId: "ord_1",
+      refunds: [
+        { amount: 50000, id: "rfnd_0", status: RefundStatus.SUCCEEDED },
+        { amount: 49900, id: "rfnd_1", status: RefundStatus.FAILED }
+      ]
+    });
+
+    await service.applyProviderState("rfnd_1", { amount: 49900, providerRefundId: "r", raw: {}, status: RefundStatus.FAILED });
+
+    expect(restoreRevokedForOrder).not.toHaveBeenCalled();
   });
 
   it("does not touch the payment while a refund is still processing", async () => {

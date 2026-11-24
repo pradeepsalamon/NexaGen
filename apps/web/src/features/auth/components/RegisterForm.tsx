@@ -4,7 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { type FormEvent, useRef, useState } from "react";
-import { AtSign, CalendarDays, Lock, Phone, ShieldCheck, UserRound } from "lucide-react";
+import { AtSign, CalendarDays, Lock, Phone, UserRound } from "lucide-react";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { PasswordInput } from "@/components/ui/PasswordInput";
@@ -41,7 +41,7 @@ export function RegisterForm() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [termsError, setTermsError] = useState<string | undefined>();
   const termsRef = useRef<HTMLButtonElement>(null);
-  const { touched, touchAll, touchField } = useTouchedFields<RegisterFormValues>();
+  const { touched, touchAll } = useTouchedFields<RegisterFormValues>();
   const errors = validateRegisterForm(values, touched);
 
   const registerMutation = useMutation({
@@ -113,20 +113,21 @@ export function RegisterForm() {
         We have your registration for{" "}
         <span className="font-semibold text-app-text">{submittedEmail}</span>. An admin
         reviews every student account before it is activated. You can sign in once yours
-        is approved.
+        is approved, and we&apos;ll email you when it is.
       </AuthStatus>
     );
   }
 
   return (
-    <form className="grid gap-6" noValidate onSubmit={handleSubmit}>
-      <RegistrationFieldset legend="Student">
+    <form className="grid gap-6 lg:gap-3" noValidate onSubmit={handleSubmit}>
+      {/* One group with the parent's details, so this form has the coach form's two groups
+          and four rows: the two tabs are the same height. */}
+      <RegistrationFieldset legend="Student and parent or guardian">
         <FormField error={errors.studentName} id="student-name" label="Student's full name" required>
           <Input
             autoComplete="name"
             hasError={Boolean(errors.studentName)}
             id="student-name"
-            onBlur={() => touchField("studentName")}
             leadingIcon={<UserRound />}
             onChange={(e) => updateField("studentName", e.target.value)}
             placeholder="e.g. Aarav Sharma"
@@ -140,7 +141,6 @@ export function RegisterForm() {
           <Input
             hasError={Boolean(errors.studentAge)}
             id="student-age"
-            onBlur={() => touchField("studentAge")}
             inputMode="numeric"
             leadingIcon={<CalendarDays />}
             onChange={(e) => {
@@ -155,15 +155,12 @@ export function RegisterForm() {
             value={values.studentAge}
           />
         </FormField>
-      </RegistrationFieldset>
 
-      <RegistrationFieldset legend="Parent or guardian contact">
         <FormField error={errors.parentName} id="parent-name" label="Parent or guardian name" required>
           <Input
             autoComplete="name"
             hasError={Boolean(errors.parentName)}
             id="parent-name"
-            onBlur={() => touchField("parentName")}
             leadingIcon={<UserRound />}
             onChange={(e) => updateField("parentName", e.target.value)}
             placeholder="e.g. Rajesh Sharma"
@@ -178,7 +175,6 @@ export function RegisterForm() {
             autoComplete="tel"
             hasError={Boolean(errors.contactNumber)}
             id="contact-number"
-            onBlur={() => touchField("contactNumber")}
             inputMode="numeric"
             leadingIcon={<Phone />}
             maxLength={15}
@@ -201,7 +197,6 @@ export function RegisterForm() {
             autoComplete="email"
             hasError={Boolean(errors.email)}
             id="email"
-            onBlur={() => touchField("email")}
             inputMode="email"
             leadingIcon={<AtSign />}
             onChange={(e) => updateField("email", e.target.value)}
@@ -216,7 +211,6 @@ export function RegisterForm() {
           detail={values.acquisitionDetail}
           onDetailChange={(detail) => updateField("acquisitionDetail", detail)}
           error={errors.acquisitionSource}
-          onBlur={() => touchField("acquisitionSource")}
           onValueChange={(value) => updateField("acquisitionSource", value)}
           required
           value={values.acquisitionSource}
@@ -227,7 +221,6 @@ export function RegisterForm() {
             autoComplete="new-password"
             hasError={Boolean(errors.password)}
             id="password"
-            onBlur={() => touchField("password")}
             leadingIcon={<Lock />}
             onChange={(e) => updateField("password", e.target.value)}
             placeholder="Create a secure password"
@@ -241,7 +234,6 @@ export function RegisterForm() {
             autoComplete="new-password"
             hasError={Boolean(errors.confirmPassword)}
             id="confirm-password"
-            onBlur={() => touchField("confirmPassword")}
             leadingIcon={<Lock />}
             name="confirmPassword"
             onChange={(e) => updateField("confirmPassword", e.target.value)}
@@ -263,18 +255,10 @@ export function RegisterForm() {
         ref={termsRef}
       />
 
-      <div className="grid gap-3">
+      <div className="grid gap-4 lg:gap-3.5">
         <Button fullWidth isLoading={registerMutation.isPending} size="lg" type="submit">
           {registerMutation.isPending ? "Submitting…" : "Complete registration"}
         </Button>
-        <p className="flex items-start justify-center gap-2 text-center text-sm text-app-muted">
-          <ShieldCheck
-            aria-hidden="true"
-            className="mt-0.5 size-4 shrink-0 text-success-ink"
-            strokeWidth={2.25}
-          />
-          Our team reviews every registration. You can sign in once it is approved.
-        </p>
         <LoginPrompt />
       </div>
     </form>

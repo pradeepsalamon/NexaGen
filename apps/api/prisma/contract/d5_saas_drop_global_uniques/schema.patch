@@ -1,8 +1,7 @@
 diff --git a/apps/api/prisma/schema.prisma b/apps/api/prisma/schema.prisma
-index 77952867..370232cc 100644
 --- a/apps/api/prisma/schema.prisma
 +++ b/apps/api/prisma/schema.prisma
-@@ -248,11 +248,11 @@ enum CourseModuleContentType {
+@@ -249,11 +249,11 @@
  
  model User {
    id       String @id @default(cuid())
@@ -18,7 +17,7 @@ index 77952867..370232cc 100644
    password String
  
    firstName String
-@@ -559,8 +559,8 @@ model User {
+@@ -570,8 +570,8 @@
  
  model StudentProfile {
    id       String @id @default(cuid())
@@ -29,7 +28,7 @@ index 77952867..370232cc 100644
  
    userId String @unique
    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-@@ -607,8 +607,8 @@ model StudentProfile {
+@@ -623,8 +623,8 @@
  
  model CoachProfile {
    id       String @id @default(cuid())
@@ -40,7 +39,7 @@ index 77952867..370232cc 100644
  
    userId String @unique
    user   User   @relation("UserCoachProfile", fields: [userId], references: [id], onDelete: Cascade)
-@@ -661,8 +661,8 @@ model CoachProfile {
+@@ -677,8 +677,8 @@
  
  model AuthSession {
    id       String @id @default(cuid())
@@ -51,7 +50,16 @@ index 77952867..370232cc 100644
  
    userId String
    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-@@ -696,8 +696,8 @@ model AuthSession {
+@@ -723,7 +723,7 @@
+ model UserRoleChange {
+   id       String @id @default(cuid())
+   /// Owning academy (Tenant.id).
+-  tenantId String @default("tenant_nexa")
++  tenantId String @default(dbgenerated("nexa_tenant_required()"))
+ 
+   userId String
+   user   User   @relation("UserRoleChangeUser", fields: [userId], references: [id], onDelete: Cascade)
+@@ -744,8 +744,8 @@
  // TOTP second factor. One row per enrolled (or enrolling) user.
  model UserMfa {
    userId   String @id
@@ -62,7 +70,7 @@ index 77952867..370232cc 100644
    user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
  
    // AES-256-GCM with MFA_ENCRYPTION_KEY; never stored or logged in clear.
-@@ -721,8 +721,8 @@ model UserMfa {
+@@ -769,8 +769,8 @@
  
  model PasswordResetToken {
    id       String @id @default(cuid())
@@ -73,7 +81,7 @@ index 77952867..370232cc 100644
  
    userId String
    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-@@ -740,8 +740,8 @@ model PasswordResetToken {
+@@ -788,8 +788,8 @@
  
  model EmailVerificationToken {
    id       String @id @default(cuid())
@@ -84,7 +92,7 @@ index 77952867..370232cc 100644
  
    userId String
    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-@@ -769,7 +769,7 @@ enum EmailVerificationPolicy {
+@@ -817,7 +817,7 @@
  /// contrast-checked on save; the web derives the theme variables from them.
  model TenantBranding {
    id              String   @id @default(cuid())
@@ -93,7 +101,7 @@ index 77952867..370232cc 100644
    displayName     String?
    tagline         String?
    primaryColor    String?
-@@ -800,7 +800,7 @@ model TenantBranding {
+@@ -848,7 +848,7 @@
  model TenantLegalPage {
    id          String   @id @default(cuid())
    /// Owning academy (Tenant.id).
@@ -102,7 +110,7 @@ index 77952867..370232cc 100644
    /// LegalPageKind from @nexa-chess/types: "privacy" | "terms".
    kind        String
    body        String
-@@ -817,7 +817,7 @@ model TenantLegalPage {
+@@ -865,7 +865,7 @@
  /// The token is AES-256-GCM encrypted (WHATSAPP_CREDENTIALS_KEY, else MFA_ENCRYPTION_KEY).
  model WhatsAppSettings {
    id                   String    @id @default(cuid())
@@ -111,7 +119,7 @@ index 77952867..370232cc 100644
    enabled              Boolean   @default(false)
    /// One academy per number: incoming messages are routed by it (docs/WHATSAPP_SUPPORT_MODES_PLAN.md §6).
    phoneNumberId        String?   @unique
-@@ -844,7 +844,7 @@ model EmailSettings {
+@@ -892,7 +892,7 @@
    id                 String                  @id @default("default")
    /// Owning academy (Tenant.id): one row per academy (docs/SAAS_MULTI_TENANCY.md
    /// § "Phase 3 plan", slice 5). Nexa's row keeps id "default".
@@ -120,7 +128,7 @@ index 77952867..370232cc 100644
    verificationPolicy EmailVerificationPolicy @default(OFF)
    updatedById        String?
    createdAt          DateTime                @default(now())
-@@ -873,8 +873,8 @@ enum DirectEmailStatus {
+@@ -921,8 +921,8 @@
  /// nothing goes out unlogged; PENDING means the send never reported back.
  model DirectEmail {
    id       String @id @default(cuid())
@@ -131,7 +139,7 @@ index 77952867..370232cc 100644
  
    recipientId String
    recipient   User   @relation("DirectEmailRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
-@@ -903,8 +903,8 @@ model DirectEmail {
+@@ -951,8 +951,8 @@
  
  model Batch {
    id       String @id @default(cuid())
@@ -142,7 +150,7 @@ index 77952867..370232cc 100644
  
    name          String
    description   String?
-@@ -967,8 +967,8 @@ model Batch {
+@@ -1027,8 +1027,8 @@
  
  model BatchCoach {
    id       String @id @default(cuid())
@@ -153,7 +161,7 @@ index 77952867..370232cc 100644
  
    batchId String
    batch   Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
-@@ -994,8 +994,8 @@ model BatchCoach {
+@@ -1054,8 +1054,8 @@
  
  model BatchStudent {
    id       String @id @default(cuid())
@@ -164,7 +172,7 @@ index 77952867..370232cc 100644
  
    batchId String
    batch   Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
-@@ -1021,8 +1021,8 @@ model BatchStudent {
+@@ -1081,8 +1081,8 @@
  
  model TrashAuditLog {
    id        String   @id @default(cuid())
@@ -175,7 +183,7 @@ index 77952867..370232cc 100644
    entity    String
    entityId  String
    action    String
-@@ -1044,8 +1044,8 @@ model TrashAuditLog {
+@@ -1104,8 +1104,8 @@
  
  model CoachClass {
    id       String @id @default(cuid())
@@ -186,7 +194,7 @@ index 77952867..370232cc 100644
  
    batchId String?
    batch   Batch?  @relation(fields: [batchId], references: [id], onDelete: Cascade)
-@@ -1168,9 +1168,9 @@ enum DemoGuestApproval {
+@@ -1228,9 +1228,9 @@
  /// ahead by `DemoScheduleService`; not soft-deletable.
  model DemoSchedule {
    id              String              @id @default(cuid())
@@ -199,18 +207,18 @@ index 77952867..370232cc 100644
    topic           String
    description     String?
    coachId         String
-@@ -1215,8 +1215,8 @@ model DemoSchedule {
+@@ -1275,8 +1275,8 @@
  /// `joinedAt` means they signed up ahead of the class starting.
  model DemoClassRegistration {
-   id            String                        @id @default(cuid())
+   id                String                        @id @default(cuid())
 -  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
--  tenantId      String                        @default("tenant_nexa")
+-  tenantId          String                        @default("tenant_nexa")
 +  /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; since §D5 a row written without one raises (nexa_tenant_required()).
-+  tenantId      String                        @default(dbgenerated("nexa_tenant_required()"))
-   classId       String
-   class         CoachClass                    @relation(fields: [classId], references: [id], onDelete: Cascade)
-   name          String
-@@ -1269,8 +1269,8 @@ enum LeadStatus {
++  tenantId          String                        @default(dbgenerated("nexa_tenant_required()"))
+   classId           String
+   class             CoachClass                    @relation(fields: [classId], references: [id], onDelete: Cascade)
+   name              String
+@@ -1337,8 +1337,8 @@
  /// repeat hits, everything else is set once on the first hit of a session.
  model VisitorSession {
    id        String @id @default(cuid())
@@ -221,7 +229,7 @@ index 77952867..370232cc 100644
    sessionId String @unique
    visitorId String
  
-@@ -1309,8 +1309,8 @@ model VisitorSession {
+@@ -1384,8 +1384,8 @@
  /// not yet a signup for a specific scheduled class.
  model Lead {
    id              String  @id @default(cuid())
@@ -232,7 +240,7 @@ index 77952867..370232cc 100644
    studentName     String
    parentName      String
    studentAge      Int
-@@ -1373,8 +1373,8 @@ model Lead {
+@@ -1457,8 +1457,8 @@
  /// for system entries.
  model LeadActivity {
    id       String @id @default(cuid())
@@ -243,7 +251,7 @@ index 77952867..370232cc 100644
    leadId   String
    lead     Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
  
-@@ -1392,8 +1392,8 @@ model LeadActivity {
+@@ -1480,8 +1480,8 @@
  
  model LeadNote {
    id       String @id @default(cuid())
@@ -254,7 +262,7 @@ index 77952867..370232cc 100644
    leadId   String
    lead     Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
  
-@@ -1416,8 +1416,8 @@ model LeadNote {
+@@ -1504,8 +1504,8 @@
  /// manually-created classes for live-class, attendance, assignments, etc.
  model BatchClassSchedule {
    id       String @id @default(cuid())
@@ -265,7 +273,7 @@ index 77952867..370232cc 100644
  
    batchId String
    batch   Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
-@@ -1454,8 +1454,8 @@ model BatchClassSchedule {
+@@ -1542,8 +1542,8 @@
  /// <endTime> with <coach>".
  model BatchClassScheduleRule {
    id       String @id @default(cuid())
@@ -276,7 +284,7 @@ index 77952867..370232cc 100644
  
    scheduleId String
    schedule   BatchClassSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-@@ -1485,8 +1485,8 @@ model BatchClassScheduleRule {
+@@ -1573,8 +1573,8 @@
  /// recurrence rule stays intact; only generation skips the date.
  model BatchScheduleException {
    id       String @id @default(cuid())
@@ -287,7 +295,7 @@ index 77952867..370232cc 100644
  
    scheduleId String
    schedule   BatchClassSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-@@ -1503,8 +1503,8 @@ model BatchScheduleException {
+@@ -1591,8 +1591,8 @@
  
  model ClassAttendance {
    id       String @id @default(cuid())
@@ -298,7 +306,7 @@ index 77952867..370232cc 100644
  
    classId String
    class   CoachClass @relation(fields: [classId], references: [id], onDelete: Cascade)
-@@ -1545,8 +1545,8 @@ model ClassAttendance {
+@@ -1633,8 +1633,8 @@
  
  model AttendanceLog {
    id       String @id @default(cuid())
@@ -309,7 +317,7 @@ index 77952867..370232cc 100644
  
    attendanceId String
    attendance   ClassAttendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
-@@ -1586,8 +1586,8 @@ model AttendanceLog {
+@@ -1674,8 +1674,8 @@
  
  model CoachAttendance {
    id       String @id @default(cuid())
@@ -320,7 +328,7 @@ index 77952867..370232cc 100644
  
    classId String     @unique
    class   CoachClass @relation(fields: [classId], references: [id], onDelete: Cascade)
-@@ -1618,8 +1618,8 @@ model CoachAttendance {
+@@ -1706,8 +1706,8 @@
  
  model CoachAttendanceLog {
    id       String @id @default(cuid())
@@ -331,7 +339,7 @@ index 77952867..370232cc 100644
  
    attendanceId String
    attendance   CoachAttendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
-@@ -1650,8 +1650,8 @@ model CoachAttendanceLog {
+@@ -1738,8 +1738,8 @@
  
  model AttendancePolicy {
    id       String @id @default(cuid())
@@ -342,7 +350,7 @@ index 77952867..370232cc 100644
  
    name     String  @default("Default Policy")
    isActive Boolean @default(true)
-@@ -1676,8 +1676,8 @@ model AttendancePolicy {
+@@ -1764,8 +1764,8 @@
  
  model LiveSession {
    id       String @id @default(cuid())
@@ -353,7 +361,7 @@ index 77952867..370232cc 100644
  
    batchId String?
    batch   Batch?  @relation(fields: [batchId], references: [id], onDelete: Cascade)
-@@ -1752,8 +1752,8 @@ enum LiveClassPullStatus {
+@@ -1840,8 +1840,8 @@
  /// directly. Operational session state — not soft-deletable, not in Trash.
  model LiveClassPull {
    id       String @id @default(cuid())
@@ -364,7 +372,7 @@ index 77952867..370232cc 100644
  
    liveSessionId String
    liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
-@@ -1791,8 +1791,8 @@ enum WaitingRoomStatus {
+@@ -1879,8 +1879,8 @@
  /// soft-deletable, not Trash-registered, like LiveClassPuzzleAssignment.
  model LiveClassWaitingParticipant {
    id       String @id @default(cuid())
@@ -375,7 +383,7 @@ index 77952867..370232cc 100644
  
    liveSessionId String
    liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
-@@ -1830,8 +1830,8 @@ enum ScreenShareRequestStatus {
+@@ -1918,8 +1918,8 @@
  /// not soft-deletable, not Trash-registered.
  model LiveClassScreenShareRequest {
    id       String @id @default(cuid())
@@ -386,7 +394,7 @@ index 77952867..370232cc 100644
  
    liveSessionId String
    liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
-@@ -1860,7 +1860,7 @@ model LiveClassScreenShareRequest {
+@@ -1948,7 +1948,7 @@
  /// Not soft-deletable, not Trash-registered.
  model LiveClassTranscriptSegment {
    id       String @id @default(cuid())
@@ -395,7 +403,7 @@ index 77952867..370232cc 100644
  
    liveSessionId String
    liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
-@@ -1887,8 +1887,8 @@ model LiveClassTranscriptSegment {
+@@ -1975,8 +1975,8 @@
  
  model LiveChatMessage {
    id       String @id @default(cuid())
@@ -406,7 +414,7 @@ index 77952867..370232cc 100644
  
    liveSessionId String
    liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
-@@ -1942,8 +1942,8 @@ model ProcessedWebhookEvent {
+@@ -2030,8 +2030,8 @@
  /// the live row if more than one ever exists.
  model LiveClassPolicy {
    id       String  @id @default(cuid())
@@ -417,7 +425,7 @@ index 77952867..370232cc 100644
    name     String  @default("Default Live Class Policy")
    isActive Boolean @default(true)
  
-@@ -1961,8 +1961,8 @@ model LiveClassPolicy {
+@@ -2049,8 +2049,8 @@
  /// class — never a live reference (§23). Not soft-deletable (like Assignment).
  model LiveClassPreset {
    id       String @id @default(cuid())
@@ -428,7 +436,7 @@ index 77952867..370232cc 100644
  
    ownerId String?
    owner   User?   @relation("UserLiveClassPresets", fields: [ownerId], references: [id], onDelete: Cascade)
-@@ -2005,8 +2005,8 @@ model LiveClassPreset {
+@@ -2093,8 +2093,8 @@
  /// never affects FEN/position/moves/game state.
  model ChessAppearanceSettings {
    id       String  @id @default(cuid())
@@ -439,7 +447,7 @@ index 77952867..370232cc 100644
    name     String  @default("Default Chess Appearance Settings")
    isActive Boolean @default(true)
  
-@@ -2037,8 +2037,8 @@ model ChessAppearanceSettings {
+@@ -2125,8 +2125,8 @@
  /// default. Not soft-deletable (cosmetic, no trash semantics needed).
  model UserChessAppearancePreference {
    id       String @id @default(cuid())
@@ -450,7 +458,7 @@ index 77952867..370232cc 100644
    userId   String @unique
    user     User   @relation("UserChessAppearancePreference", fields: [userId], references: [id], onDelete: Cascade)
  
-@@ -2055,8 +2055,8 @@ model UserChessAppearancePreference {
+@@ -2143,8 +2143,8 @@
  /// soft-deletable (cosmetic, like ChessAppearanceSettings).
  model TypographySettings {
    id       String @id @default(cuid())
@@ -461,7 +469,7 @@ index 77952867..370232cc 100644
  
    /// Partial TypographyOverride JSON (validated by @nexa-chess/types).
    /// Empty object means "untouched" — the system default (Outfit + Nunito Sans) applies.
-@@ -2075,8 +2075,8 @@ model TypographySettings {
+@@ -2163,8 +2163,8 @@
  /// the admin/system default".
  model UserTypographyPreference {
    id       String @id @default(cuid())
@@ -472,7 +480,7 @@ index 77952867..370232cc 100644
    userId   String @unique
    user     User   @relation("UserTypographyPreference", fields: [userId], references: [id], onDelete: Cascade)
  
-@@ -2098,8 +2098,8 @@ model UserTypographyPreference {
+@@ -2186,8 +2186,8 @@
  // once PUBLISHED. Mirrors Puzzle's status/soft-delete shape.
  model Course {
    id          String       @id @default(cuid())
@@ -483,7 +491,7 @@ index 77952867..370232cc 100644
    title       String
    description String?
    status      CourseStatus @default(DRAFT)
-@@ -2138,8 +2138,8 @@ model Course {
+@@ -2226,8 +2226,8 @@
  // blocked rather than silently orphaning the module.
  model CourseModule {
    id       String @id @default(cuid())
@@ -494,7 +502,7 @@ index 77952867..370232cc 100644
    courseId String
    course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
    title    String
-@@ -2173,8 +2173,8 @@ model CourseModule {
+@@ -2261,8 +2261,8 @@
  
  model StudentCourseProgress {
    id              String   @id @default(cuid())
@@ -505,7 +513,7 @@ index 77952867..370232cc 100644
    studentId       String
    student         User     @relation("StudentCourseProgress", fields: [studentId], references: [id], onDelete: Cascade)
    courseId        String
-@@ -2194,8 +2194,8 @@ model StudentCourseProgress {
+@@ -2282,8 +2282,8 @@
  // same category as PuzzleAttempt.
  model StudentModuleProgress {
    id          String       @id @default(cuid())
@@ -516,7 +524,7 @@ index 77952867..370232cc 100644
    studentId   String
    student     User         @relation("StudentModuleProgress", fields: [studentId], references: [id], onDelete: Cascade)
    moduleId    String
-@@ -2213,8 +2213,8 @@ model StudentModuleProgress {
+@@ -2301,8 +2301,8 @@
  
  model Practice {
    id         String            @id @default(cuid())
@@ -527,7 +535,7 @@ index 77952867..370232cc 100644
    title      String
    difficulty String // BEGINNER, INTERMEDIATE, ADVANCED
    dueDate    DateTime
-@@ -2223,8 +2223,8 @@ model Practice {
+@@ -2311,8 +2311,8 @@
  
  model StudentPractice {
    id         String   @id @default(cuid())
@@ -538,7 +546,7 @@ index 77952867..370232cc 100644
    studentId  String
    student    User     @relation("StudentPractice", fields: [studentId], references: [id], onDelete: Cascade)
    practiceId String
-@@ -2241,8 +2241,8 @@ model StudentPractice {
+@@ -2329,8 +2329,8 @@
  // delete cascades to every deployment + per-student row.
  model Assignment {
    id               String               @id @default(cuid())
@@ -549,7 +557,7 @@ index 77952867..370232cc 100644
    createdById      String?
    createdBy        User?                @relation("AuthoredAssignments", fields: [createdById], references: [id], onDelete: SetNull)
    isLibrary        Boolean              @default(false)
-@@ -2303,8 +2303,8 @@ model Assignment {
+@@ -2391,8 +2391,8 @@
  // One deployment of a library assignment to a batch, with its own due date.
  model AssignmentBatch {
    id           String     @id @default(cuid())
@@ -560,7 +568,7 @@ index 77952867..370232cc 100644
    assignmentId String
    assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
    batchId      String
-@@ -2325,8 +2325,8 @@ model AssignmentBatch {
+@@ -2418,8 +2418,8 @@
  
  model StudentAssignment {
    id                String           @id @default(cuid())
@@ -571,7 +579,7 @@ index 77952867..370232cc 100644
    assignmentBatchId String
    assignmentBatch   AssignmentBatch  @relation(fields: [assignmentBatchId], references: [id], onDelete: Cascade)
    studentId         String
-@@ -2357,8 +2357,8 @@ model StudentAssignment {
+@@ -2450,8 +2450,8 @@
  // incrementally (movesJson); the server evaluates authoritatively on submit.
  model StudentAssignmentAttempt {
    id                  String                  @id @default(cuid())
@@ -582,7 +590,7 @@ index 77952867..370232cc 100644
    studentAssignmentId String
    studentAssignment   StudentAssignment       @relation(fields: [studentAssignmentId], references: [id], onDelete: Cascade)
    attemptNumber       Int
-@@ -2388,8 +2388,8 @@ model StudentAssignmentAttempt {
+@@ -2484,8 +2484,8 @@
  // of the set (Cascade), the same as its attempts.
  model AssignmentPuzzle {
    id           String     @id @default(cuid())
@@ -593,7 +601,7 @@ index 77952867..370232cc 100644
    assignmentId String
    assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
    puzzleId     String
-@@ -2449,8 +2449,8 @@ enum NotificationType {
+@@ -2547,8 +2547,8 @@
  
  model Notification {
    id        String           @id @default(cuid())
@@ -604,7 +612,7 @@ index 77952867..370232cc 100644
    userId    String
    user      User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
    type      NotificationType
-@@ -2476,8 +2476,8 @@ model Notification {
+@@ -2574,8 +2574,8 @@
  
  model StudentActivity {
    id        String   @id @default(cuid())
@@ -615,7 +623,7 @@ index 77952867..370232cc 100644
    studentId String
    student   User     @relation("StudentActivity", fields: [studentId], references: [id], onDelete: Cascade)
    type      String // CLASS_JOINED, LESSON_COMPLETED, PRACTICE_FINISHED, FEEDBACK
-@@ -2490,8 +2490,8 @@ model StudentActivity {
+@@ -2588,8 +2588,8 @@
  
  model Announcement {
    id          String @id @default(cuid())
@@ -626,7 +634,7 @@ index 77952867..370232cc 100644
    title       String
    description String
    /// Legacy label the student dashboard feed still renders: BATCH, COURSE, PLATFORM.
-@@ -2526,8 +2526,8 @@ model Announcement {
+@@ -2624,8 +2624,8 @@
  
  model RecordingWatchProgress {
    id             String   @id @default(cuid())
@@ -637,7 +645,7 @@ index 77952867..370232cc 100644
    studentId      String
    classId        String
    liveSessionId  String
-@@ -2551,8 +2551,8 @@ model RecordingWatchProgress {
+@@ -2649,8 +2649,8 @@
  /// a failed insert never breaks the originating request.
  model AnalyticsEvent {
    id         String   @id @default(cuid())
@@ -648,7 +656,7 @@ index 77952867..370232cc 100644
    userId     String
    user       User     @relation("UserAnalyticsEvents", fields: [userId], references: [id], onDelete: Cascade)
    type       String // LOGIN | CLASS_JOIN | ASSIGNMENT_ATTEMPT | RECORDING_WATCH | DASHBOARD_VIEW
-@@ -2569,10 +2569,10 @@ model AnalyticsEvent {
+@@ -2667,10 +2667,10 @@
  /// written by AnalyticsScheduler. Drives the storage growth chart and forecast.
  model StorageSnapshot {
    id             String   @id @default(cuid())
@@ -662,7 +670,7 @@ index 77952867..370232cc 100644
    recordingBytes BigInt
    recordingCount Int
    limitBytes     BigInt
-@@ -2593,8 +2593,8 @@ model StorageSnapshot {
+@@ -2691,8 +2691,8 @@
  // by hand in the migration so a deleted topic's name can be reused.
  model PuzzleTopic {
    id          String  @id @default(cuid())
@@ -673,7 +681,7 @@ index 77952867..370232cc 100644
    name        String
    slug        String
    description String?
-@@ -2646,8 +2646,8 @@ model PuzzleTopic {
+@@ -2744,8 +2744,8 @@
  // LiveClassPuzzleAssignment (in-class deployment) without being copied.
  model Puzzle {
    id          String      @id @default(cuid())
@@ -684,7 +692,7 @@ index 77952867..370232cc 100644
    topicId     String
    topic       PuzzleTopic @relation(fields: [topicId], references: [id], onDelete: Restrict)
    /// COLLATE "natural_sort" (ICU, numeric) — set by migration
-@@ -2710,8 +2710,6 @@ model Puzzle {
+@@ -2810,8 +2810,6 @@
    deletedById   String?
    deletedBy     User?     @relation("PuzzleDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
    deleteGroupId String?
@@ -693,7 +701,7 @@ index 77952867..370232cc 100644
    // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
    @@unique([tenantId, source, sourceId])
    @@index([ownerId])
-@@ -2739,8 +2737,8 @@ model Puzzle {
+@@ -2839,8 +2837,8 @@
  // column can split them later if needed).
  model PuzzleAttempt {
    id        String @id @default(cuid())
@@ -704,7 +712,7 @@ index 77952867..370232cc 100644
    puzzleId  String
    puzzle    Puzzle @relation(fields: [puzzleId], references: [id], onDelete: Cascade)
    studentId String
-@@ -2791,8 +2789,8 @@ model PuzzleAttempt {
+@@ -2892,8 +2890,8 @@
  // hand in the migration) enforces one live puzzle per class at a time.
  model LiveClassPuzzleAssignment {
    id       String @id @default(cuid())
@@ -715,7 +723,7 @@ index 77952867..370232cc 100644
  
    liveClassId String
    liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
-@@ -2827,8 +2825,8 @@ model LiveClassPuzzleAssignment {
+@@ -2928,8 +2926,8 @@
  /// every puzzle's own points. Operational state — not soft-deletable.
  model LiveClassLeaderboardAdjustment {
    id       String @id @default(cuid())
@@ -726,7 +734,7 @@ index 77952867..370232cc 100644
  
    liveClassId String
    liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
-@@ -2890,8 +2888,8 @@ enum SimulSide {
+@@ -2991,8 +2989,8 @@
  /// not soft-deletable, not Trash-registered.
  model LiveClassSimul {
    id       String @id @default(cuid())
@@ -737,7 +745,7 @@ index 77952867..370232cc 100644
  
    liveClassId String
    liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
-@@ -2916,8 +2914,8 @@ model LiveClassSimul {
+@@ -3017,8 +3015,8 @@
  
  model LiveClassSimulGame {
    id       String @id @default(cuid())
@@ -748,7 +756,7 @@ index 77952867..370232cc 100644
  
    simulId String
    simul   LiveClassSimul @relation(fields: [simulId], references: [id], onDelete: Cascade)
-@@ -3000,8 +2998,8 @@ enum MatchChallengeStatus {
+@@ -3101,8 +3099,8 @@
  /// Operational class state — not soft-deletable, not Trash-registered.
  model LiveClassMatchRound {
    id       String @id @default(cuid())
@@ -759,7 +767,7 @@ index 77952867..370232cc 100644
  
    liveClassId String
    liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
-@@ -3030,8 +3028,8 @@ model LiveClassMatchRound {
+@@ -3131,8 +3129,8 @@
  
  model LiveClassMatchGame {
    id       String @id @default(cuid())
@@ -770,7 +778,7 @@ index 77952867..370232cc 100644
  
    roundId String
    round   LiveClassMatchRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
-@@ -3067,8 +3065,8 @@ model LiveClassMatchGame {
+@@ -3168,8 +3166,8 @@
  
  model LiveClassMatchChallenge {
    id       String @id @default(cuid())
@@ -781,7 +789,7 @@ index 77952867..370232cc 100644
  
    roundId String
    round   LiveClassMatchRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
-@@ -3098,8 +3096,8 @@ enum LiveClassMovePollStatus {
+@@ -3199,8 +3197,8 @@
  /// A coach's "what would you play?" question on one position.
  model LiveClassMovePoll {
    id       String @id @default(cuid())
@@ -792,7 +800,7 @@ index 77952867..370232cc 100644
  
    liveClassId String
    liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
-@@ -3127,8 +3125,8 @@ model LiveClassMovePoll {
+@@ -3228,8 +3226,8 @@
  
  model LiveClassMovePollAnswer {
    id       String @id @default(cuid())
@@ -803,7 +811,7 @@ index 77952867..370232cc 100644
  
    pollId String
    poll   LiveClassMovePoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
-@@ -3159,8 +3157,8 @@ enum PuzzleRushMode {
+@@ -3260,8 +3258,8 @@
  /// index on liveClassId WHERE "endedAt" IS NULL). Operational, not soft-deletable.
  model LiveClassPuzzleRush {
    id       String @id @default(cuid())
@@ -814,7 +822,7 @@ index 77952867..370232cc 100644
  
    liveClassId String
    liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
-@@ -3189,8 +3187,8 @@ model LiveClassPuzzleRush {
+@@ -3290,8 +3288,8 @@
  /// One student's running totals in a round (client-checked moves, server-clamped totals).
  model LiveClassPuzzleRushEntry {
    id       String @id @default(cuid())
@@ -825,7 +833,7 @@ index 77952867..370232cc 100644
  
    rushId String
    rush   LiveClassPuzzleRush @relation(fields: [rushId], references: [id], onDelete: Cascade)
-@@ -3223,8 +3221,8 @@ model LiveClassPuzzleRushEntry {
+@@ -3324,8 +3322,8 @@
  /// server-clamped and only move forward. `puzzles` is emptied once finished.
  model SoloPuzzleRushRun {
    id       String @id @default(cuid())
@@ -836,7 +844,7 @@ index 77952867..370232cc 100644
  
    studentId String
    student   User   @relation("SoloPuzzleRushRunStudent", fields: [studentId], references: [id], onDelete: Cascade)
-@@ -3275,8 +3273,8 @@ enum LiveClassToolKind {
+@@ -3376,8 +3374,8 @@
  /// carries over between classes. Operational, not soft-deletable.
  model LiveClassToolState {
    id       String @id @default(cuid())
@@ -847,7 +855,7 @@ index 77952867..370232cc 100644
  
    scopeKey String
    tool     LiveClassToolKind
-@@ -3305,8 +3303,8 @@ model LiveClassToolState {
+@@ -3406,8 +3404,8 @@
  /// Coach-owner/admin only. Not soft-deletable, not Trash-registered.
  model LiveClassChapter {
    id       String @id @default(cuid())
@@ -858,7 +866,7 @@ index 77952867..370232cc 100644
  
    scopeKey String
  
-@@ -3345,7 +3343,7 @@ model PuzzleScoringSettings {
+@@ -3446,7 +3444,7 @@
    id              String   @id @default("default")
    /// Owning academy (Tenant.id): one row per academy (docs/SAAS_MULTI_TENANCY.md
    /// § "Phase 3 plan", slice 5). Nexa's row keeps id "default".
@@ -867,7 +875,7 @@ index 77952867..370232cc 100644
    /// PuzzleScoring JSON (validated by @nexa-chess/types).
    scoringJson     Json?
    /// PuzzleLeaderboardOptions JSON.
-@@ -3437,10 +3435,10 @@ enum AnnouncementAudience {
+@@ -3540,10 +3538,10 @@
  /// first time the rules are read; every rule ships disabled.
  model MessagingRule {
    id       String @id @default(cuid())
@@ -881,7 +889,7 @@ index 77952867..370232cc 100644
  
    enabled         Boolean @default(false)
    whatsappEnabled Boolean @default(true)
-@@ -3484,8 +3482,8 @@ model MessagingRule {
+@@ -3592,8 +3590,8 @@
  /// job or a provider outage still leaves an admin-visible record.
  model MessageDelivery {
    id       String @id @default(cuid())
@@ -892,7 +900,7 @@ index 77952867..370232cc 100644
  
    event   MessagingEvent
    channel MessageChannel
-@@ -3547,9 +3545,9 @@ model MessageDelivery {
+@@ -3657,9 +3655,9 @@
  /// @nexa-chess/types SYSTEM_MESSAGE_DEFINITIONS.
  model SystemMessageTemplate {
    /// A SystemMessageKey.
@@ -905,7 +913,7 @@ index 77952867..370232cc 100644
  
    /// Null = the catalogue default (system-messages.ts) for that part.
    subject      String?
-@@ -3575,8 +3573,8 @@ model SystemMessageTemplate {
+@@ -3685,8 +3683,8 @@
    createdAt DateTime @default(now())
    updatedAt DateTime @updatedAt
  
@@ -916,7 +924,7 @@ index 77952867..370232cc 100644
    @@map("system_message_templates")
  }
  
-@@ -3748,10 +3746,10 @@ enum PaymentProviderEventKind {
+@@ -3858,10 +3856,10 @@
  /// A sellable product. `batchId` is what a successful purchase enrols into.
  model Plan {
    id       String @id @default(cuid())
@@ -930,7 +938,7 @@ index 77952867..370232cc 100644
    name        String
    description String?
  
-@@ -3802,11 +3800,11 @@ model Plan {
+@@ -3912,11 +3910,11 @@
  /// only ever grants its entitlement once.
  model Order {
    id       String @id @default(cuid())
@@ -945,7 +953,7 @@ index 77952867..370232cc 100644
  
    userId String
    user   User   @relation("UserOrders", fields: [userId], references: [id], onDelete: Restrict)
-@@ -3863,8 +3861,8 @@ model Order {
+@@ -3973,8 +3971,8 @@
  /// so a network timeout still leaves a reconcilable record.
  model Payment {
    id       String @id @default(cuid())
@@ -956,7 +964,7 @@ index 77952867..370232cc 100644
  
    orderId String
    order   Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
-@@ -3910,8 +3908,6 @@ model Payment {
+@@ -4020,8 +4018,6 @@
  
    createdAt DateTime @default(now())
    updatedAt DateTime @updatedAt
@@ -965,7 +973,7 @@ index 77952867..370232cc 100644
    // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
    @@unique([tenantId, provider, providerPaymentId])
    @@index([orderId])
-@@ -3930,8 +3926,8 @@ model Payment {
+@@ -4040,8 +4036,8 @@
  /// Cashfree -> paid. Kept separate from Payment so retry history survives.
  model PaymentAttempt {
    id       String @id @default(cuid())
@@ -976,7 +984,7 @@ index 77952867..370232cc 100644
  
    orderId String
    order   Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
-@@ -3968,8 +3964,8 @@ model PaymentAttempt {
+@@ -4078,8 +4074,8 @@
  /// insert instead of re-running the handler.
  model PaymentWebhookEvent {
    id       String @id @default(cuid())
@@ -987,7 +995,7 @@ index 77952867..370232cc 100644
  
    provider PaymentProvider
  
-@@ -3991,8 +3987,6 @@ model PaymentWebhookEvent {
+@@ -4101,8 +4097,6 @@
    error       String?
    receivedAt  DateTime  @default(now())
    processedAt DateTime?
@@ -996,7 +1004,7 @@ index 77952867..370232cc 100644
    // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
    @@unique([tenantId, provider, eventId])
    @@index([status, receivedAt])
-@@ -4006,8 +4000,8 @@ model PaymentWebhookEvent {
+@@ -4116,8 +4110,8 @@
  /// because the provider later said so (§14).
  model Refund {
    id       String @id @default(cuid())
@@ -1007,7 +1015,7 @@ index 77952867..370232cc 100644
  
    paymentId String
    payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
-@@ -4038,8 +4032,6 @@ model Refund {
+@@ -4148,8 +4142,6 @@
    processedAt DateTime?
    createdAt   DateTime  @default(now())
    updatedAt   DateTime  @updatedAt
@@ -1016,7 +1024,7 @@ index 77952867..370232cc 100644
    // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
    @@unique([tenantId, provider, providerRefundId])
    @@index([paymentId])
-@@ -4052,8 +4044,8 @@ model Refund {
+@@ -4162,8 +4154,8 @@
  /// it: the provider's mandate is what actually charges the card.
  model Subscription {
    id       String @id @default(cuid())
@@ -1027,7 +1035,7 @@ index 77952867..370232cc 100644
  
    userId String
    user   User   @relation("UserSubscriptions", fields: [userId], references: [id], onDelete: Restrict)
-@@ -4096,8 +4088,6 @@ model Subscription {
+@@ -4206,8 +4198,6 @@
  
    createdAt DateTime @default(now())
    updatedAt DateTime @updatedAt
@@ -1036,7 +1044,7 @@ index 77952867..370232cc 100644
    // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
    @@unique([tenantId, provider, providerSubscriptionId])
    @@index([userId, status])
-@@ -4110,12 +4100,12 @@ model Subscription {
+@@ -4220,12 +4210,12 @@
  /// via InvoiceSequence.
  model Invoice {
    id       String @id @default(cuid())
@@ -1052,7 +1060,7 @@ index 77952867..370232cc 100644
  
    orderId String @unique
    order   Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
-@@ -4222,11 +4212,11 @@ model Invoice {
+@@ -4332,11 +4322,11 @@
  /// an issued invoice is never rewritten after a refund.
  model CreditNote {
    id       String @id @default(cuid())
@@ -1067,7 +1075,7 @@ index 77952867..370232cc 100644
  
    invoiceId String
    invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
-@@ -4288,8 +4278,8 @@ model CreditNote {
+@@ -4398,8 +4388,8 @@
  /// editable by the buyer afterwards.
  model BillingProfile {
    id       String @id @default(cuid())
@@ -1078,7 +1086,7 @@ index 77952867..370232cc 100644
  
    userId String @unique
    user   User   @relation("UserBillingProfile", fields: [userId], references: [id], onDelete: Cascade)
-@@ -4317,15 +4307,15 @@ model BillingProfile {
+@@ -4427,15 +4417,15 @@
  }
  
  model CreditNoteSequence {
@@ -1099,7 +1107,7 @@ index 77952867..370232cc 100644
    @@map("credit_note_sequences")
  }
  
-@@ -4336,7 +4326,7 @@ model InvoiceSettings {
+@@ -4446,7 +4436,7 @@
    id       String @id @default("default")
    /// Owning academy (Tenant.id): one row per academy (docs/SAAS_MULTI_TENANCY.md
    /// § "Phase 3 plan", slice 5). Nexa's row keeps id "default".
@@ -1108,7 +1116,7 @@ index 77952867..370232cc 100644
  
    legalName String  @default("NexaChess")
    tradeName String?
-@@ -4383,8 +4373,8 @@ model InvoiceSettings {
+@@ -4493,8 +4483,8 @@
  /// Invoice audit trail. Append-only; nothing updates or deletes a row.
  model InvoiceAuditLog {
    id       String @id @default(cuid())
@@ -1119,7 +1127,7 @@ index 77952867..370232cc 100644
  
    invoiceId String?
    invoice   Invoice? @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-@@ -4410,15 +4400,15 @@ model InvoiceAuditLog {
+@@ -4520,15 +4510,15 @@
  
  model InvoiceSequence {
    /// Indian financial year (April–March, IST) by its starting year.
@@ -1140,7 +1148,7 @@ index 77952867..370232cc 100644
    @@map("invoice_sequences")
  }
  
-@@ -4427,8 +4417,8 @@ model InvoiceSequence {
+@@ -4537,8 +4527,8 @@
  /// enough (§21).
  model Entitlement {
    id       String @id @default(cuid())
@@ -1151,7 +1159,7 @@ index 77952867..370232cc 100644
  
    userId String
    user   User   @relation("UserEntitlements", fields: [userId], references: [id], onDelete: Restrict)
-@@ -4479,10 +4469,10 @@ model Entitlement {
+@@ -4589,10 +4579,10 @@
  /// bank transfer, …). Deactivate instead of delete once a record references one.
  model OfflinePaymentMethod {
    id       String @id @default(cuid())
@@ -1165,7 +1173,7 @@ index 77952867..370232cc 100644
    label    String
    isActive Boolean @default(true)
  
-@@ -4510,8 +4500,8 @@ model OfflinePaymentMethod {
+@@ -4620,8 +4610,8 @@
  /// Not soft-deletable / not Trash-registered — a financial record is never trashed.
  model ManualPaymentRecord {
    id       String @id @default(cuid())
@@ -1176,7 +1184,7 @@ index 77952867..370232cc 100644
  
    paymentId String  @unique
    payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
-@@ -4553,8 +4543,8 @@ model ManualPaymentRecord {
+@@ -4663,8 +4653,8 @@
  /// per inbound webhook, pruned on a schedule.
  model PaymentProviderEvent {
    id       String @id @default(cuid())
@@ -1187,7 +1195,7 @@ index 77952867..370232cc 100644
  
    provider PaymentProvider
    kind     PaymentProviderEventKind
-@@ -4578,8 +4568,8 @@ model PaymentProviderEvent {
+@@ -4688,8 +4678,8 @@
  /// DEFAULT_PAYMENT_ROUTING in @nexa-chess/types, like LiveClassPolicy.
  model PaymentSetting {
    id       String  @id @default(cuid())
@@ -1198,7 +1206,7 @@ index 77952867..370232cc 100644
    isActive Boolean @default(true)
  
    /// PaymentRoutingConfig JSON, validated by the shared Zod schema.
-@@ -4605,11 +4595,11 @@ enum DiscountType {
+@@ -4715,11 +4705,11 @@
  /// it did.
  model Discount {
    id       String @id @default(cuid())
@@ -1213,7 +1221,7 @@ index 77952867..370232cc 100644
    name        String
    description String?
  
-@@ -4675,8 +4665,8 @@ model Discount {
+@@ -4785,8 +4775,8 @@
  /// abandoned checkout must not burn a limited code.
  model DiscountRedemption {
    id       String @id @default(cuid())
@@ -1224,7 +1232,7 @@ index 77952867..370232cc 100644
  
    discountId String
    discount   Discount @relation(fields: [discountId], references: [id], onDelete: Restrict)
-@@ -4802,8 +4792,8 @@ enum PayslipPdfStatus {
+@@ -4912,8 +4902,8 @@
  /// settings.
  model CoachCompensationProfile {
    id       String @id @default(cuid())
@@ -1235,7 +1243,7 @@ index 77952867..370232cc 100644
  
    coachId String @unique
    coach   User   @relation("CoachCompensationProfile", fields: [coachId], references: [id], onDelete: Restrict)
-@@ -4846,8 +4836,8 @@ model CoachCompensationProfile {
+@@ -4956,8 +4946,8 @@
  /// that was actually in force when it ran.
  model CoachCompensationRate {
    id       String @id @default(cuid())
@@ -1246,7 +1254,7 @@ index 77952867..370232cc 100644
  
    coachId String
    coach   User   @relation("CoachCompensationRate", fields: [coachId], references: [id], onDelete: Restrict)
-@@ -4887,8 +4877,8 @@ model CoachCompensationRate {
+@@ -4997,8 +4987,8 @@
  /// period's already-frozen ruleSnapshot.
  model PayrollRule {
    id       String @id @default(cuid())
@@ -1257,7 +1265,7 @@ index 77952867..370232cc 100644
  
    name        String
    description String?
-@@ -4923,7 +4913,7 @@ model PayrollRule {
+@@ -5033,7 +5023,7 @@
  model PayrollSettings {
    id       String @id @default("default")
    /// Owning academy (Tenant.id).
@@ -1266,7 +1274,7 @@ index 77952867..370232cc 100644
  
    tdsEnabled              Boolean @default(false)
    /// Basis points (1000 = 10%), no floats.
-@@ -4949,8 +4939,8 @@ model PayrollSettings {
+@@ -5059,8 +5049,8 @@
  /// change — a correction is a PayrollAdjustment, never an edit (§31).
  model PayrollPeriod {
    id       String @id @default(cuid())
@@ -1277,7 +1285,7 @@ index 77952867..370232cc 100644
  
    periodType PayrollPeriodType
    startDate  DateTime          @db.Date
-@@ -4976,8 +4966,6 @@ model PayrollPeriod {
+@@ -5086,8 +5076,6 @@
  
    createdAt DateTime @default(now())
    updatedAt DateTime @updatedAt
@@ -1286,7 +1294,7 @@ index 77952867..370232cc 100644
    // Per-academy twin of a global unique (SAAS_MULTI_TENANCY.md §D4); the global one goes in D5.
    @@unique([tenantId, periodType, startDate, endDate])
    @@index([status])
-@@ -4993,8 +4981,8 @@ model PayrollPeriod {
+@@ -5103,8 +5091,8 @@
  /// change a finalized record (§14/§31).
  model CoachPayrollRecord {
    id       String @id @default(cuid())
@@ -1297,7 +1305,7 @@ index 77952867..370232cc 100644
  
    periodId String
    period   PayrollPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
-@@ -5058,8 +5046,8 @@ model CoachPayrollRecord {
+@@ -5168,8 +5156,8 @@
  /// audit.
  model PayrollAdjustment {
    id       String @id @default(cuid())
@@ -1308,7 +1316,7 @@ index 77952867..370232cc 100644
  
    payrollRecordId String
    payrollRecord   CoachPayrollRecord @relation(fields: [payrollRecordId], references: [id], onDelete: Restrict)
-@@ -5088,8 +5076,8 @@ model PayrollAdjustment {
+@@ -5198,8 +5186,8 @@
  /// a reference/date/method/notes is the only path to PAID.
  model CoachPayout {
    id       String @id @default(cuid())
@@ -1319,7 +1327,7 @@ index 77952867..370232cc 100644
  
    payrollRecordId String             @unique
    payrollRecord   CoachPayrollRecord @relation(fields: [payrollRecordId], references: [id], onDelete: Cascade)
-@@ -5116,12 +5104,12 @@ model CoachPayout {
+@@ -5226,12 +5214,12 @@
  /// rewrites an already-issued document.
  model Payslip {
    id       String @id @default(cuid())
@@ -1335,7 +1343,7 @@ index 77952867..370232cc 100644
  
    payrollRecordId String             @unique
    payrollRecord   CoachPayrollRecord @relation(fields: [payrollRecordId], references: [id], onDelete: Restrict)
-@@ -5150,15 +5138,15 @@ model Payslip {
+@@ -5260,15 +5248,15 @@
  
  model PayslipSequence {
    /// Calendar year the sequence belongs to.
@@ -1356,7 +1364,7 @@ index 77952867..370232cc 100644
    @@map("payslip_sequences")
  }
  
-@@ -5192,8 +5180,8 @@ enum FeedbackResponseStatus {
+@@ -5302,8 +5290,8 @@
  
  model FeedbackForm {
    id          String  @id @default(cuid())
@@ -1367,7 +1375,7 @@ index 77952867..370232cc 100644
    title       String
    description String?
    isActive    Boolean @default(true)
-@@ -5244,8 +5232,8 @@ model FeedbackForm {
+@@ -5354,8 +5342,8 @@
  
  model FeedbackResponse {
    id       String @id @default(cuid())
@@ -1378,7 +1386,7 @@ index 77952867..370232cc 100644
  
    formId String
    form   FeedbackForm @relation(fields: [formId], references: [id], onDelete: Restrict)
-@@ -5279,8 +5267,8 @@ model FeedbackResponse {
+@@ -5389,8 +5377,8 @@
  
  model FeedbackAnswer {
    id       String @id @default(cuid())
@@ -1389,7 +1397,7 @@ index 77952867..370232cc 100644
  
    responseId String
    response   FeedbackResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
-@@ -5336,8 +5324,8 @@ enum ApprovalEventType {
+@@ -5446,8 +5434,8 @@
  /// requester. Not soft-deletable: a decided request is history.
  model ApprovalRequest {
    id         String         @id @default(cuid())
@@ -1400,7 +1408,7 @@ index 77952867..370232cc 100644
    category   String
    actionType String
    status     ApprovalStatus @default(PENDING)
-@@ -5387,8 +5375,8 @@ model ApprovalRequest {
+@@ -5497,8 +5485,8 @@
  /// DELETE and every UPDATE except the user purge's `actorId → NULL`.
  model ApprovalEvent {
    id        String            @id @default(cuid())
@@ -1411,7 +1419,7 @@ index 77952867..370232cc 100644
    requestId String
    request   ApprovalRequest   @relation(fields: [requestId], references: [id], onDelete: Restrict)
    type      ApprovalEventType
-@@ -5419,8 +5407,8 @@ enum ClassRequestStatus {
+@@ -5529,8 +5517,8 @@
  /// written in the migration) allows one PENDING reschedule per class.
  model ClassChangeRequest {
    id       String             @id @default(cuid())
@@ -1422,7 +1430,7 @@ index 77952867..370232cc 100644
    type     ClassRequestType
    status   ClassRequestStatus @default(PENDING)
  
-@@ -5461,8 +5449,8 @@ model ClassChangeRequest {
+@@ -5571,8 +5559,8 @@
  /// One row per student, created on their first rated puzzle or practice day.
  model StudentProgress {
    studentId     String    @id
@@ -1433,7 +1441,7 @@ index 77952867..370232cc 100644
    student       User      @relation("StudentProgress", fields: [studentId], references: [id], onDelete: Cascade)
    puzzleRating  Int       @default(1200)
    peakRating    Int       @default(1200)
-@@ -5480,8 +5468,8 @@ model StudentProgress {
+@@ -5590,8 +5578,8 @@
  /// finished attempt at a puzzle is rated, and a replayed submit can't rate twice.
  model PuzzleRatingChange {
    id           String   @id @default(cuid())
@@ -1444,7 +1452,7 @@ index 77952867..370232cc 100644
    studentId    String
    student      User     @relation("StudentPuzzleRatingChanges", fields: [studentId], references: [id], onDelete: Cascade)
    puzzleId     String
-@@ -5593,12 +5581,12 @@ enum ChessGameStatus {
+@@ -5703,12 +5691,12 @@
  /// the player names are snapshotted for that reason.
  model ChessGame {
    id       String @id @default(cuid())
@@ -1460,7 +1468,7 @@ index 77952867..370232cc 100644
    sourceRevision BigInt          @default(0)
  
    title String
-@@ -5716,7 +5704,7 @@ model GameSourceSettings {
+@@ -5826,7 +5814,7 @@
    id             String             @id @default("default")
    /// Owning academy (Tenant.id): one row per academy (docs/SAAS_MULTI_TENANCY.md
    /// § "Phase 3 plan", slice 5). Nexa's row keeps id "default".
@@ -1469,7 +1477,7 @@ index 77952867..370232cc 100644
    autoSyncPolicy GameAutoSyncPolicy @default(OFF)
    updatedById    String?
    createdAt      DateTime           @default(now())
-@@ -5731,8 +5719,8 @@ model GameSourceSettings {
+@@ -5841,8 +5829,8 @@
  /// student at a time (partial unique index, migration only).
  model ExternalChessAccount {
    id       String @id @default(cuid())
@@ -1480,7 +1488,7 @@ index 77952867..370232cc 100644
    userId   String
    user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
  
-@@ -5792,8 +5780,8 @@ enum GameAnalysisDepth {
+@@ -5902,8 +5890,8 @@
  /// `reportJson` caches the derived classification + tactics for reads.
  model GameAnalysis {
    id       String    @id @default(cuid())
@@ -1491,7 +1499,7 @@ index 77952867..370232cc 100644
    gameId   String
    game     ChessGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
  
-@@ -5848,8 +5836,8 @@ enum GameAnalysisSideColor {
+@@ -5958,8 +5946,8 @@
  /// who played this side, or null (an opponent who isn't on NexaGen).
  model GameAnalysisSide {
    id         String       @id @default(cuid())
@@ -1502,7 +1510,7 @@ index 77952867..370232cc 100644
    analysisId String
    analysis   GameAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
  
-@@ -5917,8 +5905,8 @@ enum ConversationMemberRole {
+@@ -6027,8 +6015,8 @@
  /// messages are pruned only by an admin-set RetentionPolicy (CHAT_MESSAGES).
  model Conversation {
    id       String @id @default(cuid())
@@ -1513,7 +1521,7 @@ index 77952867..370232cc 100644
  
    type      ConversationType
    /// BATCH only.
-@@ -5952,8 +5940,8 @@ model Conversation {
+@@ -6062,8 +6050,8 @@
  /// does not see what was said before they joined.
  model ConversationMember {
    id       String @id @default(cuid())
@@ -1524,7 +1532,7 @@ index 77952867..370232cc 100644
  
    conversationId String
    conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-@@ -5975,8 +5963,8 @@ model ConversationMember {
+@@ -6085,8 +6073,8 @@
  
  model ChatMessage {
    id       String @id @default(cuid())
@@ -1535,7 +1543,7 @@ index 77952867..370232cc 100644
  
    conversationId String
    conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-@@ -6015,8 +6003,8 @@ enum LiveClassActivityKind {
+@@ -6125,8 +6113,8 @@
  /// state: not soft-deletable, not Trash-registered.
  model LiveClassActivityQueue {
    id       String @id @default(cuid())
@@ -1546,7 +1554,7 @@ index 77952867..370232cc 100644
  
    liveClassId String
    liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
-@@ -6047,8 +6035,8 @@ model LiveClassActivityQueue {
+@@ -6157,8 +6145,8 @@
  /// ties each student's response to this item.
  model LiveClassActivityQueueItem {
    id       String @id @default(cuid())
@@ -1557,7 +1565,7 @@ index 77952867..370232cc 100644
  
    queueId String
    queue   LiveClassActivityQueue @relation(fields: [queueId], references: [id], onDelete: Cascade)
-@@ -6139,8 +6127,8 @@ enum PlayoutEndReason {
+@@ -6249,8 +6237,8 @@
  /// holds the answer key: it only ever leaves the API on staff routes.
  model LibraryActivity {
    id       String              @id @default(cuid())
@@ -1568,7 +1576,7 @@ index 77952867..370232cc 100644
    kind     LibraryActivityKind
  
    topicId String
-@@ -6197,8 +6185,8 @@ model LibraryActivity {
+@@ -6307,8 +6295,8 @@
  /// state: not soft-deletable, not Trash-registered.
  model LiveClassActivityRun {
    id       String @id @default(cuid())
@@ -1579,7 +1587,7 @@ index 77952867..370232cc 100644
  
    liveClassId String
    liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
-@@ -6237,8 +6225,8 @@ model LiveClassActivityRun {
+@@ -6347,8 +6335,8 @@
  /// correctOptionIds is the key this answer was marked against.
  model LiveClassMcqAttempt {
    id       String @id @default(cuid())
@@ -1590,7 +1598,7 @@ index 77952867..370232cc 100644
  
    runId String
    run   LiveClassActivityRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-@@ -6267,8 +6255,8 @@ model LiveClassMcqAttempt {
+@@ -6377,8 +6365,8 @@
  /// One IN_PROGRESS game per (run, student): a hand-written partial unique index.
  model LiveClassPlayoutGame {
    id       String @id @default(cuid())
@@ -1601,7 +1609,7 @@ index 77952867..370232cc 100644
  
    runId String
    run   LiveClassActivityRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-@@ -6350,8 +6338,8 @@ enum RevisionOutcome {
+@@ -6460,8 +6448,8 @@
  /// its items with it (Cascade), like its attempts.
  model RevisionItem {
    id        String @id @default(cuid())
@@ -1612,7 +1620,7 @@ index 77952867..370232cc 100644
    studentId String
    student   User   @relation("StudentRevisionItems", fields: [studentId], references: [id], onDelete: Cascade)
  
-@@ -6405,8 +6393,8 @@ model RevisionItem {
+@@ -6515,8 +6503,8 @@
  /// One graded review. Unique on attemptId: a replayed request can't record twice.
  model RevisionReview {
    id        String         @id @default(cuid())
@@ -1623,7 +1631,7 @@ index 77952867..370232cc 100644
    itemId    String
    item      RevisionItem   @relation(fields: [itemId], references: [id], onDelete: Cascade)
    studentId String
-@@ -6441,8 +6429,8 @@ enum AccountDeletionStatus {
+@@ -6551,8 +6539,8 @@
  /// request was honoured outlives the account; the snapshot says whose it was.
  model AccountDeletionRequest {
    id       String                @id @default(cuid())
@@ -1634,7 +1642,7 @@ index 77952867..370232cc 100644
    status   AccountDeletionStatus @default(PENDING)
  
    userId    String?
-@@ -6893,7 +6881,7 @@ model UploadedFile {
+@@ -7072,7 +7060,7 @@
  /// of the academy's webhook URL and names the academy before any secret is read.
  model TenantPaymentCredential {
    id               String          @id @default(cuid())
@@ -1643,7 +1651,7 @@ index 77952867..370232cc 100644
    provider         PaymentProvider
    enabled          Boolean         @default(false)
    /// Razorpay key id, Cashfree app id or Stripe publishable key (not secret).
-@@ -7078,9 +7066,9 @@ enum KnowledgeQueryResolution {
+@@ -7257,9 +7245,9 @@
  
  model KnowledgeCategory {
    id          String             @id @default(cuid())
@@ -1656,7 +1664,7 @@ index 77952867..370232cc 100644
    description String?
    sortOrder   Int                @default(0)
    archivedAt  DateTime?
-@@ -7107,9 +7095,9 @@ model KnowledgeCategory {
+@@ -7286,9 +7274,9 @@
  
  model KnowledgeArticle {
    id                  String                    @id @default(cuid())
@@ -1669,7 +1677,7 @@ index 77952867..370232cc 100644
    kind                KnowledgeArticleKind      @default(ARTICLE)
    status              KnowledgeArticleStatus    @default(DRAFT)
    categoryId          String?
-@@ -7170,8 +7158,8 @@ model KnowledgeArticleBatch {
+@@ -7349,8 +7337,8 @@
    article   KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
    batchId   String
    batch     Batch            @relation(fields: [batchId], references: [id], onDelete: Cascade)
@@ -1680,7 +1688,7 @@ index 77952867..370232cc 100644
  
    @@id([articleId, batchId])
    @@index([batchId])
-@@ -7181,8 +7169,8 @@ model KnowledgeArticleBatch {
+@@ -7360,8 +7348,8 @@
  /// Immutable once it leaves DRAFT/SUBMITTED.
  model KnowledgeArticleVersion {
    id           String                  @id @default(cuid())
@@ -1691,7 +1699,7 @@ index 77952867..370232cc 100644
    articleId    String
    article      KnowledgeArticle        @relation("KnowledgeArticleVersions", fields: [articleId], references: [id], onDelete: Cascade)
    publishedFor KnowledgeArticle?       @relation("KnowledgePublishedVersion")
-@@ -7220,8 +7208,8 @@ model KnowledgeArticleVersion {
+@@ -7399,8 +7387,8 @@
  /// The change log: who did what, when.
  model KnowledgeArticleEvent {
    id        String                   @id @default(cuid())
@@ -1702,7 +1710,7 @@ index 77952867..370232cc 100644
    articleId String
    article   KnowledgeArticle         @relation(fields: [articleId], references: [id], onDelete: Cascade)
    versionId String?
-@@ -7242,8 +7230,8 @@ model KnowledgeArticleEvent {
+@@ -7421,8 +7409,8 @@
  /// One helpful / not-helpful vote per reader per article (re-voting overwrites).
  model KnowledgeFeedback {
    id        String           @id @default(cuid())
@@ -1713,7 +1721,7 @@ index 77952867..370232cc 100644
    articleId String
    article   KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
    versionId String?
-@@ -7262,8 +7250,8 @@ model KnowledgeFeedback {
+@@ -7441,8 +7429,8 @@
  /// only the role and the searcher's batch ids (trends per batch). Kept 90 days (RETENTION_RULES).
  model KnowledgeSearchLog {
    id                String                    @id @default(cuid())
@@ -1724,7 +1732,7 @@ index 77952867..370232cc 100644
    /// Lower-cased, whitespace-collapsed query.
    query             String
    role              KnowledgeAudience
-@@ -7296,10 +7284,10 @@ enum RetentionCategory {
+@@ -7475,10 +7463,10 @@
  /// (`RETENTION_RULES`). Not soft-deletable: a setting, not a record.
  model RetentionPolicy {
    id       String @id @default(cuid())
@@ -1738,7 +1746,7 @@ index 77952867..370232cc 100644
    days     Int?
  
    updatedById String?
-@@ -7405,8 +7393,8 @@ enum ReferralWithdrawalStatus {
+@@ -7584,8 +7572,8 @@
  /// ever go forward by position and never out of a CONVERTED/LOST stage.
  model ReferralStage {
    id          String               @id @default(cuid())
@@ -1749,7 +1757,7 @@ index 77952867..370232cc 100644
    name        String
    description String?
    /// A Badge variant name (`ReferralStageTone` in @nexa-chess/types).
-@@ -7441,10 +7429,10 @@ model ReferralStage {
+@@ -7620,10 +7608,10 @@
  /// One shareable code per referrer (`/r/<code>`).
  model ReferralCode {
    id       String  @id @default(cuid())
@@ -1763,7 +1771,7 @@ index 77952867..370232cc 100644
    userId   String  @unique
    user     User    @relation("ReferralCodeOwner", fields: [userId], references: [id], onDelete: Cascade)
    isActive Boolean @default(true)
-@@ -7464,8 +7452,8 @@ model ReferralCode {
+@@ -7643,8 +7631,8 @@
  /// become `Referral` rows.
  model ReferralVisit {
    id         String       @id @default(cuid())
@@ -1774,7 +1782,7 @@ index 77952867..370232cc 100644
    codeId     String
    code       ReferralCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
    referralId String?
-@@ -7485,8 +7473,8 @@ model ReferralVisit {
+@@ -7664,8 +7652,8 @@
  /// A person a referrer brought in, from their first visit onwards.
  model Referral {
    id         String        @id @default(cuid())
@@ -1785,7 +1793,7 @@ index 77952867..370232cc 100644
    codeId     String
    code       ReferralCode  @relation(fields: [codeId], references: [id], onDelete: Cascade)
    referrerId String
-@@ -7529,8 +7517,8 @@ model Referral {
+@@ -7708,8 +7696,8 @@
  /// skipped). Rewards and milestone counts read this, never the current stage.
  model ReferralStageReach {
    id         String        @id @default(cuid())
@@ -1796,7 +1804,7 @@ index 77952867..370232cc 100644
    referralId String
    referral   Referral      @relation(fields: [referralId], references: [id], onDelete: Cascade)
    stageId    String
-@@ -7545,8 +7533,8 @@ model ReferralStageReach {
+@@ -7724,8 +7712,8 @@
  /// Append-only history of stage moves.
  model ReferralStageEvent {
    id          String         @id @default(cuid())
@@ -1807,7 +1815,7 @@ index 77952867..370232cc 100644
    referralId  String
    referral    Referral       @relation(fields: [referralId], references: [id], onDelete: Cascade)
    fromStageId String?
-@@ -7565,8 +7553,8 @@ model ReferralStageEvent {
+@@ -7744,8 +7732,8 @@
  
  model ReferralRewardRule {
    id                String              @id @default(cuid())
@@ -1818,7 +1826,7 @@ index 77952867..370232cc 100644
    name              String
    description       String?
    stageId           String
-@@ -7605,8 +7593,8 @@ model ReferralRewardRule {
+@@ -7784,8 +7772,8 @@
  /// A reward a referrer earned. Financial: never soft-deleted; user Restrict.
  model ReferralReward {
    id           String               @id @default(cuid())
@@ -1829,7 +1837,7 @@ index 77952867..370232cc 100644
    /// A milestone bonus (or a legacy rule). Null = a stage value.
    ruleId       String?
    rule         ReferralRewardRule?  @relation(fields: [ruleId], references: [id], onDelete: Restrict)
-@@ -7649,8 +7637,8 @@ model ReferralReward {
+@@ -7828,8 +7816,8 @@
  /// Append-only credits ledger; a user's balance is the sum of `amountMinor`.
  model ReferralCreditEntry {
    id           String                    @id @default(cuid())
@@ -1840,7 +1848,7 @@ index 77952867..370232cc 100644
    userId       String
    user         User                      @relation("ReferralCreditOwner", fields: [userId], references: [id], onDelete: Restrict)
    type         ReferralCreditEntryType
-@@ -7690,8 +7678,8 @@ model ReferralCreditEntry {
+@@ -7869,8 +7857,8 @@
  /// Financial: never soft-deleted; users Restrict.
  model ReferralPointsTransfer {
    id         String   @id @default(cuid())
@@ -1851,7 +1859,7 @@ index 77952867..370232cc 100644
    fromUserId String
    fromUser   User     @relation("ReferralPointsTransferFrom", fields: [fromUserId], references: [id], onDelete: Restrict)
    toUserId   String
-@@ -7711,8 +7699,8 @@ model ReferralPointsTransfer {
+@@ -7890,8 +7878,8 @@
  /// Points turned into money at the rate in force (snapshotted). One way only.
  model ReferralPointsConversion {
    id             String   @id @default(cuid())
@@ -1862,7 +1870,7 @@ index 77952867..370232cc 100644
    userId         String
    user           User     @relation("ReferralPointsConversionOwner", fields: [userId], references: [id], onDelete: Restrict)
    points         Int
-@@ -7732,8 +7720,8 @@ model ReferralPointsConversion {
+@@ -7911,8 +7899,8 @@
  
  model ReferralWithdrawal {
    id              String                   @id @default(cuid())
@@ -1873,7 +1881,7 @@ index 77952867..370232cc 100644
    userId          String
    user            User                     @relation("ReferralWithdrawalOwner", fields: [userId], references: [id], onDelete: Restrict)
    amountMinor     Int
-@@ -7762,7 +7750,7 @@ model ReferralSettings {
+@@ -7941,7 +7929,7 @@
    id                 String     @id @default("default")
    /// Owning academy (Tenant.id): one row per academy (docs/SAAS_MULTI_TENANCY.md
    /// § "Phase 3 plan", slice 5). Nexa's row keeps id "default".
@@ -1882,7 +1890,7 @@ index 77952867..370232cc 100644
    enabled            Boolean    @default(true)
    /// Roles that get a referral link (SALES always does).
    referrerRoles      UserRole[] @default([STUDENT, COACH, SALES])
-@@ -7840,7 +7828,7 @@ enum ReferralRedemptionStatus {
+@@ -8019,7 +8007,7 @@
  model ReferralVoucher {
    id               String              @id @default(cuid())
    /// Owning academy (Tenant.id).
@@ -1891,7 +1899,7 @@ index 77952867..370232cc 100644
    name             String
    description      String?
    type             ReferralVoucherType
-@@ -7889,7 +7877,7 @@ model ReferralVoucher {
+@@ -8068,7 +8056,7 @@
  model ReferralRedemption {
    id               String                   @id @default(cuid())
    /// Owning academy (Tenant.id).
@@ -1900,7 +1908,7 @@ index 77952867..370232cc 100644
    voucherId        String
    voucher          ReferralVoucher          @relation(fields: [voucherId], references: [id], onDelete: Restrict)
    userId           String
-@@ -8148,7 +8136,7 @@ enum TournamentKnockoutDecision {
+@@ -8331,7 +8319,7 @@
  model Tournament {
    id       String @id @default(cuid())
    /// The organizing academy (Tenant.id).
@@ -1909,7 +1917,7 @@ index 77952867..370232cc 100644
  
    slug        String
    name        String
-@@ -8261,7 +8249,7 @@ model Tournament {
+@@ -8444,7 +8432,7 @@
  /// (COMMENTATOR). Admins need no row. Only staff accounts hold one.
  model TournamentHost {
    id       String @id @default(cuid())
@@ -1918,7 +1926,7 @@ index 77952867..370232cc 100644
  
    tournamentId String
    tournament   Tournament         @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-@@ -8286,7 +8274,7 @@ model TournamentHost {
+@@ -8469,7 +8457,7 @@
  model TournamentPlayer {
    id       String @id @default(cuid())
    /// The player's academy (Tenant.id).
@@ -1927,7 +1935,7 @@ index 77952867..370232cc 100644
  
    tournamentId String
    tournament   Tournament             @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-@@ -8346,7 +8334,7 @@ model TournamentPlayer {
+@@ -8529,7 +8517,7 @@
  /// One row per academy (`singletonRowId`); look it up by `tenantId`.
  model TournamentSettings {
    id       String @id @default("default")
@@ -1936,7 +1944,7 @@ index 77952867..370232cc 100644
  
    coachesMayCreate         Boolean                    @default(false)
    coachesMayPublishPublic  Boolean                    @default(false)
-@@ -8368,7 +8356,7 @@ model TournamentSettings {
+@@ -8551,7 +8539,7 @@
  /// retention rule, like the invoice audit log).
  model TournamentAuditLog {
    id       String @id @default(cuid())
@@ -1945,7 +1953,7 @@ index 77952867..370232cc 100644
  
    tournamentId String?
    tournament   Tournament?           @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-@@ -8393,7 +8381,7 @@ model TournamentAuditLog {
+@@ -8576,7 +8564,7 @@
  /// A paired round (Swiss, round robin) or a bracket round (knockout). Arenas have none.
  model TournamentRound {
    id       String @id @default(cuid())
@@ -1954,7 +1962,7 @@ index 77952867..370232cc 100644
  
    tournamentId String
    tournament   Tournament            @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-@@ -8415,7 +8403,7 @@ model TournamentRound {
+@@ -8598,7 +8586,7 @@
  /// One knockout match (best of N games) in the bracket. Side A is the higher seed.
  model TournamentKnockoutMatch {
    id       String @id @default(cuid())
@@ -1963,7 +1971,7 @@ index 77952867..370232cc 100644
  
    tournamentId String
    tournament   Tournament                    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-@@ -8443,7 +8431,7 @@ model TournamentKnockoutMatch {
+@@ -8626,7 +8614,7 @@
  /// live-class matches (both use common/chess/game-engine.ts).
  model TournamentGame {
    id       String @id @default(cuid())
@@ -1972,7 +1980,7 @@ index 77952867..370232cc 100644
  
    tournamentId    String
    tournament      Tournament               @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-@@ -8513,7 +8501,7 @@ model TournamentGame {
+@@ -8696,7 +8684,7 @@
  /// same (author, clientId) is the same item.
  model TournamentCommentary {
    id       String @id @default(cuid())
@@ -1981,7 +1989,7 @@ index 77952867..370232cc 100644
  
    tournamentId String
    tournament   Tournament               @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-@@ -8553,7 +8541,7 @@ model TournamentCommentary {
+@@ -8736,7 +8724,7 @@
  /// deleted: issued certificates keep a frozen copy of the wording they used.
  model CertificateTemplate {
    id       String @id @default(cuid())
@@ -1990,7 +1998,7 @@ index 77952867..370232cc 100644
  
    name                 String
    title                String
-@@ -8585,7 +8573,7 @@ model CertificateTemplate {
+@@ -8768,7 +8756,7 @@
  /// Who in one tournament gets a certificate, and on which template.
  model TournamentCertificateRule {
    id       String @id @default(cuid())
@@ -1999,7 +2007,7 @@ index 77952867..370232cc 100644
  
    tournamentId String
    tournament   Tournament                @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-@@ -8607,7 +8595,7 @@ model TournamentCertificateRule {
+@@ -8790,7 +8778,7 @@
  /// template's wording), never edited. A correction revokes and reissues.
  model TournamentCertificate {
    id       String @id @default(cuid())
@@ -2008,7 +2016,7 @@ index 77952867..370232cc 100644
  
    tournamentId String
    tournament   Tournament                @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-@@ -8697,7 +8685,7 @@ enum SupportTicketEventKind {
+@@ -8880,7 +8868,7 @@
  /// other academy has the bot off.
  model SupportSettings {
    id                         String   @id @default(cuid())
@@ -2017,7 +2025,7 @@ index 77952867..370232cc 100644
    botEnabled                 Boolean  @default(false)
    /// While non-empty the bot answers only these numbers (digits with country code).
    testNumbers                String[] @default([])
-@@ -8736,7 +8724,7 @@ enum SupportAttachmentStatus {
+@@ -8922,7 +8910,7 @@
  /// `messageId` becomes null and a sweep deletes the stored file, then the row.
  model SupportAttachment {
    id         String                  @id @default(cuid())
@@ -2026,7 +2034,7 @@ index 77952867..370232cc 100644
    messageId  String?                 @unique
    message    SupportMessage?         @relation(fields: [messageId], references: [id], onDelete: SetNull)
    mediaId    String
-@@ -8762,7 +8750,7 @@ model SupportAttachment {
+@@ -8948,7 +8936,7 @@
  /// data: who did it, when, and how much went (docs/WHATSAPP_SUPPORT.md §0).
  model SupportContactErasure {
    id            String   @id @default(cuid())
@@ -2035,7 +2043,7 @@ index 77952867..370232cc 100644
    /// The erased contact's id (the row itself is gone, or bare when it opted out).
    contactId     String
    erasedById    String?
-@@ -8784,7 +8772,7 @@ model SupportContactErasure {
+@@ -8970,7 +8958,7 @@
  /// the raw payload is never stored. Kept 30 days (RETENTION_RULES).
  model WhatsAppWebhookEvent {
    id                String    @id @default(cuid())
@@ -2044,7 +2052,7 @@ index 77952867..370232cc 100644
    dedupeKey         String    @unique
    /// "message" | "status"
    kind              String
-@@ -8828,7 +8816,7 @@ model WhatsAppWebhookEvent {
+@@ -9017,7 +9005,7 @@
  /// control of the number, not who the student is (docs/WHATSAPP_SUPPORT.md §9).
  model WhatsAppContact {
    id               String    @id @default(cuid())
@@ -2053,7 +2061,7 @@ index 77952867..370232cc 100644
    waId             String
    profileName      String?
    /// Starts the 24-hour customer-service window.
-@@ -8853,7 +8841,7 @@ model WhatsAppContact {
+@@ -9044,7 +9032,7 @@
  /// contact (partial unique index in the migration).
  model SupportConversation {
    id            String                    @id @default(cuid())
@@ -2062,7 +2070,7 @@ index 77952867..370232cc 100644
    contactId     String
    contact       WhatsAppContact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
    /// A SupportFlowState (@nexa-chess/types support-flows.ts).
-@@ -8882,7 +8870,7 @@ model SupportConversation {
+@@ -9073,7 +9061,7 @@
  /// before the send and carries `clientKey` so a retry never sends twice.
  model SupportMessage {
    id                String                  @id @default(cuid())
@@ -2071,7 +2079,7 @@ index 77952867..370232cc 100644
    conversationId    String
    conversation      SupportConversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
    direction         SupportMessageDirection
-@@ -8918,7 +8906,7 @@ model SupportMessage {
+@@ -9109,7 +9097,7 @@
  /// reference (NXS-2026-000123) comes from the support_ticket_reference_seq sequence.
  model SupportTicket {
    id             String              @id @default(cuid())
@@ -2080,7 +2088,7 @@ index 77952867..370232cc 100644
    reference      String              @unique
    contactId      String
    contact        WhatsAppContact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
-@@ -8958,7 +8946,7 @@ model SupportTicket {
+@@ -9149,7 +9137,7 @@
  /// Append-only ticket history: creation, assignment, status, notes, hand-offs.
  model SupportTicketEvent {
    id        String                 @id @default(cuid())
@@ -2089,7 +2097,7 @@ index 77952867..370232cc 100644
    ticketId  String
    ticket    SupportTicket          @relation(fields: [ticketId], references: [id], onDelete: Cascade)
    kind      SupportTicketEventKind
-@@ -8976,7 +8964,7 @@ model SupportTicketEvent {
+@@ -9167,7 +9155,7 @@
  /// insert it into their replies (docs/WHATSAPP_SUPPORT.md §0).
  model SupportSavedReply {
    id          String   @id @default(cuid())
@@ -2098,7 +2106,7 @@ index 77952867..370232cc 100644
    /// The list-row title on WhatsApp (24 characters at most).
    title       String
    /// The list-row description (72 characters at most).
-@@ -9000,7 +8988,7 @@ model SupportSavedReply {
+@@ -9191,7 +9179,7 @@
  /// same wording count on one row. No contact is stored: only the (redacted) text.
  model SupportUnansweredQuestion {
    id            String    @id @default(cuid())
@@ -2107,16 +2115,34 @@ index 77952867..370232cc 100644
    /// normalizeSupportText of the question (at most 200 characters): the grouping key.
    normalized    String
    /// The latest wording, redacted like every stored message.
-@@ -9030,7 +9018,7 @@ enum CrmLeadPushStatus {
+@@ -9215,7 +9203,7 @@
+ /// `ctwaClid` is what the Conversions API sends back to Meta (docs/AD_MEASUREMENT.md).
+ model LeadAdClick {
+   id               String   @id @default(cuid())
+-  tenantId         String   @default("tenant_nexa")
++  tenantId         String   @default(dbgenerated("nexa_tenant_required()"))
+   leadId           String   @unique
+   lead             Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+   /// "ad" or "post" (Meta's `source_type`).
+@@ -9254,7 +9242,7 @@
+ /// Holds no personal data: the hashed contact details are built from the lead at send time.
+ model MetaCapiEvent {
+   id            String              @id @default(cuid())
+-  tenantId      String              @default("tenant_nexa")
++  tenantId      String              @default(dbgenerated("nexa_tenant_required()"))
+   leadId        String
+   lead          Lead                @relation(fields: [leadId], references: [id], onDelete: Cascade)
+   /// Meta's standard event: LeadSubmitted, Lead, QualifiedLead, Schedule or Purchase.
+@@ -9294,7 +9282,7 @@
  /// transaction, sent after commit, retried by a sweep. Holds no personal data.
  model CrmLeadPush {
-   id            String            @id @default(cuid())
--  tenantId      String            @default("tenant_nexa")
-+  tenantId      String            @default(dbgenerated("nexa_tenant_required()"))
-   leadId        String            @unique
-   lead          Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
-   status        CrmLeadPushStatus @default(PENDING)
-@@ -9070,7 +9058,7 @@ enum SupportOwnerChangeReason {
+   id             String            @id @default(cuid())
+-  tenantId       String            @default("tenant_nexa")
++  tenantId       String            @default(dbgenerated("nexa_tenant_required()"))
+   leadId         String            @unique
+   lead           Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
+   status         CrmLeadPushStatus @default(PENDING)
+@@ -9339,7 +9327,7 @@
  /// (hand-off rate, first staff reply). No personal data.
  model SupportConversationEvent {
    id             String                    @id @default(cuid())
@@ -2125,7 +2151,7 @@ index 77952867..370232cc 100644
    conversationId String
    conversation   SupportConversation       @relation(fields: [conversationId], references: [id], onDelete: Cascade)
    fromStatus     SupportConversationStatus
-@@ -9093,7 +9081,7 @@ model SupportConversationEvent {
+@@ -9362,7 +9350,7 @@
  /// Only then may the bot tell that number the student's next class.
  model SupportContactLink {
    id        String          @id @default(cuid())
@@ -2134,7 +2160,7 @@ index 77952867..370232cc 100644
    contactId String
    contact   WhatsAppContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
    studentId String
-@@ -9111,7 +9099,7 @@ model SupportContactLink {
+@@ -9380,7 +9368,7 @@
  /// "LINK <code>" from WhatsApp. Only its SHA-256 is stored; 24 hours; one use.
  model SupportLinkCode {
    id              String    @id @default(cuid())
@@ -2143,3 +2169,30 @@ index 77952867..370232cc 100644
    studentId       String
    student         User      @relation("SupportLinkCodeStudent", fields: [studentId], references: [id], onDelete: Cascade)
    codeHash        String    @unique
+@@ -9415,7 +9403,7 @@
+ model DailyPuzzle {
+   id       String @id @default(cuid())
+   /// Owning academy (Tenant.id).
+-  tenantId String @default("tenant_nexa")
++  tenantId String @default(dbgenerated("nexa_tenant_required()"))
+ 
+   /// Academy calendar day (Tenant.timezone).
+   day      DateTime         @db.Date
+@@ -9446,7 +9434,7 @@
+ model DailyPuzzleEntry {
+   id       String @id @default(cuid())
+   /// Owning academy (Tenant.id).
+-  tenantId String @default("tenant_nexa")
++  tenantId String @default(dbgenerated("nexa_tenant_required()"))
+ 
+   studentId String
+   student   User             @relation("DailyPuzzleEntryStudent", fields: [studentId], references: [id], onDelete: Cascade)
+@@ -9475,7 +9463,7 @@
+ model DailyPuzzleSettings {
+   id                  String           @id @default("default")
+   /// Owning academy (Tenant.id).
+-  tenantId            String           @unique @default("tenant_nexa")
++  tenantId            String           @unique @default(dbgenerated("nexa_tenant_required()"))
+   enabled             Boolean          @default(true)
+   /// Step 3 (WhatsApp picture + answering by reply): the level whose academy puzzle is pictured.
+   whatsappLevel       DailyPuzzleLevel @default(MEDIUM)

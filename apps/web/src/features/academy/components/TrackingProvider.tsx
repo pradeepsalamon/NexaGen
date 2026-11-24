@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { markVisitTracked } from "@/features/ad-consent/lib/consentSync";
 import { useTrackVisitMutation } from "../hooks/useLeadPublicApi";
 
 function TrackingLogic() {
@@ -11,7 +12,8 @@ function TrackingLogic() {
 
   useEffect(() => {
     // Slight delay so this never competes with first paint.
-    const timeout = setTimeout(() => trackVisit(), 500);
+    // Settled = the visit cookies exist, so the cookie banner's answer can go to the same visit.
+    const timeout = setTimeout(() => trackVisit(undefined, { onSettled: markVisitTracked }), 500);
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, searchParams]);

@@ -35,6 +35,7 @@ stay as written; the living doc for that area wins where they disagree.
 | [CLASSES.md](CLASSES.md) | Class scheduling, timing rules, batch types, demo classes |
 | [PUZZLES.md](PUZZLES.md) | Puzzle Library, puzzle-set homework, student progress |
 | [PUZZLE_ACTIVITIES.md](PUZZLE_ACTIVITIES.md) | MCQs and Playouts in the Puzzle Library and the live class |
+| [PUZZLE_OF_THE_DAY.md](PUZZLE_OF_THE_DAY.md) | Daily puzzle at three levels with a streak; automatic, admin/coach overrides and switches |
 | [PUZZLE_RUSH_SOLO.md](PUZZLE_RUSH_SOLO.md) | Puzzle Storm / Racer played alone, with a batch leaderboard |
 | [SMART_REVISION.md](SMART_REVISION.md) | Spaced-repetition revision |
 | [STUDENT_ACTIVITY_HISTORY.md](STUDENT_ACTIVITY_HISTORY.md) | Student activity history and progress summary |
@@ -45,9 +46,14 @@ stay as written; the living doc for that area wins where they disagree.
 | [APPEARANCE.md](APPEARANCE.md) | Board appearance and typography resolvers |
 | [PAYMENTS.md](PAYMENTS.md) | Payments, invoices, credit notes — read before touching `payments/` |
 | [REFERRALS.md](REFERRALS.md) | Referral links, pipeline stages and their rewards, milestone bonuses, points and the vouchers students buy with them, staff payouts and the SALES role |
+| [ACADEMY_CLOSURE.md](ACADEMY_CLOSURE.md) | Closing an academy on its request: keep or delete its data, the export, the purge and what the law makes us keep |
+| [ROSTER_IMPORT.md](ROSTER_IMPORT.md) | CSV import of students and coaches, invites to set a password, accounts without an email |
 | [MESSAGING.md](MESSAGING.md) | Admin messaging rules and outbound WhatsApp |
 | [EMAIL_ADMIN.md](EMAIL_ADMIN.md) | Email verification policy and staff direct email |
 | [SAAS_PLANS.md](SAAS_PLANS.md) | Subscription tiers, feature gates, limits |
+| [MULTI_ROLE_ACCOUNTS.md](MULTI_ROLE_ACCOUNTS.md) | One login with Admin + Coach and a role switch (solo coach): built 2026-11-20 (PR into dev) |
+| [UNIQUE_FEATURES_PROPOSAL.md](UNIQUE_FEATURES_PROPOSAL.md) | 6 unique differentiator features: AI Growth Card, Coach Co-Pilot, Repertoire Bot, Clan Battles, Highlights, WhatsApp Puzzle Streak |
+| [BUSINESS_GROWTH_PLAYBOOK.md](BUSINESS_GROWTH_PLAYBOOK.md) | Marketing & lead velocity: 3-tap WhatsApp booking, Meta ad angles, landing page quiz, no-show reduction, referral loops |
 | [ai/architecture/ROADMAP.md](ai/architecture/ROADMAP.md) | AI runtime plan; ADRs and phase specs live beside it |
 
 ## Operations
@@ -59,10 +65,11 @@ stay as written; the living doc for that area wins where they disagree.
 | [SERVICE_STATUS.md](SERVICE_STATUS.md) | What users see when the app is down, deploying, in maintenance, crashed, outdated or offline (nginx status page, `error.tsx`, offline pill) |
 | [PROD_DOCKER_COMMANDS.md](PROD_DOCKER_COMMANDS.md) | Production container cheat sheet |
 | [DATABASE_RESTORE.md](DATABASE_RESTORE.md) | Restoring a backup (CLI only) |
+| [DEPLOY_ROLLBACK_HARDENING.md](DEPLOY_ROLLBACK_HARDENING.md) | Safe deployment and rollback: the rules, rollback classes A/B/C, the minimum deploy workflow (built 2026-11-24), what to do when it goes wrong, later items |
 | [NEXA_CLI.md](NEXA_CLI.md) | The `nexa` dev/stage/prod helper |
 | [PERF_CPU.md](PERF_CPU.md) | Measuring CPU contention on the VPS |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Symptom → where to look, per feature |
-| [investigations/](investigations/) | Dated root-cause write-ups (2026-11-05: empty 400s after an engine stream) |
+| [investigations/](investigations/) | Dated root-cause write-ups (2026-11-05: empty 400s after an engine stream; 2026-11-23: backend code review, Parts 1–6) |
 | [BACKLOG.md](BACKLOG.md) | Known gaps and the recurring root causes — read before a new feature |
 
 ## Design records & assessments (point-in-time)
@@ -72,7 +79,10 @@ stay as written; the living doc for that area wins where they disagree.
 | [RELIABILITY_DESIGN.md](RELIABILITY_DESIGN.md) | P0 classroom reliability audit and design |
 | [PUZZLE_CATALOGUE_ARCHITECTURE.md](PUZZLE_CATALOGUE_ARCHITECTURE.md) | Lichess catalogue + adaptive training audit |
 | [PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md](PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md) | Lichess catalogue implementation spec |
+| [SAAS_CUTOVER_RUNBOOK.md](SAAS_CUTOVER_RUNBOOK.md) | Taking multi-academy to production: release in audit mode, enforce, the D5 contract, the first other academy |
 | [SAAS_MULTI_TENANCY.md](SAAS_MULTI_TENANCY.md) | Multi-tenant white-label SaaS plan: assessment, owner decisions, roadmap |
+| [LEAD_STAGES.md](LEAD_STAGES.md) | Lead stages (demo booked/confirmed/attended/missed), automatic moves, their copy to Frappe CRM and back, WhatsApp lead capture |
+| [AD_MEASUREMENT.md](AD_MEASUREMENT.md) | Meta Conversions API (lead events), Meta Pixel + consent banner, funnel report |
 | [WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) | WhatsApp support bot and `/admin/support` inbox: as built (Phases 1–2) and the plan |
 | [WHATSAPP_SUPPORT_MODES_PLAN.md](WHATSAPP_SUPPORT_MODES_PLAN.md) | Proposal: multi-academy WhatsApp, conversation ownership, Native / External helpdesk / Hybrid support modes; decisions first |
 | [PARENT_REPORTS.md](PARENT_REPORTS.md) | Parent reports — deferred, and why |

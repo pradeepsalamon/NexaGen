@@ -40,6 +40,7 @@ describe("Multi-tab attendance — webhook controller join decision", () => {
     liveSession: { findUnique: jest.Mock };
     classAttendance: { findUnique: jest.Mock };
     attendanceLog: { findMany: jest.Mock };
+    user: { findUnique: jest.Mock };
   };
   let screenShare: { endScreenShareOnDisconnect: jest.Mock };
   let moderation: { enforceRemovalOnJoin: jest.Mock };
@@ -68,6 +69,7 @@ describe("Multi-tab attendance — webhook controller join decision", () => {
       },
       classAttendance: { findUnique: jest.fn() },
       attendanceLog: { findMany: jest.fn() },
+      user: { findUnique: jest.fn().mockResolvedValue({ role: "STUDENT" }) },
     };
 
     moderation = { enforceRemovalOnJoin: jest.fn().mockResolvedValue(false) };
@@ -167,6 +169,44 @@ describe("Multi-tab attendance — webhook controller join decision", () => {
       .mockResolvedValue(undefined);
     await controller.handleWebhook(requestWith(JSON.stringify(coachJoin)));
     expect(moderation.enforceRemovalOnJoin).not.toHaveBeenCalled();
+  });
+
+  it("records nothing for an admin who joins visibly (review L8)", async () => {
+    prisma.user.findUnique.mockResolvedValue({ role: "ADMIN" });
+    const adminJoin = {
+      event: "participant_joined",
+      id: "evt-admin",
+      room: { name: "class_class-1" },
+      participant: { identity: "admin-1_tab-z" },
+    };
+    receiver.receive.mockResolvedValueOnce(adminJoin);
+    await controller.handleWebhook(requestWith(JSON.stringify(adminJoin)));
+
+    expect(attendanceService.recordJoinEvent).not.toHaveBeenCalled();
+    expect(attendanceService.recordReconnectEvent).not.toHaveBeenCalled();
+    expect(moderation.enforceRemovalOnJoin).not.toHaveBeenCalled();
+  });
+
+  it("does not take a student's `_board` identity for the coach's board (review L7)", async () => {
+    const boardJoin = {
+      event: "participant_joined",
+      id: "evt-fake-board",
+      room: { name: "class_class-1" },
+      participant: { identity: `${STUDENT_ID}_board` },
+    };
+    const recordBoardJoinEvent = jest.fn();
+    (attendanceService as unknown as { recordBoardJoinEvent: jest.Mock }).recordBoardJoinEvent = recordBoardJoinEvent;
+    receiver.receive.mockResolvedValueOnce(boardJoin);
+    prisma.classAttendance.findUnique.mockResolvedValueOnce(null);
+    await controller.handleWebhook(requestWith(JSON.stringify(boardJoin)));
+
+    expect(recordBoardJoinEvent).not.toHaveBeenCalled();
+    // It is a student connection like any other, so the removal check runs.
+    expect(moderation.enforceRemovalOnJoin).toHaveBeenCalledWith(
+      expect.objectContaining({ classId: CLASS_ID }),
+      STUDENT_ID,
+      `${STUDENT_ID}_board`
+    );
   });
 
   it("closes only the leaving tab's own session, tagging it with its clientId", async () => {

@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useEffect, useMemo, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search } from "lucide-react";
@@ -81,7 +82,7 @@ export function RecommendRevisionDialog({
   // reverse); withdrawing it is the Remove button in the list, which has its own Undo.
   const submit = useMutation({
     mutationFn: (body: RevisionRecommendRequest) => recommendRevision(studentId, body),
-    onError: (error) => toast.error({ message: (error as Error).message, title: "Couldn't recommend" }),
+    onError: (error) => toast.error({ message: getErrorMessage(error), title: "Couldn't recommend" }),
     onSuccess: (res) => {
       void qc.invalidateQueries({ queryKey: queryKeys.revision.report(studentId) });
       toast.success({
@@ -142,7 +143,7 @@ export function RecommendRevisionDialog({
               {puzzles.isLoading ? (
                 <Skeleton className="h-40 w-full" />
               ) : puzzles.isError ? (
-                <p className="p-4 text-sm text-app-danger-ink">{(puzzles.error as Error).message}</p>
+                <p className="p-4 text-sm text-app-danger-ink">{getErrorMessage(puzzles.error)}</p>
               ) : (puzzles.data?.puzzles.length ?? 0) === 0 ? (
                 <p className="p-4 text-center text-sm text-app-muted">No published puzzles match.</p>
               ) : (

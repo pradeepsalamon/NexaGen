@@ -32,6 +32,7 @@ import {
 } from "@/features/invoices/api/invoicesApi";
 import { BillingProfileForm } from "@/features/invoices/components/BillingProfileForm";
 import { InvoiceStatusBadge } from "@/features/invoices/components/InvoiceBadges";
+import { usePlanFeature } from "@/features/subscription/hooks/useSubscription";
 import { useCancelSubscription, useMyBilling } from "../hooks/usePaymentsApi";
 
 const STATUS_VARIANT: Record<
@@ -55,6 +56,7 @@ const STATUS_VARIANT: Record<
 export function BillingClient() {
   const timeZone = useUserTimeZone();
   const { data, isLoading } = useMyBilling();
+  const canBuyOnline = usePlanFeature("studentPayments") === true;
 
   const headerProps = { description: "Your payments, invoices and active access.", title: "Billing" };
   const header = <PageHeader {...headerProps} />;
@@ -339,13 +341,16 @@ export function BillingClient() {
         ) : null}
       </Tabs>
 
-      <p className="text-sm text-app-muted">
-        Looking for something to buy?{" "}
-        <Link className="font-semibold text-primary-ink underline" href="/plans">
-          See the available plans
-        </Link>
-        .
-      </p>
+      {/* Buying online needs the academy's online payments (plan `studentPayments`). */}
+      {canBuyOnline ? (
+        <p className="text-sm text-app-muted">
+          Looking for something to buy?{" "}
+          <Link className="font-semibold text-primary-ink underline" href="/plans">
+            See the available plans
+          </Link>
+          .
+        </p>
+      ) : null}
     </div>
   );
 }

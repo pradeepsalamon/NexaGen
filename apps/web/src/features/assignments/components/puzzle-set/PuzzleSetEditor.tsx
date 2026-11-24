@@ -1,5 +1,6 @@
 "use client";
 
+import { FieldError } from "@/components/ui/FieldError";
 import { useMemo, useState } from "react";
 import {
   buildPuzzleTopicTree,
@@ -147,7 +148,8 @@ export function PuzzleSetEditor({
             {value.length} / {MAX_ASSIGNMENT_PUZZLES}
           </span>
         </div>
-        {error ? <p className="text-xs font-semibold text-app-danger-ink">{error}</p> : null}
+        {/* The form's own submit toasts it (onInvalidSubmit); kept here for screen readers. */}
+        <FieldError id="puzzle-set" message={error} />
         {value.length === 0 ? (
           <p className="rounded-control border border-dashed border-app-border p-4 text-center text-sm text-app-muted">
             No puzzles yet. Add them from the library — students solve them in this order.

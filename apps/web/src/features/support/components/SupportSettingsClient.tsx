@@ -1,5 +1,6 @@
 "use client";
 
+import { onInvalidSubmit } from "@/lib/forms";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FieldError } from "@/components/ui/FieldError";
 import Link from "next/link";
@@ -54,6 +55,7 @@ const dayRowSchema = z.object({ close: z.string(), enabled: z.boolean(), open: z
 /** Numbers stay text in the form (one per line for the test list) and become the API body on save. */
 const formSchema = z.object({
   accountAnswers: z.boolean(),
+  captureLeads: z.boolean(),
   days: z
     .array(dayRowSchema)
     .length(7)
@@ -96,6 +98,7 @@ const DEFAULT_DAY = (day: number) => ({ close: "18:00", enabled: day !== 0, open
 function toForm(data: SupportSettingsResponse, fallbackZone: string): FormValues {
   return {
     accountAnswers: data.accountAnswers,
+    captureLeads: data.captureLeads,
     agentReplyTemplate: data.agentReplyTemplate ?? "",
     agentReplyTemplateLanguage: data.agentReplyTemplateLanguage,
     botEnabled: data.botEnabled,
@@ -114,9 +117,11 @@ function toForm(data: SupportSettingsResponse, fallbackZone: string): FormValues
   };
 }
 
-function toRequest(values: FormValues): UpdateSupportSettingsRequest {
+function toRequest(values: FormValues, usesPlatformNumber: boolean): UpdateSupportSettingsRequest {
   return {
     accountAnswers: values.accountAnswers,
+    // Lead capture is Nexa's academy only; another academy never sends the field.
+    ...(usesPlatformNumber ? { captureLeads: values.captureLeads } : {}),
     agentReplyTemplate: values.agentReplyTemplate,
     agentReplyTemplateLanguage: values.agentReplyTemplateLanguage,
     botEnabled: values.botEnabled,
@@ -180,7 +185,7 @@ function SettingsForm({ data }: { data: SupportSettingsResponse }) {
     handleSubmit,
     register,
     reset
-  } = useForm<FormValues>({ mode: "onTouched", defaultValues: toForm(data, userZone), resolver: zodResolver(formSchema) });
+  } = useForm<FormValues>({ mode: "onSubmit", defaultValues: toForm(data, userZone), resolver: zodResolver(formSchema) });
   const hoursEnabled = useWatch({ control, name: "hoursEnabled" });
   const days = useWatch({ control, name: "days" });
   const timezone = useWatch({ control, name: "timezone" });
@@ -196,8 +201,8 @@ function SettingsForm({ data }: { data: SupportSettingsResponse }) {
       className="grid gap-6"
       noValidate
       onSubmit={handleSubmit((values) => {
-        save.mutateAsync(toRequest(values)).then((saved) => reset(toForm(saved, userZone)), () => undefined);
-      })}
+        save.mutateAsync(toRequest(values, data.connection.usesPlatformNumber)).then((saved) => reset(toForm(saved, userZone)), () => undefined);
+      }, onInvalidSubmit)}
     >
       {data.source === "SERVER" ? (
         <Alert title="Using the server's settings" variant="info">
@@ -235,6 +240,21 @@ function SettingsForm({ data }: { data: SupportSettingsResponse }) {
               get that student&apos;s next class time. Nothing else about the account is ever sent, and other numbers get nothing.
             </p>
           </div>
+          {data.connection.usesPlatformNumber ? (
+            <div className="grid gap-1">
+              <Controller
+                control={control}
+                name="captureLeads"
+                render={({ field }) => (
+                  <Switch checked={field.value} id="support-capture-leads" label="Make every new chat a lead" onCheckedChange={field.onChange} />
+                )}
+              />
+              <p className="text-xs text-app-muted">
+                When someone who isn&apos;t a student, parent or open lead writes to this number, they appear under Leads (from a WhatsApp ad, or
+                WhatsApp), and are copied to Frappe CRM. Works with the bot on or off, and never sends them anything.
+              </p>
+            </div>
+          ) : null}
         </div>
       </SectionCard>
 

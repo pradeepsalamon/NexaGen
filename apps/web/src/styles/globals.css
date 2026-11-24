@@ -93,6 +93,10 @@
   --rgb-nav-drawer: var(--rgb-brand-900);
   --rgb-nav-drawer-border: var(--rgb-brand-700);
 
+  /* Scrollbar thumb: solid brand navy (owner, 2026-11-22); royal blue in the dark theme (below). */
+  --color-scroll-thumb: rgb(var(--rgb-brand-800));
+  --color-scroll-thumb-hover: rgb(var(--rgb-brand-700));
+
   --color-primary: rgb(var(--rgb-primary));
   --color-accent: rgb(var(--rgb-accent));
   --color-background: rgb(var(--rgb-background));
@@ -173,6 +177,12 @@
   --color-scroll-shade: rgb(var(--rgb-scrim) / 0.55);
 }
 
+/* Scrollbar thumb in the dark theme: royal blue (owner, 2026-11-22, final); navy everywhere else. */
+:root[data-theme="dark"] {
+  --color-scroll-thumb: rgb(var(--rgb-primary));
+  --color-scroll-thumb-hover: rgb(var(--rgb-primary-hover));
+}
+
 :root[data-theme="dark"],
 .surface-brand {
   /* Primary fills keep the light theme's royal blue (owner, 2026-11-08): only the
@@ -216,6 +226,65 @@
   --color-focus: rgb(var(--rgb-primary));
 }
 
+/* Login page (`/login`, features/auth/frame): a hero beside a warm form side, both
+   following the theme: a champagne hero beside an ivory form side in light, a navy hero
+   beside a deep-navy form side in dark. The card on the form side keeps the app's own
+   tokens (surface, fields, blue primary button) so the forms match the rest of the app.
+   The navy is the app's own `--rgb-brand-900`. The gold stays login-only on purpose: academy
+   branding overrides `--rgb-accent`, and every academy gets this same gold page (owner, 2026-11-22). */
+:root {
+  --rgb-login-gold: 233 173 67;
+  --rgb-login-gold-light: 248 220 160;
+  --rgb-login-gold-deep: 190 130 34;
+  --rgb-login-on-gold: var(--rgb-brand-900);
+  --rgb-login-page: 250 248 243;
+  --rgb-login-card: 255 254 251;
+  --rgb-login-field: 255 255 255;
+  --rgb-login-line: 231 224 212;
+  --rgb-login-line-strong: 214 203 184;
+  --rgb-login-text: 23 32 51;
+  --rgb-login-muted: 104 115 138;
+  --rgb-login-subtle: 128 136 152;
+  --color-login-gold-ink: #9A6510;
+
+  /* Hero. */
+  --rgb-login-hero: 242 233 215;
+  --rgb-login-hero-2: 251 246 236;
+  --rgb-login-hero-line: 233 205 150;
+  --rgb-login-on-hero: 15 26 52;
+  --rgb-login-on-hero-muted: 84 94 116;
+  --rgb-login-hero-gold: 176 118 28;
+  --rgb-login-hero-gold-1: 206 150 50;
+  --rgb-login-hero-gold-2: 168 108 22;
+  --rgb-login-hero-gold-3: 122 78 12;
+  --rgb-login-chip-1: 255 253 248;
+  --rgb-login-chip-2: 250 243 230;
+}
+
+:root[data-theme="dark"] {
+  --rgb-login-page: 8 12 26;
+  --rgb-login-card: 13 20 40;
+  --rgb-login-field: 10 16 33;
+  --rgb-login-line: 33 45 74;
+  --rgb-login-line-strong: 58 72 104;
+  --rgb-login-text: 238 240 245;
+  --rgb-login-muted: 160 170 190;
+  --rgb-login-subtle: 132 144 168;
+  --color-login-gold-ink: #F0C46E;
+
+  --rgb-login-hero: var(--rgb-brand-900);
+  --rgb-login-hero-2: 7 21 47;
+  --rgb-login-hero-line: 37 52 88;
+  --rgb-login-on-hero: 244 241 233;
+  --rgb-login-on-hero-muted: 170 180 200;
+  --rgb-login-hero-gold: 233 173 67;
+  --rgb-login-hero-gold-1: 248 220 160;
+  --rgb-login-hero-gold-2: 233 173 67;
+  --rgb-login-hero-gold-3: 190 130 34;
+  --rgb-login-chip-1: 7 21 47;
+  --rgb-login-chip-2: 7 13 32;
+}
+
 /* Solid status fills that look the same in both themes (BulkActionsBar):
    the light theme's deep colours with white text. */
 .solid-status {
@@ -232,6 +301,56 @@
    which the dimmed overlay behind a dialog makes up for. */
 .scroll-clip-panel {
   clip-path: inset(0 round var(--radius-panel));
+}
+/* A scrolling body inside a dialog (fields between a fixed title and buttons). The bar sits in
+   the dialog's right padding, so the fields line up with the title and buttons on both sides;
+   the gutter is kept even when nothing scrolls, so the width never changes. The left inset lets
+   a field's focus ring show instead of being clipped. Keep 1rem = padding + bar (8px). */
+.dialog-scroll-body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  margin-left: -4px;
+  margin-right: -1rem;
+  padding-left: 4px;
+  padding-right: calc(1rem - 8px);
+}
+
+/* Its bar stops short of the rounded corners instead of being cut by them. */
+.scroll-clip-panel::-webkit-scrollbar-track {
+  margin-block: calc(var(--radius-panel) / 2 + 4px);
+}
+
+/* Signed-in pages (`data-nav`, set before paint): the browser's own page scrollbar is hidden, and
+   components/layout/PageScrollbar.tsx draws a thumb-only bar below the header instead (owner,
+   2026-11-22: the bar never runs beside the header and has no track). Nothing reserves width, so
+   the header spans the window and nothing shifts when a page grows past the screen or a menu or
+   dialog locks scrolling (Radix then measures no bar and adds no padding). Scroll areas inside the
+   page keep their own styled bars. */
+html[data-nav] {
+  scrollbar-width: none;
+}
+html[data-nav]::-webkit-scrollbar {
+  display: none;
+}
+
+/* Pointer use: no focus ring on controls that a click focused (lib/inputModality.ts). A key press
+   brings rings back at once; text fields keep their own focus style. */
+html[data-input="pointer"]
+  :is(a, button, summary, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [role="switch"], [role="checkbox"], [role="radio"]):focus-visible {
+  outline: none !important;
+}
+
+/* The rail's shared section flyout (Sidebar.tsx RailFlyoutHost) glides to the newly hovered icon
+   instead of jumping. Only on a move (`data-moved`): on first open Radix places the wrapper off
+   screen before measuring, which a transition would turn into a fly-in. */
+[data-radix-popper-content-wrapper]:has(> [data-rail-flyout][data-moved]) {
+  transition: transform 240ms cubic-bezier(0.2, 0.9, 0.1, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-radix-popper-content-wrapper]:has(> [data-rail-flyout][data-moved]) {
+    transition: none;
+  }
 }
 
 /* Selected rows and cards: a stronger blue than hover, opaque so a pinned
@@ -300,24 +419,40 @@ html[data-theme-reveal]::view-transition-new(root) {
 @layer base {
   * {
     @apply box-border;
-    scrollbar-width: thin;
-    scrollbar-color: var(--color-primary) transparent;
   }
 
-  /* Webkit custom scrollbar */
+  /* Scrollbars: a slim navy pill (--color-scroll-thumb) on a clear track, no arrow buttons, in every scroller.
+     Chrome 121+ ignores the ::-webkit-scrollbar rules on any element that sets
+     `scrollbar-width` or `scrollbar-color`, so those two are set only where the
+     webkit rules don't exist (Firefox). Setting them on `*` gave Chrome its default
+     bar with arrows, in blue. */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
-  ::-webkit-scrollbar-track {
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
     background: transparent;
   }
+  ::-webkit-scrollbar-button {
+    display: none;
+  }
+  /* The transparent border insets the pill from the edges (background-clip keeps it clear). */
   ::-webkit-scrollbar-thumb {
-    background-color: var(--color-primary);
+    background-color: var(--color-scroll-thumb);
+    background-clip: padding-box;
+    border: 2px solid transparent;
     border-radius: 9999px;
   }
-  ::-webkit-scrollbar-thumb:hover {
-    background-color: rgb(var(--rgb-primary-hover));
+  ::-webkit-scrollbar-thumb:hover,
+  ::-webkit-scrollbar-thumb:active {
+    background-color: var(--color-scroll-thumb-hover);
+  }
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--color-scroll-thumb) transparent;
+    }
   }
 
   html {
@@ -496,23 +631,13 @@ html[data-theme-reveal]::view-transition-new(root) {
     object-fit: contain;
   }
 
-  /* Custom scrollbar for sidebar panels */
-  .custom-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: var(--color-primary) rgb(var(--rgb-primary) / 0.08);
-  }
+  /* Panels in the live class: a slimmer bar than the page's, same colours. */
   .custom-scrollbar::-webkit-scrollbar {
-    width: 5px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: rgb(var(--rgb-primary) / 0.08);
+    width: 8px;
+    height: 8px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background-color: var(--color-primary);
-    border-radius: 9999px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background-color: rgb(var(--rgb-primary-hover));
+    border-width: 2px;
   }
 
   /* Hide scrollbar but keep functionality */

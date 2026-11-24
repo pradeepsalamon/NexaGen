@@ -125,10 +125,12 @@ describe("class cancellation handlers", () => {
       await handler().revalidate(db(), request());
       expect(tx.$queryRaw.mock.calls[0][0].join("?")).toContain('"classes"');
 
-      const result = await handler().execute(db(), request(), { id: "admin-1" });
+      const askedAt = new Date("2026-11-20T08:00:00.000Z");
+      const result = await handler().execute(db(), request({ createdAt: askedAt }), { id: "admin-1" });
+      // Review R1: the coach who asked is the canceller, notice from the request time.
       expect(tx.coachClass.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ cancelledById: "admin-1", status: ClassStatus.CANCELLED }),
+          data: expect.objectContaining({ cancelledAt: askedAt, cancelledById: "coach-1", status: ClassStatus.CANCELLED }),
           where: { id: "class-1", status: { in: [ClassStatus.SCHEDULED] } }
         })
       );

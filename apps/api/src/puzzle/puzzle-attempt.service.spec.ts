@@ -14,6 +14,7 @@ import { AssignmentPuzzleSetService } from "../assignment/assignment-puzzle-set.
 import { PrismaService } from "../prisma/prisma.service";
 import { ProgressRecorderService } from "../progress/progress-recorder.service";
 import { StockfishService } from "../stockfish/stockfish.service";
+import { DailyPuzzleService } from "./daily-puzzle.service";
 import { PuzzleAttemptService } from "./puzzle-attempt.service";
 
 const TOKEN = "t";
@@ -35,6 +36,7 @@ describe("PuzzleAttemptService", () => {
     assertHintsAllowed: jest.Mock;
   };
   let prisma: any;
+  let daily: { recordFinish: jest.Mock };
 
   const globalPuzzle = (over: Record<string, unknown> = {}) => ({
     id: "pz-1",
@@ -63,6 +65,7 @@ describe("PuzzleAttemptService", () => {
   });
 
   beforeEach(async () => {
+    daily = { recordFinish: jest.fn() };
     prisma = {
       user: { findUnique: jest.fn().mockResolvedValue(asRole(STUDENT_ID, UserRole.STUDENT)) },
       puzzle: {
@@ -138,6 +141,7 @@ describe("PuzzleAttemptService", () => {
       providers: [
         PuzzleAttemptService,
         { provide: AssignmentPuzzleSetService, useValue: puzzleSets },
+        { provide: DailyPuzzleService, useValue: daily },
         { provide: JwtService, useValue: { verifyAsync: jest.fn().mockResolvedValue({ sub: STUDENT_ID, type: "access" }) } },
         { provide: PrismaService, useValue: prisma },
         { provide: AnalyticsEventService, useValue: { record: jest.fn() } },

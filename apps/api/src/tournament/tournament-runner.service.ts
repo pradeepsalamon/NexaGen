@@ -31,12 +31,13 @@ import {
 import { paginationMeta, resolvePagination } from "../common/pagination";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { TournamentAccessService, type TournamentViewer } from "./tournament-access.service";
+import { canBroadcast } from "./tournament-policy";
 import { TournamentAuditService } from "./tournament-audit.service";
 import { TournamentCertificateService } from "./tournament-certificate.service";
 import { TournamentEngineService } from "./tournament-engine.service";
 import { TournamentEventsService } from "./tournament-events.service";
 import { TournamentNotifierService } from "./tournament-notifier.service";
-import { gameInclude, toGamePlayer, toGameSummary } from "./tournament-game.service";
+import { gameInclude, toGamePlayer, toGameSummaryFor } from "./tournament-game.service";
 import { personSelect, summaryInclude, toPerson, toSummary } from "./tournament-mapper";
 import { TournamentService } from "./tournament.service";
 
@@ -270,18 +271,38 @@ export class TournamentRunnerService {
   async live(accessToken: string | undefined, id: string): Promise<TournamentLiveDto> {
     const user = await this.access.authenticate(accessToken);
     const loaded = await this.access.load(user, id);
-    return this.liveFor(loaded.tournament, loaded.playerRow);
+    const live = canBroadcast(this.access.actor(user), loaded.facts);
+    return this.liveFor(loaded.tournament, loaded.playerRow, { live, userId: user.id });
   }
 
-  /** The snapshot itself (also served to anonymous viewers in Phase 7, through the public projection). */
-  async liveFor(t: Tournament, playerRow: { id: string; status: TournamentPlayerStatus; currentGameId: string | null; arenaPausedAt: Date | null } | null): Promise<TournamentLiveDto> {
+  /**
+   * The snapshot itself (also served to anonymous viewers in Phase 7, through
+   * the public projection). A spectator (`viewer.live` false) sees a game
+   * that ended within the spectator delay still as ongoing, at its delayed
+   * ply and with no result (review S7/F5).
+   */
+  async liveFor(
+    t: Tournament,
+    playerRow: { id: string; status: TournamentPlayerStatus; currentGameId: string | null; arenaPausedAt: Date | null } | null,
+    viewer: { live: boolean; userId: string | null } = { live: false, userId: null }
+  ): Promise<TournamentLiveDto> {
+    const now = Date.now();
+    const delayed = !viewer.live && t.spectatorDelaySec > 0;
     const [row, ongoing, leaders, lastRound, total] = await Promise.all([
       this.prisma.tournament.findUniqueOrThrow({ include: summaryInclude, where: { id: t.id } }),
       this.prisma.tournamentGame.findMany({
         include: gameInclude,
         orderBy: [{ boardNumber: "asc" }],
         take: 200,
-        where: { status: TournamentGameStatus.ONGOING, tournamentId: t.id }
+        where: delayed
+          ? {
+              OR: [
+                { status: TournamentGameStatus.ONGOING },
+                { finishedAt: { gt: new Date(now - t.spectatorDelaySec * 1000) }, status: TournamentGameStatus.FINISHED }
+              ],
+              tournamentId: t.id
+            }
+          : { status: TournamentGameStatus.ONGOING, tournamentId: t.id }
       }),
       this.prisma.tournamentPlayer.findMany({
         orderBy: [{ rank: { nulls: "last", sort: "asc" } }, { seedNumber: "asc" }],
@@ -304,7 +325,9 @@ export class TournamentRunnerService {
         ? { arenaPaused: playerRow.arenaPausedAt !== null, currentGameId: playerRow.currentGameId, playerId: playerRow.id, status: playerRow.status }
         : null,
       nextRoundAt,
-      ongoingGames: ongoing.map(toGameSummary),
+      ongoingGames: ongoing.map((g) =>
+        toGameSummaryFor(g, { delaySec: t.spectatorDelaySec, live: viewer.live, now, userId: viewer.userId })
+      ),
       serverNow: new Date().toISOString(),
       totalRounds: total,
       tournament: {

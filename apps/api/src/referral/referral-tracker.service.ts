@@ -8,6 +8,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { REFERRAL_FOR_MOVE, ReferralPipelineService } from "./referral-pipeline.service";
 import { ReferralSettingsService } from "./referral-settings.service";
 import { requireTenantId } from "../tenancy/tenant-sql";
+import { referralRoleOf } from "./referral.util";
 
 /** Lead CRM statuses that move a referral, and where to. */
 const LEAD_STATUS_TRIGGERS: Partial<Record<LeadStatus, ReferralStageTrigger>> = {
@@ -41,11 +42,12 @@ export class ReferralTrackerService {
     const settings = await this.settings.get();
     if (!settings.enabled || !(await this.entitlements.hasFeature("referralProgram"))) return null;
     const row = await this.prisma.referralCode.findUnique({
-      include: { user: { select: { firstName: true, id: true, role: true, status: true } } },
+      include: { user: { select: { extraRoles: true, firstName: true, id: true, role: true, status: true } } },
       where: { tenantId_code: { code, tenantId: requireTenantId("referralCode") } }
     });
     if (!row || !row.isActive || row.user.status !== UserStatus.ACTIVE) return null;
-    if (!this.settings.isEligible(row.user, settings)) return null;
+    const role = referralRoleOf(row.user);
+    if (!role || !this.settings.isEligible({ role }, settings)) return null;
     return { ...row, settings };
   }
 
@@ -192,6 +194,11 @@ export class ReferralTrackerService {
         if (live) referralId = await this.findOrCreateReferral(live.id, live.userId, null);
       }
       if (!referralId) return;
+      // A referrer booking a demo for themselves earns nothing (review R5).
+      if (await this.leadIsReferrer(input.leadId, referralId)) {
+        this.logger.warn(`Lead ${input.leadId} has the referrer's own email or phone; not attributed.`);
+        return;
+      }
 
       const { count } = await this.prisma.referral.updateMany({
         data: { leadId: input.leadId, prospectName: input.prospectName.slice(0, 120) },
@@ -202,6 +209,28 @@ export class ReferralTrackerService {
     } catch (error) {
       this.logger.warn(`Could not attribute lead ${input.leadId} to a referral: ${(error as Error).message}`);
     }
+  }
+
+  /** The lead's email or phone (last ten digits) is the referrer's own, or their child's parent's. */
+  private async leadIsReferrer(leadId: string, referralId: string): Promise<boolean> {
+    const [lead, referral] = await Promise.all([
+      this.prisma.lead.findUnique({ select: { email: true, phone: true }, where: { id: leadId } }),
+      this.prisma.referral.findUnique({
+        select: {
+          referrer: { select: { email: true, phoneNumber: true, studentProfile: { select: { parentEmail: true, parentPhone: true } } } }
+        },
+        where: { id: referralId }
+      })
+    ]);
+    if (!lead || !referral) return false;
+    const { referrer } = referral;
+    const emails = [referrer.email, referrer.studentProfile?.parentEmail]
+      .filter((value): value is string => Boolean(value))
+      .map((value) => value.trim().toLowerCase());
+    const tail = (value: string | null | undefined) => (value ?? "").replace(/\D/g, "").slice(-10);
+    const phones = [referrer.phoneNumber, referrer.studentProfile?.parentPhone].map(tail).filter((value) => value.length >= 7);
+    const leadEmail = lead.email?.trim().toLowerCase();
+    return Boolean(leadEmail && emails.includes(leadEmail)) || phones.includes(tail(lead.phone));
   }
 
   /** A lead moved in the CRM (admin) — mirror it onto its referral. */

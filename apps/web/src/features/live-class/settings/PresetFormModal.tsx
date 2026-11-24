@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { useEffect, useState } from "react";
 import {
   DEFAULT_LIVE_CLASS_SETTINGS,
@@ -84,6 +85,7 @@ export function PresetFormModal({
   const [description, setDescription] = useState("");
   const [settings, setSettings] = useState<LiveClassSettings>(DEFAULT_LIVE_CLASS_SETTINGS);
   const [nameError, setNameError] = useState<string | null>(null);
+  useRevealFormErrors(nameError);
 
   useEffect(() => {
     if (!open) return;

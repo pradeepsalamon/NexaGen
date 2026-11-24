@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Coins, ListFilter, Pause, PencilLine, Play, Send, UserPlus } from "lucide-react";
@@ -191,6 +192,7 @@ function ChangeCodeDialog({ onClose, referrer }: { referrer: ReferrerStatsItem; 
   const [code, setCode] = useState(referrer.code ?? "");
   // A message goes under the field it is about (UI_RULES § "Form errors").
   const [error, setError] = useState<{ field: string; message: string } | null>(null);
+  useRevealFormErrors(error);
   const errorFor = (field: string) => (error?.field === field ? error.message : undefined);
   const save = useReferralAdminMutation(
     (value: string) => referralAdminApi.updateReferrerCode(referrer.userId, { code: value }),
@@ -237,6 +239,7 @@ function AdjustCreditsDialog({ currency, onClose, referrer }: { referrer: Referr
   const [note, setNote] = useState("");
   // A message goes under the field it is about (UI_RULES § "Form errors").
   const [error, setError] = useState<{ field: string; message: string } | null>(null);
+  useRevealFormErrors(error);
   const errorFor = (field: string) => (error?.field === field ? error.message : undefined);
   const adjust = useReferralAdminMutation(referralAdminApi.adjustCredits, {
     failure: "Could not adjust credits",

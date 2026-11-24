@@ -63,19 +63,35 @@ export async function recomputeAdjustmentTotals(
   prisma: PrismaService,
   payrollRecordId: string
 ): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    await lockRecord(tx, payrollRecordId);
-    const activeAdjustments = await tx.payrollAdjustment.findMany({
-      where: { payrollRecordId, reversedAt: null }
-    });
-    const totalAdjustmentsMinor = activeAdjustments.reduce(
-      (sum, a) => sum + (a.type === "EARNING" ? a.amountMinor : -a.amountMinor),
-      0
-    );
-    await tx.coachPayrollRecord.update({
-      where: { id: payrollRecordId },
-      data: { totalAdjustmentsMinor }
-    });
-    await writeNetPayable(tx, payrollRecordId);
+  await prisma.$transaction((tx) => recomputeAdjustmentTotalsTx(tx, payrollRecordId));
+}
+
+/** The same, inside the caller's transaction (it takes the record's row lock). */
+export async function recomputeAdjustmentTotalsTx(
+  tx: PrismaTransactionClient,
+  payrollRecordId: string
+): Promise<void> {
+  await lockRecord(tx, payrollRecordId);
+  const activeAdjustments = await tx.payrollAdjustment.findMany({
+    where: { payrollRecordId, reversedAt: null }
   });
+  const totalAdjustmentsMinor = activeAdjustments.reduce(
+    (sum, a) => sum + (a.type === "EARNING" ? a.amountMinor : -a.amountMinor),
+    0
+  );
+  await tx.coachPayrollRecord.update({
+    where: { id: payrollRecordId },
+    data: { totalAdjustmentsMinor }
+  });
+  await writeNetPayable(tx, payrollRecordId);
+}
+
+/**
+ * Locks the record and returns it as committed, for a check that must hold
+ * until the caller's write commits (review R2: an adjustment must not land on
+ * a record finalized in between).
+ */
+export async function lockAndReadRecord(tx: PrismaTransactionClient, payrollRecordId: string) {
+  await lockRecord(tx, payrollRecordId);
+  return tx.coachPayrollRecord.findUnique({ where: { id: payrollRecordId } });
 }

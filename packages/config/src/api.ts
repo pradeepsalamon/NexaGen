@@ -43,6 +43,13 @@ const apiEnvSchema = z.object({
     .min(32, "CREDENTIALS_ENCRYPTION_KEY must be at least 32 characters.")
     .optional()
     .or(z.literal("").transform(() => undefined)),
+  // Signs Puzzle of the Day's WhatsApp board-picture links (docs/PUZZLE_OF_THE_DAY.md step 3). Never a JWT secret.
+  // Unset = a key derived from CREDENTIALS_ENCRYPTION_KEY, else MFA_ENCRYPTION_KEY; none of them = no picture.
+  DAILY_PUZZLE_PICTURE_SECRET: z
+    .string()
+    .min(32, "DAILY_PUZZLE_PICTURE_SECRET must be at least 32 characters.")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   // Roles that must sign in with two-factor (comma-separated; empty = none).
   MFA_REQUIRED_ROLES: z.string().default("SUPER_ADMIN,ADMIN"),
   NODE_ENV: z.string().default("development"),
@@ -190,6 +197,41 @@ const apiEnvSchema = z.object({
   FRAPPE_CRM_WEBSITE_LEAD_SOURCE: z.string().default("Website Form"),
   /** A `CRM Lead Status` name that exists in Frappe. */
   FRAPPE_CRM_LEAD_STATUS: z.string().default("New Inquiry"),
+  /**
+   * Copy every stage change to Frappe, not only the first (docs/LEAD_STAGES.md). Off until
+   * Frappe has the stage names in `FRAPPE_LEAD_STAGES`: a missing one makes Frappe refuse the lead.
+   */
+  FRAPPE_CRM_STAGE_SYNC: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  /**
+   * Read the stage a salesperson set in Frappe back into NexaGen every 15 minutes (docs/LEAD_STAGES.md
+   * "The return path"). Works only with FRAPPE_CRM_STAGE_SYNC on too (same stage names on both sides).
+   */
+  FRAPPE_CRM_STAGE_RETURN: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  // Meta Conversions API (docs/AD_MEASUREMENT.md), Nexa's academy only: lead events go to this
+  // dataset. Off unless both are set. The token belongs to a system user with access to the dataset.
+  META_DATASET_ID: z
+    .string()
+    .regex(/^\d{5,30}$/, "Expected the dataset (pixel) id, digits only.")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+  META_CAPI_ACCESS_TOKEN: z.string().optional(),
+  /** Set = every event is a test event (Events Manager → Test events), e.g. on staging. */
+  META_CAPI_TEST_EVENT_CODE: z.string().optional(),
+  META_GRAPH_API_VERSION: z.string().default("v21.0"),
+  // Ad spend on the Leads → Funnel report (read-only Marketing API Insights; docs/AD_MEASUREMENT.md).
+  // Both empty = no spend columns. The token needs ads_read on the ad account only.
+  META_ADS_ACCESS_TOKEN: z.string().optional(),
+  META_AD_ACCOUNT_ID: z
+    .string()
+    .regex(/^(act_)?\d{5,30}$/, "Expected the ad account id (digits, with or without act_).")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   // Nexa's WhatsApp Business Account id: reads template status (other academies save theirs under Branding).
   WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().optional(),
   // Incoming WhatsApp: the support bot (docs/WHATSAPP_SUPPORT.md). The webhook
@@ -199,6 +241,23 @@ const apiEnvSchema = z.object({
   WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().optional(),
   /** Off = incoming messages are recorded and ignored, the bot never replies. */
   SUPPORT_BOT_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  /**
+   * Approved WhatsApp templates for demo reminders outside the 24-hour window (docs/LEAD_STAGES.md):
+   * body {{1}} parent, {{2}} student, {{3}} class time; quick replies "Yes, I'll attend" + "Reschedule"
+   * (the missed-demo one: one "Pick a new time"). Empty = only inside the free window.
+   */
+  SUPPORT_DEMO_REMINDER_TEMPLATE: z.string().optional(),
+  SUPPORT_DEMO_MISSED_TEMPLATE: z.string().optional(),
+  SUPPORT_DEMO_TEMPLATE_LANGUAGE: z.string().default("en_US"),
+  /**
+   * Nexa's academy before its support settings page is first saved: every new WhatsApp number
+   * (not an account, no open lead) becomes a lead, bot on or off; nothing is sent
+   * (docs/LEAD_STAGES.md "WhatsApp lead capture").
+   */
+  SUPPORT_CAPTURE_LEADS: z
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),

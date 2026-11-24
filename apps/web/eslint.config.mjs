@@ -17,6 +17,24 @@ const DATE_RULES = [
   }
 ];
 
+// UI_RULES §5: a failed action's text goes through getErrorMessage (lib/errors.ts), so a 5xx or a
+// driver message never reaches people word for word (FE review D4). A device, file or local parse
+// error whose own text is the useful part takes a disable comment saying so.
+const ERROR_MESSAGE_HINT =
+  "Show errors with getErrorMessage(error, fallback) from @/lib/errors (UI_RULES §5). If this is a device, file or local parse error whose own text is meant for people, add an eslint-disable-next-line comment that says so.";
+const ERROR_RULES = [
+  {
+    selector:
+      "ConditionalExpression[test.operator='instanceof'][test.right.name='Error'][consequent.type='MemberExpression'][consequent.property.name='message']",
+    message: ERROR_MESSAGE_HINT
+  },
+  {
+    selector:
+      "MemberExpression[property.name='message'][object.type='TSAsExpression'][object.typeAnnotation.typeName.name='Error']",
+    message: ERROR_MESSAGE_HINT
+  }
+];
+
 const HEX = "#[0-9a-fA-F]{3,8}\\b";
 const RGB = "(?<![a-zA-Z])(rgb|hsl)a?\\(\\s*\\d";
 const PALETTE =
@@ -39,7 +57,7 @@ export default [
   ...compat.extends("next/core-web-vitals"),
   {
     rules: {
-      "no-restricted-syntax": ["error", ...DATE_RULES, ...COLOUR_RULES],
+      "no-restricted-syntax": ["error", ...DATE_RULES, ...COLOUR_RULES, ...ERROR_RULES],
       "no-restricted-imports": [
         "error",
         {
@@ -67,7 +85,7 @@ export default [
       "src/features/analytics/lib/format.ts",
       "src/features/batch-schedules/lib/scheduleFormat.ts"
     ],
-    rules: { "no-restricted-syntax": ["error", ...COLOUR_RULES] }
+    rules: { "no-restricted-syntax": ["error", ...COLOUR_RULES, ...ERROR_RULES] }
   },
   // These can't read CSS variables, or aren't theme colours: see docs/UI_RULES.md §1.
   {
@@ -80,7 +98,7 @@ export default [
       "src/lib/document-reader/**",
       "src/lib/ogImage.tsx"
     ],
-    rules: { "no-restricted-syntax": ["error", ...DATE_RULES] }
+    rules: { "no-restricted-syntax": ["error", ...DATE_RULES, ...ERROR_RULES] }
   },
   {
     files: ["src/lib/chess.ts", "src/lib/navigation.ts"],

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { useState, type ChangeEvent } from "react";
 import { FieldError, fieldErrorId } from "@/components/ui/FieldError";
 import { formatMoney } from "@nexa-chess/types";
@@ -16,7 +17,7 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Select } from "@/components/ui/Select";
 import { useCoachBatches } from "@/features/coach/hooks/useCoachApi";
-import { useBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
+import { useAllBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
 import {
   useManualBatchPlans,
   useManualBatchStudents,
@@ -54,7 +55,7 @@ export function RecordManualPaymentDialog({ scope, onClose }: Props) {
 }
 
 function AdminManualPaymentForm({ onClose }: { onClose: () => void }) {
-  const { data } = useBatchesQuery();
+  const { data } = useAllBatchesQuery();
   return (
     <ManualPaymentForm batches={data?.batches ?? []} onClose={onClose} scope="admin" />
   );
@@ -83,6 +84,8 @@ function ManualPaymentForm({
   const [reference, setReference] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  // Found when the file is picked, so it toasts at once.
+  useRevealFormErrors(fileError, { immediate: true });
   const [idempotencyKey] = useState(() => crypto.randomUUID());
 
   const { data: plansData } = useManualBatchPlans(batchId || null);

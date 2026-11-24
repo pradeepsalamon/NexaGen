@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   AttemptMove,
@@ -72,7 +73,7 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
       queuedGiveUp.current = false;
       startedAt.current = Date.now();
     } catch (error) {
-      setStartError((error as Error).message);
+      setStartError(getErrorMessage(error));
     }
     // `start` is expected to be a stable useCallback from the caller.
   }, [start]);
@@ -120,7 +121,7 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
           }
         }
         setPendingSubmit(finalMoves);
-        toast.error({ title: "Could not submit", message: (lastError as Error).message });
+        toast.error({ title: "Could not submit", message: getErrorMessage(lastError) });
       } finally {
         submittingRef.current = false;
         setSubmitting(false);
@@ -175,7 +176,7 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
           await submit(nextMoves);
         }
       } catch (error) {
-        toast.error({ title: "Move rejected", message: (error as Error).message });
+        toast.error({ title: "Move rejected", message: getErrorMessage(error) });
         setResetNonce((n) => n + 1);
       } finally {
         busy.current = false;
@@ -209,7 +210,7 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
       level ??= Math.min(3, (serverHint?.level ?? 0) + 1) as 1 | 2 | 3;
       setServerHint(await getPuzzleHint(puzzleId, attemptId, { moves, level }));
     } catch (error) {
-      toast.error({ title: "Hint unavailable", message: (error as Error).message });
+      toast.error({ title: "Hint unavailable", message: getErrorMessage(error) });
     } finally {
       busy.current = false;
       if (queuedGiveUp.current) {

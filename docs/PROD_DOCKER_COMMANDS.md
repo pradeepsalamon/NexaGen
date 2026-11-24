@@ -11,16 +11,15 @@ cd /opt/nexa-chess/NexaGen
 docker compose up -d
 ```
 
-**Rebuild and deploy after pulling new code**
-*(This rebuilds the images without caching, applies changes, and restarts only the containers that changed)*
-```bash
-docker compose up -d --build
-```
+**New code: never rebuild by hand on the prod checkout**
+New code goes out only through Actions → Deploy Production (lock, pre-deploy
+backup, migrations, health gate, smoke test, rollback:
+[DEPLOY_ROLLBACK_HARDENING.md](DEPLOY_ROLLBACK_HARDENING.md)). A hand-run
+`docker compose up -d --build` skips all of that.
 
-**Rebuild and deploy ONLY a specific app after pulling new code (Fastest)**
-*(Replace `api` with `web`, `livekit`, or whatever container changed)*
+**Pick up a `.env` change (recreate api + web from their current images)**
 ```bash
-docker compose up -d --build api
+scripts/nexa.sh restart prod
 ```
 
 **Stop the entire application safely**
@@ -78,9 +77,10 @@ docker exec -it nexa_redis redis-cli
 ## ⚙️ Prisma & Backend Operations
 
 **Manually run database migrations**
-*(A deploy already applies these before swapping the API, and `entrypoint.sh` runs
-them again on container start — you only need this after a manual restore or a
-container started outside the deploy script.)*
+*(A deploy applies these itself, after a pre-deploy backup and before swapping the
+API; a container start never migrates (`MIGRATE_ON_START=false`). You only need
+this inside a runbook in [DATABASE_RESTORE.md](DATABASE_RESTORE.md), e.g. after a
+restore. Take a backup first: `scripts/backup_db.sh`.)*
 ```bash
 docker exec -it nexa_api npx prisma migrate deploy
 ```

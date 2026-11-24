@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, Query, Req } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Put, Query, Req } from "@nestjs/common";
 import type { Request } from "express";
 import {
   API_ROUTES,
@@ -6,8 +6,10 @@ import {
   reportSoloRushProgressRequestSchema,
   soloRushPeriodSchema,
   startPuzzleRushRequestSchema,
+  updateBatchBattleSettingsSchema,
   type ReportSoloRushProgressRequest,
-  type StartPuzzleRushRequest
+  type StartPuzzleRushRequest,
+  type UpdateBatchBattleSettingsRequest
 } from "@nexa-chess/types";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { z } from "zod";
@@ -15,7 +17,11 @@ import { queryString } from "../common/query-params";
 import { parseOrBadRequest, ZodBodyPipe } from "../common/zod-body.pipe";
 import { SoloPuzzleRushService } from "./solo-puzzle-rush.service";
 
-/** Student-only: solo Storm / Racer from the practice page (docs/PUZZLE_RUSH_SOLO.md). */
+/**
+ * Solo Storm / Racer from the student's practice page, and Batch Battles
+ * (docs/PUZZLE_RUSH_SOLO.md). Student-only, except a batch's Batch Battles
+ * settings: an admin, or a coach of that batch.
+ */
 @Controller()
 export class SoloPuzzleRushController {
   constructor(private readonly service: SoloPuzzleRushService) {}
@@ -61,6 +67,35 @@ export class SoloPuzzleRushController {
       "query"
     );
     return this.service.leaderboard(this.getAccessToken(request), query);
+  }
+
+  @Get(API_ROUTES.puzzleRushSolo.battles)
+  batchBattles(
+    @Query("mode") mode: unknown,
+    @Query("period") period: unknown,
+    @Req() request: Request
+  ) {
+    const query = parseOrBadRequest(
+      z.object({
+        mode: puzzleRushModeSchema.default("STORM"),
+        period: soloRushPeriodSchema.default("WEEK")
+      }),
+      {
+        mode: queryString(mode, "mode"),
+        period: queryString(period, "period")
+      },
+      "query"
+    );
+    return this.service.batchBattles(this.getAccessToken(request), query);
+  }
+
+  @Patch(API_ROUTES.puzzleRushSolo.battleSettings())
+  updateBattleSettings(
+    @Param("id") id: string,
+    @Body(new ZodBodyPipe(updateBatchBattleSettingsSchema)) body: UpdateBatchBattleSettingsRequest,
+    @Req() request: Request
+  ) {
+    return this.service.updateBattleSettings(this.getAccessToken(request), id, body);
   }
 
   private getAccessToken(request: Request) {

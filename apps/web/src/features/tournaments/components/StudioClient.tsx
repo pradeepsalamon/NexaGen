@@ -162,7 +162,7 @@ export function StudioClient({ tournamentId }: { tournamentId: string }) {
         </SectionCard>
         <div className="flex min-w-0 flex-col gap-5">
           <SectionCard title="Write">
-            <form
+            <form noValidate
               className="flex flex-col gap-3"
               onSubmit={(e) => {
                 e.preventDefault();

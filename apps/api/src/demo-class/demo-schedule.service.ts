@@ -30,6 +30,7 @@ import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { TrashRepository } from "../trash/trash.repository";
 import { authenticateUser } from "../auth/authenticate";
+import { isCoachAccount } from "../common/coach-accounts";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const slotsSchema = z.array(demoScheduleSlotSchema);
@@ -408,7 +409,7 @@ export class DemoScheduleService {
 
   private async assertCoach(coachId: string) {
     const coach = await this.prisma.user.findUnique({ where: { id: coachId } });
-    if (!coach || coach.role !== UserRole.COACH || coach.status !== UserStatus.ACTIVE) {
+    if (!coach || !isCoachAccount(coach) || coach.status !== UserStatus.ACTIVE) {
       throw new NotFoundException("Coach not found");
     }
   }

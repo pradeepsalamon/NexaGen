@@ -11,6 +11,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { runInTenant } from "../tenancy/tenant-context";
 import { EntitlementService, pinnedLapsePolicy } from "./entitlement.service";
 import { assertPlatformOperator, writePlatformAudit } from "./platform-operator";
+import { applySubscriptionTransition, lockTenantSubscription } from "./subscription-transition";
 import { buildAdminSubscriptionView } from "./subscription.service";
 
 const toDate = (value: string | null | undefined) =>
@@ -126,10 +127,36 @@ export class PlatformService {
         status: body.status,
         trialEndsAt: toDate(body.trialEndsAt)
       };
+      const { note, ...changes } = body;
+      const planChange = plan ? { planId: plan.id, planVersion: plan.version } : {};
+      // A status change goes through the one funnel (review T6, CLAUDE.md §3.6m):
+      // its guard, its status-filtered claim and its event, with the other
+      // columns in the same write.
+      if (current && body.status && body.status !== current.status) {
+        await lockTenantSubscription(tx, tenantId);
+        const { status: _status, ...rest } = data;
+        await applySubscriptionTransition(tx, {
+          actorUserId: actor.id,
+          changes: changes as Record<string, unknown>,
+          data: { ...rest, ...planChange },
+          note: note ?? null,
+          source: TenantSubscriptionEventSource.ADMIN,
+          tenantId,
+          to: body.status
+        });
+        await writePlatformAudit(tx, {
+          action: "subscription.update",
+          actorUserId: actor.id,
+          details: changes as Record<string, unknown>,
+          reason: note,
+          targetTenantId: tenantId
+        });
+        return;
+      }
       let subscriptionId: string;
       if (current) {
         await tx.tenantSubscription.update({
-          data: { ...data, ...(plan ? { planId: plan.id, planVersion: plan.version } : {}) },
+          data: { ...data, ...planChange },
           where: { id: current.id }
         });
         subscriptionId = current.id;
@@ -139,7 +166,6 @@ export class PlatformService {
           await tx.tenantSubscription.create({ data: { ...data, planId: plan.id, planVersion: plan.version, tenantId } })
         ).id;
       }
-      const { note, ...changes } = body;
       await tx.tenantSubscriptionEvent.create({
         data: {
           actorUserId: actor.id,

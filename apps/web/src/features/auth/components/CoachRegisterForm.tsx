@@ -4,7 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { type FormEvent, useRef, useState } from "react";
-import { AtSign, Lock, Phone, ShieldCheck, UserRound } from "lucide-react";
+import { AtSign, Lock, Phone, UserRound } from "lucide-react";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { PasswordInput } from "@/components/ui/PasswordInput";
@@ -56,7 +56,6 @@ export function CoachRegisterForm() {
 
   const hasFideTitle = Boolean(values.title && values.title !== "NONE");
   const [touched, setTouched] = useState<Partial<Record<CoachField, boolean>>>({});
-  const touch = (field: CoachField) => setTouched((current) => ({ ...current, [field]: true }));
   const errors = validateCoach(values, acquisitionSource, touched);
 
   const registerMutation = useMutation({
@@ -137,20 +136,19 @@ export function CoachRegisterForm() {
         We have your application for{" "}
         <span className="font-semibold text-app-text">{submittedEmail}</span>. An admin
         reviews every coach account before it is activated. You can sign in once yours is
-        approved.
+        approved, and we&apos;ll email you when it is.
       </AuthStatus>
     );
   }
 
   return (
-    <form className="grid gap-6" noValidate onSubmit={handleSubmit}>
+    <form className="grid gap-6 lg:gap-3" noValidate onSubmit={handleSubmit}>
       <RegistrationFieldset legend="About you">
         <FormField error={errors.coachName} id="coach-name" label="Full name" required>
           <Input
             autoComplete="name"
             hasError={Boolean(errors.coachName)}
             id="coach-name"
-            onBlur={() => touch("coachName")}
             leadingIcon={<UserRound />}
             onChange={(e) => updateField("coachName", e.target.value)}
             placeholder="e.g. John Doe"
@@ -193,7 +191,6 @@ export function CoachRegisterForm() {
               <Input
                 hasError={Boolean(errors.fideRating)}
                 id="fide-rating"
-                onBlur={() => touch("fideRating")}
                 inputMode="numeric"
                 onChange={(e) => {
                   const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 4);
@@ -213,7 +210,6 @@ export function CoachRegisterForm() {
           <Input
             hasError={Boolean(errors.yearsOfExperience)}
             id="years-of-experience"
-            onBlur={() => touch("yearsOfExperience")}
             inputMode="numeric"
             onChange={(e) => {
               const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 2);
@@ -234,7 +230,6 @@ export function CoachRegisterForm() {
           detail={acquisitionDetail}
           onDetailChange={setAcquisitionDetail}
           error={errors.acquisitionSource}
-          onBlur={() => touch("acquisitionSource")}
           onValueChange={setAcquisitionSource}
           required
           value={acquisitionSource}
@@ -247,7 +242,6 @@ export function CoachRegisterForm() {
             autoComplete="email"
             hasError={Boolean(errors.email)}
             id="email"
-            onBlur={() => touch("email")}
             inputMode="email"
             leadingIcon={<AtSign />}
             onChange={(e) => updateField("email", e.target.value)}
@@ -263,7 +257,6 @@ export function CoachRegisterForm() {
             autoComplete="tel"
             hasError={Boolean(errors.contactNumber)}
             id="contact-number"
-            onBlur={() => touch("contactNumber")}
             inputMode="numeric"
             leadingIcon={<Phone />}
             maxLength={15}
@@ -284,7 +277,6 @@ export function CoachRegisterForm() {
             autoComplete="new-password"
             hasError={Boolean(errors.password)}
             id="coach-password"
-            onBlur={() => touch("password")}
             leadingIcon={<Lock />}
             onChange={(e) => updateField("password", e.target.value)}
             placeholder="Create a secure password"
@@ -298,7 +290,6 @@ export function CoachRegisterForm() {
             autoComplete="new-password"
             hasError={Boolean(errors.confirmPassword)}
             id="coach-confirm-password"
-            onBlur={() => touch("confirmPassword")}
             leadingIcon={<Lock />}
             name="confirmPassword"
             onChange={(e) => {
@@ -322,18 +313,10 @@ export function CoachRegisterForm() {
         ref={termsRef}
       />
 
-      <div className="grid gap-3">
+      <div className="grid gap-4 lg:gap-3.5">
         <Button fullWidth isLoading={registerMutation.isPending} size="lg" type="submit">
           {registerMutation.isPending ? "Submitting…" : "Submit application"}
         </Button>
-        <p className="flex items-start justify-center gap-2 text-center text-sm text-app-muted">
-          <ShieldCheck
-            aria-hidden="true"
-            className="mt-0.5 size-4 shrink-0 text-success-ink"
-            strokeWidth={2.25}
-          />
-          Our team reviews every application. You will be notified by email.
-        </p>
         <LoginPrompt />
       </div>
     </form>

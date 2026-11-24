@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "@/lib/navigation";
 import type {
@@ -170,7 +171,7 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
       setValidation({ valid: res.valid, error: res.error });
       if (res.valid && res.normalizedSolution) setSolutionMoves(res.normalizedSolution);
     } catch (error) {
-      setValidation({ valid: false, error: (error as Error).message });
+      setValidation({ valid: false, error: getErrorMessage(error) });
     } finally {
       setValidating(false);
     }
@@ -212,7 +213,7 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
       if (!inMutation) {
         toast.error({
           title: "Puzzle saved, but publishing failed",
-          message: (error as Error).message
+          message: getErrorMessage(error)
         });
         if (puzzle) router.push(`${basePath}/${puzzle.id}`);
       }

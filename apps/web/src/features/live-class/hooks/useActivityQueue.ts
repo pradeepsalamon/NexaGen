@@ -80,7 +80,7 @@ export function useActivityQueueSync(classId: string, { isManager }: { isManager
       if (msg.from) return;
       if (!decodeActivityQueueMessage(msg.payload)) return;
       void qc.invalidateQueries({ queryKey: queryKeys.activityQueues.current(classId) });
-      if (isManager) void qc.invalidateQueries({ queryKey: ["activity-queues", classId] });
+      if (isManager) void qc.invalidateQueries({ queryKey: queryKeys.activityQueues.all(classId) });
     },
     [qc, classId, isManager]
   );

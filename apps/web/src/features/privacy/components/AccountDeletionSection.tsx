@@ -1,5 +1,6 @@
 "use client";
 
+import { onInvalidSubmit } from "@/lib/forms";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -97,7 +98,7 @@ function DeletionDialog({ onOpenChange, open }: { onOpenChange: (open: boolean) 
   const toast = useToast();
   const submit = useRequestAccountDeletion();
   const form = useForm<CreateAccountDeletionRequest>({
-    mode: "onTouched",
+    mode: "onSubmit",
     defaultValues: { currentPassword: "", reason: "" },
     resolver: zodResolver(createAccountDeletionRequestSchema)
   });
@@ -119,8 +120,7 @@ function DeletionDialog({ onOpenChange, open }: { onOpenChange: (open: boolean) 
           close(false);
         }
       }
-    )
-  );
+    ), onInvalidSubmit);
 
   return (
     <Dialog onOpenChange={close} open={open}>

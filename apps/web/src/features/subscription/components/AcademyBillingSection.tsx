@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
@@ -78,7 +79,7 @@ export function AcademyBillingSection({ data }: { data: AdminSubscriptionRespons
         );
       } catch (gatewayError) {
         // e.g. the Razorpay script was blocked and never loaded.
-        toast.error({ message: (gatewayError as Error).message, title: "Payment didn't start" });
+        toast.error({ message: getErrorMessage(gatewayError), title: "Payment didn't start" });
         return;
       }
       if (outcome.kind === "failed") {

@@ -1,5 +1,8 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
+import { FieldError, fieldErrorId } from "@/components/ui/FieldError";
+import { getErrorMessage } from "@/lib/errors";
 import { useState } from "react";
 import { Check, Tag, X } from "lucide-react";
 import {
@@ -12,12 +15,19 @@ import { Input } from "@/components/ui/Input";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { usePreviewDiscount } from "../hooks/usePaymentsApi";
 
+/** An applied code with the server's own figures for the order (FE review P1). */
+export type DiscountQuote = {
+  discount: AppliedDiscount;
+  taxAmount: number;
+  total: number;
+};
+
 type Props = {
   planId: string;
   currency: string;
   method: PaymentMethodKind | null;
   applied: AppliedDiscount | null;
-  onApply: (discount: AppliedDiscount | null) => void;
+  onApply: (quote: DiscountQuote | null) => void;
   disabled?: boolean;
 };
 
@@ -39,6 +49,8 @@ export function DiscountField({
   const preview = usePreviewDiscount();
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // A refused code: the field turns red and one toast says why (UI_RULES § "Form errors").
+  useRevealFormErrors(error);
   const [open, setOpen] = useState(false);
 
   const submit = () => {
@@ -51,14 +63,14 @@ export function DiscountField({
       {
         onSuccess: (result) => {
           if (result.valid) {
-            onApply(result.discount);
+            onApply({ discount: result.discount, taxAmount: result.taxAmount, total: result.total });
             setCode("");
           } else {
             setError(result.message);
             onApply(null);
           }
         },
-        onError: (mutationError) => setError((mutationError as Error).message)
+        onError: (mutationError) => setError(getErrorMessage(mutationError))
       }
     );
   };
@@ -109,6 +121,8 @@ export function DiscountField({
     <div>
       <div className="flex gap-2">
         <Input
+          aria-describedby={error ? fieldErrorId("discount-code") : undefined}
+          aria-invalid={Boolean(error)}
           aria-label="Discount code"
           className="font-mono uppercase"
           disabled={disabled}
@@ -137,11 +151,7 @@ export function DiscountField({
         </Button>
       </div>
 
-      {error ? (
-        <p aria-live="polite" className="mt-1 text-xs text-app-danger-ink">
-          {error}
-        </p>
-      ) : null}
+      <FieldError id="discount-code" message={error} />
     </div>
   );
 }

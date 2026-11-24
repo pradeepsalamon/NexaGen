@@ -26,6 +26,7 @@ export const PLATFORM_MODELS = {
   PlatformWebhookEvent: "Webhooks from the owner's gateway account (§G), across academies",
   ProcessedWebhookEvent: "LiveKit event ids are globally unique",
   Tenant: "The academies themselves",
+  TenantClosure: "An academy's request to close and the purge of its data (docs/ACADEMY_CLOSURE.md); outlives the data, keyed by tenantId (with FK)",
   TenantDomain: "Host → academy map, read before any academy is known",
   TenantIntegrityRun: "Nightly cross-academy integrity check results, across academies by design",
   TenantSubscription: "Platform billing state, keyed by tenantId (with FK)",

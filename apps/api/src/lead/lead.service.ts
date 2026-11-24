@@ -5,6 +5,7 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import {
+  leadChildDetailsGiven,
   supportDemoSummary,
   type SupportDemoRequest
 } from "@nexa-chess/types";
@@ -37,6 +38,7 @@ import { SystemNotifier } from "../mail/system-notifier.service";
 import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { TrashRepository } from "../trash/trash.repository";
 import { ReferralTrackerService } from "../referral/referral-tracker.service";
+import { MetaCapiService } from "../meta-capi/meta-capi.service";
 import { FrappeCrmPushService } from "./frappe-crm-push.service";
 import { WHATSAPP_LEAD_REUSE_DAYS, WHATSAPP_LEAD_SOURCE } from "./lead-constants";
 import { parseUserAgent, parseVisitAttribution } from "./lead-tracking.util";
@@ -46,6 +48,11 @@ import { queryEnum } from "../common/query-params";
 type AuthenticatedUser = Pick<User, "id" | "email" | "role" | "status">;
 
 const CONVERTING_STATUSES: LeadStatus[] = ["CONVERTED", "ACTIVE_STUDENT"];
+
+/** Meta's `_fbp` cookie value: `fb.<subdomain index>.<creation ms>.<random>`. */
+function isMetaFbp(value: string | undefined): value is string {
+  return typeof value === "string" && /^fb\.\d\.\d{10,16}\.\d{1,30}$/.test(value);
+}
 
 type LeadRow = {
   id: string;
@@ -74,7 +81,8 @@ export class LeadService {
     private readonly referrals: ReferralTrackerService,
     private readonly notifier: SystemNotifier,
     private readonly trash: TrashRepository,
-    private readonly crmPush: FrappeCrmPushService
+    private readonly crmPush: FrappeCrmPushService,
+    private readonly metaCapi: MetaCapiService
   ) {}
 
   // ── Public ──
@@ -87,7 +95,7 @@ export class LeadService {
    */
   async createLead(
     body: CreateLeadRequest,
-    context: { sessionId: string | undefined; referralId?: string }
+    context: { fbp?: string; sessionId: string | undefined; referralId?: string }
   ): Promise<CreateLeadResponse> {
     const phone = body.phone.replace(/\D/g, "");
 
@@ -96,6 +104,11 @@ export class LeadService {
           where: { sessionId: context.sessionId }
         })
       : null;
+
+    // The pixel's browser id rides on a consented visit only (docs/AD_MEASUREMENT.md).
+    if (visitorSession?.adConsent === true && isMetaFbp(context.fbp) && visitorSession.fbp !== context.fbp) {
+      await this.prisma.visitorSession.update({ data: { fbp: context.fbp }, where: { id: visitorSession.id } });
+    }
 
     const source = visitorSession?.utmSource || visitorSession?.referrer || "Organic";
     const campaign = visitorSession?.utmCampaign ?? null;
@@ -123,6 +136,8 @@ export class LeadService {
         }
       });
       await this.crmPush.enqueue(tx, created.id);
+      // Meta's website Lead, only with the visitor's banner consent (checked inside).
+      await this.metaCapi.onLeadCreated(tx, created.id, created.createdAt, body.metaEventId);
       return created;
     });
 
@@ -160,7 +175,7 @@ export class LeadService {
   async upsertFromWhatsApp(
     tx: PrismaTransactionClient,
     input: SupportDemoRequest & { phone: string; now: Date }
-  ): Promise<{ lead: Lead; created: boolean }> {
+  ): Promise<{ lead: Lead; created: boolean; detailsFilled: boolean }> {
     const description = [
       supportDemoSummary(input),
       "Booked through the WhatsApp assistant."
@@ -176,11 +191,30 @@ export class LeadService {
       }
     });
     if (existing) {
+      // A lead captured from the chat has no child details yet: the booking brings them.
+      const filling = !leadChildDetailsGiven(existing);
       await tx.leadActivity.create({
-        data: { activityType: "WHATSAPP_DEMO_REQUEST", description, leadId: existing.id, title: "Asked for a demo again on WhatsApp" }
+        data: filling
+          ? { activityType: "WHATSAPP_DEMO_REQUEST", description, leadId: existing.id, title: "Asked for a demo on WhatsApp" }
+          : { activityType: "WHATSAPP_DEMO_REQUEST", description, leadId: existing.id, title: "Asked for a demo again on WhatsApp" }
       });
-      const lead = await tx.lead.update({ data: { lastActivityAt: input.now }, where: { id: existing.id } });
-      return { created: false, lead };
+      const lead = await tx.lead.update({
+        data: {
+          lastActivityAt: input.now,
+          ...(filling
+            ? {
+                experienceLevel: input.level,
+                parentName: existing.parentName.trim() ? existing.parentName : input.parentName,
+                studentAge: input.studentAge,
+                studentName: input.studentName
+              }
+            : {})
+        },
+        where: { id: existing.id }
+      });
+      // Frappe got this lead without them; the next push adds them (review Part 1 #1).
+      if (filling) await this.crmPush.markDetailsChanged(tx, existing.id);
+      return { created: false, detailsFilled: filling, lead };
     }
     const lead = await tx.lead.create({
       data: {
@@ -196,7 +230,7 @@ export class LeadService {
         studentName: input.studentName
       }
     });
-    return { created: true, lead };
+    return { created: true, detailsFilled: false, lead };
   }
 
   /** Tells staff about a new lead (NEW_LEAD_ADMIN). Never throws. */
@@ -268,6 +302,41 @@ export class LeadService {
     });
   }
 
+  /**
+   * The cookie banner's answer (docs/AD_MEASUREMENT.md). Accept marks this visit and keeps the
+   * pixel's `_fbp`; Decline marks every visit of this browser, so an event queued for an earlier
+   * lead is skipped too. Starts the visit when the tracking call hasn't run yet.
+   */
+  async recordAdConsent(input: {
+    consent: boolean;
+    fbp: string | undefined;
+    ipAddress: string;
+    referrer: string | undefined;
+    sessionId: string;
+    url: string;
+    userAgent: string | undefined;
+    visitorId: string;
+  }): Promise<void> {
+    const now = new Date();
+    const answer = { adConsent: input.consent, adConsentAt: now, fbp: input.consent && isMetaFbp(input.fbp) ? input.fbp : null };
+    const existing = await this.prisma.visitorSession.findUnique({ select: { id: true }, where: { sessionId: input.sessionId } });
+    if (!existing) {
+      try {
+        await this.trackVisit(input);
+      } catch (error) {
+        // The page's own tracking call made it a moment earlier: fine, it exists now.
+        if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")) throw error;
+      }
+    }
+    await this.prisma.visitorSession.update({ data: answer, where: { sessionId: input.sessionId } });
+    if (!input.consent) {
+      await this.prisma.visitorSession.updateMany({
+        data: { adConsent: false, adConsentAt: now, fbp: null },
+        where: { visitorId: input.visitorId }
+      });
+    }
+  }
+
   // ── Admin ──
 
   async list(
@@ -318,6 +387,7 @@ export class LeadService {
       where: { id },
       include: {
         visitorSession: true,
+        adClick: true,
         assignedClass: { include: { coach: true } },
         activities: { orderBy: { createdAt: "desc" }, include: { createdBy: true } },
         notes: { orderBy: { createdAt: "desc" }, include: { createdBy: true } },
@@ -337,6 +407,17 @@ export class LeadService {
         ...this.toLeadListItem(lead),
         assignedClass: assignedClass
           ? this.toAssignableDemoClass(assignedClass)
+          : null,
+        adClick: lead.adClick
+          ? {
+              clicks: lead.adClick.clicks,
+              firstAdId: lead.adClick.firstAdId,
+              firstHeadline: lead.adClick.firstHeadline,
+              firstSeenAt: lead.adClick.firstSeenAt.toISOString(),
+              latestAdId: lead.adClick.latestAdId,
+              latestHeadline: lead.adClick.latestHeadline,
+              latestSeenAt: lead.adClick.latestSeenAt.toISOString()
+            }
           : null,
         visitorAttribution: visitorSession
           ? {
@@ -393,26 +474,37 @@ export class LeadService {
     }
 
     const now = new Date();
-    const updated = await this.prisma.lead.update({
-      where: { id },
-      data: {
-        status: body.status,
-        lastActivityAt: now,
-        convertedAt: CONVERTING_STATUSES.includes(body.status)
-          ? lead.convertedAt ?? now
-          : lead.convertedAt,
-        activities: {
-          create: {
-            activityType: "STATUS_CHANGED",
-            title: `Status changed to ${body.status}`,
-            description: body.description ?? null,
-            createdById: user.id
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const changed = await tx.lead.update({
+        where: { id },
+        data: {
+          status: body.status,
+          lastActivityAt: now,
+          convertedAt: CONVERTING_STATUSES.includes(body.status)
+            ? lead.convertedAt ?? now
+            : lead.convertedAt,
+          activities: {
+            create: {
+              activityType: "STATUS_CHANGED",
+              title: `Status changed to ${body.status}`,
+              description: body.description ?? null,
+              createdById: user.id
+            }
           }
         }
+      });
+      // In the same transaction: Meta hears about a booked demo or a conversion (docs/AD_MEASUREMENT.md),
+      // and the Frappe copy is re-queued, so a PENDING row always means a change is on its way and
+      // the return path can't undo the admin's change (review Part 1 #6).
+      if (lead.status !== body.status) {
+        await this.metaCapi.onLeadStatus(tx, id, body.status, now);
+        await this.crmPush.markStageChanged(tx, id);
       }
+      return changed;
     });
 
     await this.referrals.onLeadStatus(id, body.status, user.id);
+    if (lead.status !== body.status) void this.crmPush.pushLead(id);
     return { lead: this.toLeadListItem(updated) };
   }
 
@@ -487,7 +579,14 @@ export class LeadService {
       throw new NotFoundException("Lead not found.");
     }
 
-    await this.prisma.$transaction((tx) => this.trash.softDelete(tx, "Lead", id, user.id));
+    await this.prisma.$transaction(async (tx) => {
+      await this.trash.softDelete(tx, "Lead", id, user.id);
+      // Its queued ad events never leave once the lead is trashed (review Part 1 #3).
+      await tx.metaCapiEvent.updateMany({
+        data: { claimedAt: null, error: "The lead was deleted.", status: "SKIPPED" },
+        where: { leadId: id, status: "PENDING" }
+      });
+    });
     return { ok: true };
   }
 

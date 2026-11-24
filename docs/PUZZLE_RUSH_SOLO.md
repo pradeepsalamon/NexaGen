@@ -10,8 +10,14 @@ leaderboard per batch. Added 2026-11-16 (night run, item 10 of
 `/student/puzzle-rush` ("Storm and Racer" in the student menu):
 
 - one card per mode with the rules, the student's best score and a Play button;
-- a **leaderboard** for a batch the student is in (a batch picker when there is
-  more than one), per mode, for **this week** or **all time**.
+- a toggle between two boards, sharing the mode and period pickers:
+  - **My batch**: the leaderboard of a batch the student is in (a batch
+    picker when there is more than one), per mode, for **this week** or **all
+    time**;
+  - **Batch Battles**: the academy's competing batches ranked against each
+    other (§ "Batch Battles" below), with a banner per batch of the student's:
+    its rank (or why it has none), its average, its players and the student's
+    own best.
 
 A run is the same board and rules as in class: the player's own screen checks
 the moves (`features/live-class/lib/puzzleRushRun.ts`), the components
@@ -37,6 +43,8 @@ Routes in `API_ROUTES.puzzleRushSolo`, contract in `packages/types/src/puzzle-ru
 | `POST /puzzle-rush/solo/runs` `{ mode }` | closes the student's unfinished run, freezes a new one |
 | `PUT /puzzle-rush/solo/runs/:id/progress` | the running totals; the server clamps them |
 | `GET /puzzle-rush/solo/leaderboard?batchId&mode&period` | `period` is `WEEK` or `ALL` |
+| `GET /puzzle-rush/solo/battles?mode&period` | the Batch Battles board (students of a training batch) |
+| `PATCH /puzzle-rush/solo/battles/batches/:id` `{ battlesEnabled?, battlesShowNames? }` | a batch's Batch Battles settings: an admin, or a coach of that batch (any other batch is a 404) |
 
 Rules that must stay true:
 
@@ -50,6 +58,14 @@ Rules that must stay true:
   (`updateMany` with `moves` / `puzzleIndex` `lte`, `finishedAt: null`); a
   Racer report after `endsAt` + grace is a 409. A client that stops reporting
   just leaves an unfinished run, which never counts.
+- **Known trade-off (review F3, 2026-11-23): a script can post a perfect run.**
+  The whole run, solutions included, reaches the browser at start, and the
+  server trusts the solved / errors / score it reports within the clamp. So a
+  script can report 0 errors and every puzzle solved at the time limit, and
+  that run feeds the batch leaderboard and Batch Battles. Lichess makes the
+  same trade-off. The fix, if it is ever needed, is to send puzzle *n*'s
+  solution only after puzzle *n−1* is reported solved and check each answer
+  on the server (owner question in BACKLOG.md).
 - **Only finished runs reach the leaderboard.** Each student's best run counts
   (score, then fewer errors, then earliest); ties on score and errors share a
   rank. The raw query carries `tenantFilter("r")` and is listed in
@@ -59,6 +75,36 @@ Rules that must stay true:
 - **A run is read through the student's own id**: another student's run id is a
   404 (`cross-user-access` rows "student reports into another student's solo
   Puzzle Storm run" and "…a batch leaderboard they are not in").
+
+## Batch Battles
+
+Added 2026-11-21 (PR #167; first draft by another agent, reworked after
+review). The owner's calls: per-batch settings that an admin or the batch's
+coach changes, and ranking by average with a minimum number of players.
+
+- **Which batches compete**: ACTIVE, not deleted, `puzzleTrainingEnabled`, and
+  `batchTakesPartInBattles` (`@nexa-chess/types` `puzzle-rush.ts`, the one
+  rule): `Batch.battlesEnabled` when set, else automatic — **group batches
+  only** (`resolveBatchType` on the batch default and roster size). One-to-one
+  and buddy batches stay out unless turned on: they are often named after
+  their students, and one or two players can't make a fair average.
+- **Score**: each student's best finished run in the period (the same order
+  as the batch leaderboard), counted in every competing batch they are in.
+  A batch's score is its players' **average**, one decimal; a batch needs
+  `BATCH_BATTLE_MIN_PLAYERS` (3) players to get a rank. Equal averages share a
+  rank. Batches short of players are listed after, unranked; batches nobody
+  played in are left off. At most 50 rows; the student's own batches always
+  come back in `myBatches` with their real rank. Ranking is
+  `rankBatchBattles` (pure, unit-tested); the raw query carries
+  `tenantFilter("b")` and `tenantFilter("r")` and its real-Postgres test is
+  `solo-puzzle-rush-battles.int-spec.ts`.
+- **Names**: a batch's top player ("Arjun K.") is named only to students of
+  that batch, or to everyone when `Batch.battlesShowNames` is on (off by
+  default; students are minors). Otherwise other batches see the score alone.
+- **Settings**: admins in the Batch form; a coach from the swords button on
+  their batch card (`/coach/batches`, `BatchBattleSettingsDialog`). Access rows
+  in `cross-user-access`: "coach changes Batch Battles for another coach's
+  batch", "student changes own batch's Batch Battles settings".
 
 ## Data
 

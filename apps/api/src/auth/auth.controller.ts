@@ -15,10 +15,12 @@ import {
   API_ROUTES,
   enterSupportSessionRequestSchema,
   type EnterSupportSessionRequest,
-  type LoginResponse
+  type LoginResponse,
+  switchRoleRequestSchema,
+  type SwitchRoleRequest
 } from "@nexa-chess/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
-import { clearAuthCookies, getSessionContext, setAuthCookies } from "./auth-cookies";
+import { clearAuthCookies, getSessionContext, setAccessCookie, setAuthCookies } from "./auth-cookies";
 import { AuthService } from "./auth.service";
 import {
   ForgotPasswordDto,
@@ -29,6 +31,7 @@ import {
   RegisterCoachDto,
   VerifyEmailDto
 } from "./dto";
+import type { UserRole } from "@prisma/client";
 import { AUTH_COOKIE_NAMES } from "./types";
 import { REFERRAL_COOKIE_NAME } from "../referral/referral.util";
 
@@ -127,6 +130,23 @@ export class AuthController {
     const result = await this.authService.enterSupportSession(body.token, getSessionContext(request));
     setAuthCookies(response, result);
     return { user: result.user };
+  }
+
+  /** Multi-role accounts: this login session acts in another role it holds (docs/MULTI_ROLE_ACCOUNTS.md). */
+  @Post(API_ROUTES.auth.switchRole)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @HttpCode(HttpStatus.OK)
+  async switchRole(
+    @Body(new ZodBodyPipe(switchRoleRequestSchema)) body: SwitchRoleRequest,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response
+  ) {
+    const { accessToken, accessTokenMaxAge, ...result } = await this.authService.switchRole(
+      request.cookies?.[AUTH_COOKIE_NAMES.accessToken],
+      body.role as UserRole
+    );
+    setAccessCookie(response, accessToken, accessTokenMaxAge);
+    return result;
   }
 
   @Get(API_ROUTES.auth.me)

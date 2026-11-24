@@ -1,4 +1,5 @@
 import { API_BASE_URL, apiFetch } from "@/lib/api";
+import { sendOnUnload } from "@/lib/sendOnUnload";
 import {
   API_ROUTES,
   type AppendTranscriptRequest,
@@ -13,13 +14,7 @@ export const appendTranscript = (classId: string, body: AppendTranscriptRequest)
 
 /** Fire-and-forget write that survives the page unloading (axios cannot keepalive). */
 export const appendTranscriptOnUnload = (classId: string, body: AppendTranscriptRequest) => {
-  void fetch(`${API_BASE_URL}${API_ROUTES.liveClass.transcript(classId)}`, {
-    body: JSON.stringify(body),
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    keepalive: true,
-    method: "POST",
-  }).catch(() => undefined);
+  sendOnUnload(`${API_BASE_URL}${API_ROUTES.liveClass.transcript(classId)}`, "POST", body, "transcript");
 };
 
 export const getTranscriptPage = (classId: string, cursor?: string) =>

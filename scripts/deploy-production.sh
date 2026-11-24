@@ -32,6 +32,20 @@ set -Eeuo pipefail
 # touched, so the checkout (and with it docker-compose.yml) follows the images.
 # Database migrations are NEVER reversed — keep them additive.
 #
+# Migrations and backups (docs/DEPLOY_ROLLBACK_HARDENING.md)
+# ----------------------
+# This script is the only thing that migrates production (the API container's
+# entrypoint doesn't, MIGRATE_ON_START=false). Before building it refuses a
+# database with a failed migration or one the target commit doesn't know, and a
+# TENANT_SCOPE_MODE that would drop from enforce. With migrations pending it
+# takes a checked backup (scripts/backup_db.sh --predeploy) and aborts if that
+# fails. Every rollback, automatic or manual, first classifies the migrations
+# the restored code doesn't know (scripts/migration-class.sh) and refuses past
+# a class C one: roll forward, or restore the pre-deploy backup.
+#
+# After the health gate a smoke test goes through nginx (FRONTEND_URL and
+# NEXT_PUBLIC_API_URL from .env); a failure rolls back like a failed health check.
+#
 # Concurrency
 # -----------
 # GitHub's `concurrency: production` group serialises workflow runs, but not a
@@ -91,7 +105,9 @@ mkdir -p "$STATE_DIR"
 # ---------------------------------------------------------
 # Concurrency: one deploy/rollback at a time on this box.
 # ---------------------------------------------------------
-LOCK_WAIT_SECONDS=${DEPLOY_LOCK_WAIT_SECONDS:-2400}
+# Well under the workflow's 45 min SSH timeout, which must also cover the build
+# (~5–8 min) and migrations: a run cut off by SSH could stop mid-swap.
+LOCK_WAIT_SECONDS=${DEPLOY_LOCK_WAIT_SECONDS:-900}
 exec 9>"$STATE_DIR/deploy.lock"
 if ! flock -n 9; then
   echo "Another deploy or rollback holds $STATE_DIR/deploy.lock; waiting up to ${LOCK_WAIT_SECONDS}s..."
@@ -137,6 +153,110 @@ contains() {
     [ "$item" = "$needle" ] && return 0
   done
   return 1
+}
+
+# ---------------------------------------------------------
+# Migration state. psql runs inside the Postgres container with its own
+# POSTGRES_USER / POSTGRES_DB, so this script never reads secrets.
+# ---------------------------------------------------------
+DB_CONTAINER=${DB_CONTAINER:-${CONTAINER_PREFIX}postgres}
+MIGRATIONS_DIR=apps/api/prisma/migrations
+
+db_query() {
+  docker exec -i "$DB_CONTAINER" sh -c 'psql -X -q -t -A -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<< "$1"
+}
+
+applied_migrations() {
+  db_query "select migration_name from _prisma_migrations where finished_at is not null and rolled_back_at is null order by 1;"
+}
+
+failed_migrations() {
+  db_query "select migration_name from _prisma_migrations where finished_at is null and rolled_back_at is null order by 1;"
+}
+
+# Migration folders a commit contains (no checkout needed).
+migrations_in_commit() {
+  git ls-tree --name-only "$1:$MIGRATIONS_DIR" 2>/dev/null | grep -E '^[0-9]{14}_' | sort || true
+}
+
+# Before putting <commit>'s code on this database: classify the applied
+# migrations it doesn't know (their SQL must be in the working tree). Returns 1
+# when one is class C (or can't be read): that code can't run on this schema.
+schema_allows_code_of() {
+  local commit=$1 applied known ahead status=0
+  if ! applied=$(applied_migrations); then
+    echo "Schema check: could not read _prisma_migrations."
+    return 1
+  fi
+  known=$(migrations_in_commit "$commit")
+  ahead=$(comm -23 <(sort <<< "$applied" | sed '/^$/d') <(sed '/^$/d' <<< "$known"))
+  if [ -z "$ahead" ]; then
+    echo "Schema check: $(git rev-parse --short "$commit") knows every applied migration."
+    return 0
+  fi
+  if [ ! -f scripts/migration-class.sh ]; then
+    echo "Schema check: scripts/migration-class.sh is missing from this checkout; can't classify."
+    return 1
+  fi
+  echo "Schema check: the database has migrations $(git rev-parse --short "$commit") doesn't know:"
+  bash scripts/migration-class.sh $(sed "s#^#$MIGRATIONS_DIR/#" <<< "$ahead") || status=$?
+  if [ "$status" = 3 ]; then
+    echo "A class C migration is applied: that code can't run on this schema."
+    return 1
+  fi
+  [ "$status" = 0 ] || return 1
+  if bash scripts/migration-class.sh $(sed "s#^#$MIGRATIONS_DIR/#" <<< "$ahead") | grep -q '^B'; then
+    echo "Warning: class B (new enum values). Screens reading rows that already use a"
+    echo "new value will error on the restored code; prefer rolling forward once they exist."
+  fi
+  return 0
+}
+
+# ---------------------------------------------------------
+# Smoke test through nginx, the way a user reaches the app.
+# ---------------------------------------------------------
+env_value() {
+  sed -n "s/^$1=//p" .env 2> /dev/null | tail -1 | sed -e 's/^["'"'"']//' -e 's/["'"'"']$//' -e 's#/*$##'
+}
+
+# <label> <expected status> <url> [body substring]; 3 tries, 5 s apart.
+smoke_check() {
+  local label=$1 expected=$2 url=$3 needle=${4:-} attempt status body
+  for attempt in 1 2 3; do
+    # Sent as the browser does: the API resolves the academy from Origin.
+    body=$(curl -s --max-time 10 -H "Origin: $SMOKE_ORIGIN" -w $'\n%{http_code}' "$url" 2> /dev/null || printf '\n000')
+    status=${body##*$'\n'}
+    body=${body%$'\n'*}
+    if [ "$status" = "$expected" ] && { [ -z "$needle" ] || grep -qF -- "$needle" <<< "$body"; }; then
+      echo "✓ smoke: $label ($status)"
+      return 0
+    fi
+    [ "$attempt" = 3 ] || sleep 5
+  done
+  echo "✗ smoke: $label: got $status, expected $expected${needle:+ with '$needle'} ($url)"
+  SMOKE_FAILURE=$label
+  return 1
+}
+
+SMOKE_FAILURE=""
+SMOKE_ORIGIN=""
+smoke_test() {
+  local web_url api_url
+  web_url=$(env_value FRONTEND_URL)
+  api_url=$(env_value NEXT_PUBLIC_API_URL)
+  if [ -z "$web_url" ] || [ -z "$api_url" ]; then
+    echo "Smoke test skipped: FRONTEND_URL or NEXT_PUBLIC_API_URL is not set in .env."
+    return 0
+  fi
+  SMOKE_ORIGIN=$web_url
+  echo "Smoke test through nginx ($web_url, $api_url)..."
+  smoke_check "home page" 200 "$web_url/" || return 1
+  smoke_check "sign-in page" 200 "$web_url/login" || return 1
+  smoke_check "API ready" 200 "$api_url/health/ready" || return 1
+  # The academy resolves for this host (tenant routing works).
+  smoke_check "academy resolves" 200 "$api_url/tenant/public-config" '"tenantId":"' || return 1
+  # Signed-out callers are refused, not served and not a 500.
+  smoke_check "anonymous refused" 401 "$api_url/auth/me" || return 1
 }
 
 # Echoes healthy | unhealthy | timeout for one service's container. A restart
@@ -335,6 +455,21 @@ if [ "$MODE" = "rollback" ]; then
   echo "From: $FROM_COMMIT"
   echo "To:   $TO_COMMIT"
 
+  # The working tree is still $FROM_COMMIT, so the newer migrations' SQL is here.
+  if contains api "${SERVICES[@]}" && ! schema_allows_code_of "$TO_COMMIT"; then
+    if [ "${ROLLBACK_PAST_CONTRACT:-}" = "1" ]; then
+      echo "ROLLBACK_PAST_CONTRACT=1: rolling back anyway."
+    else
+      log_history "rollback REFUSED (schema ahead, class C) services=${SERVICES[*]} from=$FROM_COMMIT to=$TO_COMMIT"
+      echo "========================================"
+      echo "ROLLBACK REFUSED"
+      echo "========================================"
+      echo "Roll forward with a fix, or restore the pre-deploy backup"
+      echo "(docs/DATABASE_RESTORE.md § 'Restore after a bad deploy')."
+      exit 1
+    fi
+  fi
+
   if restore_generation previous "$TO_COMMIT" "${SERVICES[@]}"; then
     # What runs now is the previous generation; it becomes last-good.
     for SERVICE in "${SERVICES[@]}"; do
@@ -389,6 +524,24 @@ fi
 
 snapshot_running
 
+# Nothing has been replaced yet: put the checkout and `latest` tags back.
+abort_before_swap() {
+  local reason=$1
+  echo "========================================"
+  echo "DEPLOYMENT ABORTED: $reason"
+  echo "========================================"
+  echo "No containers were replaced — the running version keeps serving."
+  echo "Restoring the checkout to $PREV_COMMIT."
+  git checkout -f "$PREV_COMMIT"
+  # A freshly built `latest` must not be picked up by an unrelated restart.
+  for SERVICE in "${SERVICES[@]}"; do
+    IMAGE=$(image_for "$SERVICE")
+    if image_exists "$IMAGE:last-good"; then docker tag "$IMAGE:last-good" "$IMAGE:latest"; fi
+  done
+  log_history "deploy ABORTED ($reason) commit=$COMMIT_SHA services=${SERVICES[*]}${BACKUP_KEY:+ backup=$BACKUP_KEY}"
+  exit 1
+}
+
 # Restores :last-good after a failed deploy, then exits non-zero either way.
 rollback_failed_deploy() {
   local reason=$1
@@ -397,6 +550,19 @@ rollback_failed_deploy() {
   echo "========================================"
   print_failure_logs "$FAILED_SERVICE"
   echo ""
+  # Never put old code on a schema it can't run on (class C applied just now).
+  local good_commit
+  good_commit=$(read_state last-good-commit)
+  if [ -n "${PENDING:-}" ] && [ -n "$good_commit" ] && ! schema_allows_code_of "$good_commit"; then
+    log_history "deploy FAILED ($reason) commit=$COMMIT_SHA services=${SERVICES[*]}; NOT rolled back (schema ahead, class C) backup=${BACKUP_KEY:-none}"
+    echo "========================================"
+    echo "NOT ROLLED BACK — production needs manual attention"
+    echo "========================================"
+    echo "The previous code can't run on the migrated schema. Roll forward with a"
+    echo "fix, or restore the pre-deploy backup ${BACKUP_KEY:-<none recorded>}"
+    echo "(docs/DATABASE_RESTORE.md § 'Restore after a bad deploy')."
+    exit 2
+  fi
   echo "Rolling back ${SERVICES[*]} to last-good images..."
   if restore_generation last-good "$(read_state last-good-commit)" "${SERVICES[@]}"; then
     log_history "deploy FAILED ($reason) commit=$COMMIT_SHA services=${SERVICES[*]}; rolled back to $(read_state last-good-commit)"
@@ -417,6 +583,41 @@ rollback_failed_deploy() {
 echo "Checking out target commit $COMMIT_SHA..."
 git checkout -f "$COMMIT_SHA"
 
+# =========================================================
+# Pre-build checks (API only: web never touches the database)
+# =========================================================
+PENDING=""
+BACKUP_KEY=""
+if contains api "${SERVICES[@]}"; then
+  echo "Checking the database's migration state..."
+  APPLIED=$(applied_migrations) || abort_before_swap "could not read _prisma_migrations"
+  FAILED_MIGRATIONS=$(failed_migrations) || abort_before_swap "could not read _prisma_migrations"
+  if [ -n "$FAILED_MIGRATIONS" ]; then
+    abort_before_swap "the database has a failed migration: $(tr '\n' ' ' <<< "$FAILED_MIGRATIONS")(docs/DATABASE_RESTORE.md § 'A failed migration')"
+  fi
+  KNOWN=$(migrations_in_commit "$COMMIT_SHA")
+  UNKNOWN=$(comm -23 <(sort <<< "$APPLIED" | sed '/^$/d') <(sed '/^$/d' <<< "$KNOWN"))
+  if [ -n "$UNKNOWN" ]; then
+    abort_before_swap "the database has migrations this commit doesn't know: $(tr '\n' ' ' <<< "$UNKNOWN")"
+  fi
+  PENDING=$(comm -13 <(sort <<< "$APPLIED" | sed '/^$/d') <(sed '/^$/d' <<< "$KNOWN"))
+  if [ -n "$PENDING" ]; then
+    echo "Pending migrations (rollback class, docs/DEPLOY_ROLLBACK_HARDENING.md):"
+    bash scripts/migration-class.sh $(sed "s#^#$MIGRATIONS_DIR/#" <<< "$PENDING") || true
+  else
+    echo "No pending migrations."
+  fi
+
+  # Academy isolation must never loosen as a side effect of a deploy (a lost
+  # .env line falls back to compose's default, audit).
+  RUNNING_SCOPE=$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "${CONTAINER_PREFIX}api" 2> /dev/null | sed -n 's/^TENANT_SCOPE_MODE=//p')
+  NEW_SCOPE=$(docker compose config --format json 2> /dev/null | jq -r '.services.api.environment.TENANT_SCOPE_MODE // empty')
+  echo "TENANT_SCOPE_MODE: running=${RUNNING_SCOPE:-unset} after deploy=${NEW_SCOPE:-unset}"
+  if [ "$RUNNING_SCOPE" = "enforce" ] && [ "$NEW_SCOPE" != "enforce" ] && [ "${ALLOW_TENANT_SCOPE_CHANGE:-}" != "1" ]; then
+    abort_before_swap "TENANT_SCOPE_MODE would drop from enforce to '${NEW_SCOPE:-unset}' (fix .env, or ALLOW_TENANT_SCOPE_CHANGE=1 on the box)"
+  fi
+fi
+
 # Tags Sentry errors with the commit that produced them (compose reads it).
 export SENTRY_RELEASE="$COMMIT_SHA"
 
@@ -424,53 +625,35 @@ export SENTRY_RELEASE="$COMMIT_SHA"
 # before another failed has a new `latest`; put that back with the checkout.
 echo "Building services: ${SERVICES[*]}..."
 if ! docker compose build "${SERVICES[@]}"; then
-  echo "========================================"
-  echo "DEPLOYMENT ABORTED: build failed"
-  echo "========================================"
-  echo "No containers were replaced. Restoring the checkout to $PREV_COMMIT."
-  git checkout -f "$PREV_COMMIT"
-  # The freshly built `latest` must not be picked up by an unrelated restart.
-  for SERVICE in "${SERVICES[@]}"; do
-    IMAGE=$(image_for "$SERVICE")
-    image_exists "$IMAGE:last-good" && docker tag "$IMAGE:last-good" "$IMAGE:latest"
-  done
-  log_history "deploy ABORTED (build) commit=$COMMIT_SHA services=${SERVICES[*]}"
-  exit 1
+  abort_before_swap "build failed"
 fi
 
 # =========================================================
 # Migration Phase
 # =========================================================
 # New API code must never serve traffic against an un-migrated database, and a
-# migration that cannot apply must not take the running API down with it.
-#
-# `entrypoint.sh` also runs `migrate deploy` on container start, but by then the
-# old container is already gone. So apply migrations here first, from a
-# throwaway container built off the NEW image, while the current API is still
-# up. `migrate deploy` is idempotent, so the entrypoint's run becomes a no-op
-# and stays as a safety net for manual container starts.
-if contains api "${SERVICES[@]}"; then
-  echo "Applying database migrations (before swapping the running API)..."
+# migration that cannot apply must not take the running API down with it. So
+# migrations run here, from a throwaway container off the NEW image, while the
+# current API is still up — and only after a checked backup. The container
+# entrypoint never migrates in production (MIGRATE_ON_START=false).
+if [ -n "$PENDING" ]; then
+  echo "Taking the pre-deploy backup..."
+  if ! BACKUP_OUTPUT=$(bash scripts/backup_db.sh --predeploy "$(git rev-parse --short "$COMMIT_SHA")" "$STATE_DIR/backups" 2>&1); then
+    tail -n 20 <<< "$BACKUP_OUTPUT"
+    abort_before_swap "pre-deploy backup failed"
+  fi
+  tail -n 6 <<< "$BACKUP_OUTPUT"
+  BACKUP_KEY=$(sed -n 's/^BACKUP_KEY=//p' <<< "$BACKUP_OUTPUT" | tail -1)
+  [ -n "$BACKUP_KEY" ] || abort_before_swap "pre-deploy backup printed no key"
+  log_history "backup ok commit=$COMMIT_SHA backup=$BACKUP_KEY"
 
+  echo "Applying database migrations (before swapping the running API)..."
   if ! docker compose run --rm api npx prisma migrate deploy; then
-    echo "========================================"
-    echo "DEPLOYMENT ABORTED: migrations failed"
-    echo "========================================"
-    echo "No containers were replaced — the previous API is still serving."
     echo "The database is in whatever state Prisma reached; inspect it with:"
     echo "  docker compose run --rm api npx prisma migrate status"
-    echo ""
-    echo "Restoring the working tree to $PREV_COMMIT to match the running containers..."
-    git checkout -f "$PREV_COMMIT"
-    # The freshly built `latest` must not be picked up by an unrelated restart.
-    for SERVICE in "${SERVICES[@]}"; do
-      IMAGE=$(image_for "$SERVICE")
-      image_exists "$IMAGE:last-good" && docker tag "$IMAGE:last-good" "$IMAGE:latest"
-    done
-    log_history "deploy ABORTED (migrations) commit=$COMMIT_SHA services=${SERVICES[*]}"
-    exit 1
+    echo "Runbook: docs/DATABASE_RESTORE.md § 'A failed migration'. Backup: $BACKUP_KEY"
+    abort_before_swap "migrations failed"
   fi
-
   echo "Migrations applied."
 fi
 
@@ -497,6 +680,9 @@ fi
 if ! check_services "${SERVICES[@]}"; then
   rollback_failed_deploy "${CONTAINER_PREFIX}$FAILED_SERVICE did not become healthy"
 fi
+if ! smoke_test; then
+  rollback_failed_deploy "smoke test failed: $SMOKE_FAILURE"
+fi
 status_clear_deploying
 
 # =========================================================
@@ -516,7 +702,7 @@ if [ -n "$OLD_GOOD_COMMIT" ] && [ "$OLD_GOOD_COMMIT" != "$COMMIT_SHA" ]; then
 fi
 write_state last-good-commit "$COMMIT_SHA"
 write_state last-deploy-services "${SERVICES[*]}"
-log_history "deploy ok commit=$COMMIT_SHA services=${SERVICES[*]}"
+log_history "deploy ok commit=$COMMIT_SHA services=${SERVICES[*]} backup=${BACKUP_KEY:-none}"
 
 # =========================================================
 # Cleanup Phase

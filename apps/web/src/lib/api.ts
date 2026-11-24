@@ -78,15 +78,30 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (err) {
         processQueue(err as Error);
+        const refreshStatus = (err as { response?: { status?: number } }).response?.status;
+        // Only a refused refresh ends the session. A network error or a 5xx is
+        // a blip: the waiting requests fail, the store and the page stay, and
+        // the next request tries the refresh again (FE review AU1; the rule
+        // SessionBootstrap states). Students on phones lose a live class or a
+        // half-solved assignment otherwise.
+        if (refreshStatus !== 401 && refreshStatus !== 403) {
+          return Promise.reject(err);
+        }
         const wasAuthenticated = !!useAuthStore.getState().user;
+        // A refused refresh (401) has cleared the cookies, so /login won't bounce back:
+        // send the tab there even when the store was already empty (a tab left open
+        // while its session was revoked, e.g. across an academy closing and reopening).
+        const sessionGone = refreshStatus === 401;
         useAuthStore.getState().clearSession();
-        
-        if (typeof window !== "undefined" && wasAuthenticated) {
+
+        if (typeof window !== "undefined" && (wasAuthenticated || sessionGone)) {
           if (!isPublicPath(window.location.pathname)) {
-            toast.error("Session Expired", {
-              description: "Your session has expired. Please log in again to continue.",
-              id: "session-expired"
-            });
+            if (wasAuthenticated) {
+              toast.error("Session Expired", {
+                description: "Your session has expired. Please log in again to continue.",
+                id: "session-expired"
+              });
+            }
             window.dispatchEvent(new CustomEvent("auth:logout"));
           }
         }

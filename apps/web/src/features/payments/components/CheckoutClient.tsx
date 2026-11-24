@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "@/lib/navigation";
@@ -8,7 +9,6 @@ import {
   BILLING_INTERVAL_LABELS,
   formatMoney,
   isRecurringInterval,
-  percentOf,
   type AppliedDiscount,
   type CheckoutHandoff,
   type PaymentMethodKind
@@ -29,7 +29,8 @@ import {
 } from "../hooks/usePaymentsApi";
 import { openGateway } from "../lib/gatewayHandoff";
 import { checkoutKeyFor, clearCheckoutKey } from "../lib/checkoutKey";
-import { DiscountField } from "./DiscountField";
+import { DiscountField, type DiscountQuote } from "./DiscountField";
+import { ApiError } from "@/lib/api";
 import { PaymentMethodPicker } from "./PaymentMethodPicker";
 import { PaymentStatusCard } from "./PaymentStatusCard";
 import { UpiQrPanel } from "./UpiQrPanel";
@@ -57,15 +58,24 @@ export function CheckoutClient({ planId }: Props) {
 
   const [method, setMethod] = useState<PaymentMethodKind | null>(null);
   const [discount, setDiscount] = useState<AppliedDiscount | null>(null);
+  // The server's tax and total for the applied code (its preview, or what it
+  // charged). Null: the plan's own figures from the config. The screen never
+  // works out tax itself (FE review P1; tax only via the shared engine).
+  const [quoted, setQuoted] = useState<{ taxAmount: number | null; total: number } | null>(null);
+  const applyQuote = useCallback((quote: DiscountQuote | null) => {
+    setDiscount(quote?.discount ?? null);
+    setQuoted(quote ? { taxAmount: quote.taxAmount, total: quote.total } : null);
+  }, []);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [qrHandoff, setQrHandoff] = useState<CheckoutHandoff | null>(null);
   // What the server charged (after any discount), which is what the QR must show.
   const [qrAmount, setQrAmount] = useState<number | null>(null);
 
-  // One key per (user, plan) checkout intent, held in sessionStorage. A double
-  // click, a refresh or a second tab replays the same key, and the server's
-  // unique index turns that into one order instead of two (§11).
-  const idempotencyKey = useMemo(() => checkoutKeyFor(planId), [planId]);
+  // One key per (plan, discount code) checkout intent, held in sessionStorage.
+  // A double click, a refresh or a second tab replays the same key, and the
+  // server's unique index turns that into one order instead of two (§11). A
+  // changed code is a new intent with its own order (FE review P2).
+  const idempotencyKey = useMemo(() => checkoutKeyFor(planId, discount?.code), [planId, discount?.code]);
 
   const {
     data: status,
@@ -99,6 +109,7 @@ export function CheckoutClient({ planId }: Props) {
   const selectMethod = useCallback((next: PaymentMethodKind) => {
     setMethod(next);
     setDiscount(null);
+    setQuoted(null);
   }, []);
 
   const handlePay = useCallback(async () => {
@@ -113,8 +124,13 @@ export function CheckoutClient({ planId }: Props) {
         returnPath: `/checkout/${planId}`
       });
 
-      // The server re-resolved the code; render what it actually applied.
+      // The server re-resolved the code; render what it actually applied, and
+      // when that differs from the preview, the amount it actually charges.
+      const sameDiscount =
+        (session.discount?.code ?? null) === (discount?.code ?? null) &&
+        (session.discount?.amount ?? 0) === (discount?.amount ?? 0);
       setDiscount(session.discount);
+      if (!sameDiscount) setQuoted({ taxAmount: null, total: session.amount });
       setPaymentId(session.paymentId);
 
       if (!session.handoff) {
@@ -131,7 +147,9 @@ export function CheckoutClient({ planId }: Props) {
       const outcome = await openGateway(session.handoff, {
         amount: session.amount,
         currency: session.currency,
-        description: config.plan.name
+        description: config.plan.name,
+        // The academy being paid, on the first attempt too (FE review P3).
+        merchantName: brandName
       });
 
       if (outcome.kind === "completed") {
@@ -151,14 +169,20 @@ export function CheckoutClient({ planId }: Props) {
       // "dismissed" deliberately does nothing: closing the modal does not mean
       // the payment failed, and the poll will find out either way.
     } catch (mutationError) {
+      if (mutationError instanceof ApiError && mutationError.code === "CHECKOUT_CHANGED") {
+        // A key from before this rule, opened with another code: start over.
+        clearCheckoutKey(planId);
+      }
       toast.error({
         title: "Checkout could not be opened",
-        message: (mutationError as Error).message
+        message: getErrorMessage(mutationError)
       });
     }
   }, [
+    brandName,
     checkout,
     config,
+    discount?.amount,
     discount?.code,
     idempotencyKey,
     method,
@@ -202,7 +226,7 @@ export function CheckoutClient({ planId }: Props) {
     } catch (mutationError) {
       toast.error({
         title: "Could not start another attempt",
-        message: (mutationError as Error).message
+        message: getErrorMessage(mutationError)
       });
     }
   }, [brandName, config?.plan.name, method, paymentId, retry, toast, verify]);
@@ -231,12 +255,10 @@ export function CheckoutClient({ planId }: Props) {
 
   const busy = checkout.isPending || verify.isPending;
 
-  // Mirrors the server: tax is charged on the DISCOUNTED subtotal, so a code
-  // reduces the tax too rather than being applied after it.
-  const discountedSubtotal = config.subtotal - (discount?.amount ?? 0);
-  const taxAmount =
-    config.taxPercent > 0 ? percentOf(discountedSubtotal, config.taxPercent) : 0;
-  const total = discountedSubtotal + taxAmount;
+  // The server's figures only: the config's for the plan, the preview's (or
+  // the charge's) once a code is applied.
+  const taxAmount = quoted ? quoted.taxAmount : config.taxAmount;
+  const total = quoted ? quoted.total : config.total;
 
   return (
     <div className="mx-auto w-full max-w-lg space-y-4">
@@ -328,7 +350,7 @@ export function CheckoutClient({ planId }: Props) {
               currency={config.currency}
               disabled={busy || Boolean(status?.pending)}
               method={method}
-              onApply={setDiscount}
+              onApply={applyQuote}
               planId={planId}
             />
           </div>
@@ -348,7 +370,7 @@ export function CheckoutClient({ planId }: Props) {
                 </dd>
               </div>
             ) : null}
-            {taxAmount > 0 ? (
+            {taxAmount !== null && taxAmount > 0 ? (
               <div className="flex justify-between">
                 <dt className="text-app-muted">
                   {config.taxLabel} ({config.taxPercent}%)

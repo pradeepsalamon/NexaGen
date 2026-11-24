@@ -63,6 +63,9 @@ export const CROSS_USER: Case[] = [
   { name: "coach reads another coach's puzzle-set results", as: (w) => w.a.coach, path: (w) => API_ROUTES.assignments.deployment(w.b.setDeployment.id) },
   // Coach A reaching coach B
   { name: "coach reads a student outside their batches (progress)", as: (w) => w.a.coach, path: (w) => API_ROUTES.progress.student(w.b.student.id) },
+  // Review F1: rating, date of birth and level are staff-set, for their own students only
+  { name: "coach reads the playing details of a student outside their batches", as: (w) => w.a.coach, path: (w) => API_ROUTES.progress.playingProfile(w.b.student.id) },
+  { name: "coach sets the rating of a student outside their batches", as: (w) => w.a.coach, method: "PATCH", path: (w) => API_ROUTES.progress.playingProfile(w.b.student.id), body: { chessRating: 900, dateOfBirth: null, experienceLevel: "BEGINNER" } },
   { name: "coach reads a student outside their batches (activity history)", as: (w) => w.a.coach, path: (w) => API_ROUTES.progress.history(w.b.student.id) },
   { name: "coach reads a student outside their batches (activity summary)", as: (w) => w.a.coach, path: (w) => API_ROUTES.progress.summary(w.b.student.id) },
   { name: "coach reads a student outside their batches (revision)", as: (w) => w.a.coach, path: (w) => API_ROUTES.revision.student(w.b.student.id) },
@@ -109,6 +112,10 @@ export const CROSS_USER: Case[] = [
   { name: "coach reads another class's classroom tools", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.tools(w.b.liveClass.id) },
   { name: "student reports into another student's solo Puzzle Storm run", as: (w) => w.a.student, method: "PUT", path: (w) => API_ROUTES.puzzleRushSolo.progress(w.b.soloRun.id), body: soloReport() },
   { name: "student reads a batch leaderboard they are not in", as: (w) => w.a.student, path: (w) => `${API_ROUTES.puzzleRushSolo.leaderboard}?batchId=${w.b.batch.id}&mode=STORM&period=ALL` },
+  { name: "coach reads another coach's batch's Puzzle of the Day schedule", as: (w) => w.a.coach, path: (w) => `${API_ROUTES.dailyPuzzle.schedule}?batchId=${w.b.batch.id}` },
+  { name: "coach overrides Puzzle of the Day for another coach's batch", as: (w) => w.a.coach, method: "PUT", path: () => API_ROUTES.dailyPuzzle.overrides, body: (w: World) => ({ batchId: w.b.batch.id, day: "2099-01-01", level: "EASY", puzzleId: null }) },
+  { name: "coach turns off Puzzle of the Day for another coach's batch", as: (w) => w.a.coach, method: "PATCH", path: (w) => API_ROUTES.dailyPuzzle.batch(w.b.batch.id), body: { enabled: false } },
+  { name: "coach changes Batch Battles for another coach's batch", as: (w) => w.a.coach, method: "PATCH", path: (w) => API_ROUTES.puzzleRushSolo.battleSettings(w.b.batch.id), body: { battlesShowNames: true } },
   { name: "student reads another class's Puzzle Storm", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.puzzleRush(w.b.liveClass.id) },
   { name: "student reports into another class's Puzzle Storm", as: (w) => w.a.student, method: "PUT", path: (w) => API_ROUTES.liveClass.puzzleRushProgress(w.b.liveClass.id), body: (w: World) => rushReport(w.b.rush.id) },
   { name: "student reports into another class's round through their own class", as: (w) => w.a.student, method: "PUT", path: (w) => API_ROUTES.liveClass.puzzleRushProgress(w.a.liveClass.id), body: (w: World) => rushReport(w.b.rush.id) },
@@ -204,6 +211,10 @@ export const CROSS_USER: Case[] = [
 ];
 
 export const OWN_CASES: Case[] = [
+  // Multi-role accounts (docs/MULTI_ROLE_ACCOUNTS.md): "Can also teach" is a super admin's call.
+  { name: "SUPER_ADMIN lets an admin also teach", as: (w) => w.superAdmin, method: "PUT", path: (w) => API_ROUTES.users.extraRoles(w.admin.id), body: { extraRoles: ["COACH"] } },
+  // Roster import (docs/ROSTER_IMPORT.md): an admin re-sends an imported account's invite.
+  { name: "ADMIN re-sends a student's account invite", as: (w) => w.admin, method: "POST", path: (w) => API_ROUTES.users.invite(w.a.student.id) },
   { name: "ADMIN makes a WhatsApp link code for a student", as: (w) => w.admin, method: "POST", path: () => API_ROUTES.adminSupport.linkCodes, body: (w: World) => ({ studentId: w.a.student.id }) },
   { name: "student reads own private tournament", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.get(w.a.tournament.id) },
   { name: "student lists own tournament's players", as: (w) => w.a.student, path: (w) => API_ROUTES.tournaments.players(w.a.tournament.id) },
@@ -241,6 +252,7 @@ export const OWN_CASES: Case[] = [
   { name: "coach reads own batch", as: (w) => w.a.coach, path: (w) => API_ROUTES.batches.get(w.a.batch.id) },
   { name: "coach reads own class details", as: (w) => w.a.coach, path: (w) => API_ROUTES.coach.classDetails(w.a.class.id) },
   { name: "coach reads own student's progress", as: (w) => w.a.coach, path: (w) => API_ROUTES.progress.student(w.a.student.id) },
+  { name: "coach reads own student's playing details", as: (w) => w.a.coach, path: (w) => API_ROUTES.progress.playingProfile(w.a.student.id) },
   { name: "coach reads own student's activity history", as: (w) => w.a.coach, path: (w) => API_ROUTES.progress.history(w.a.student.id) },
   { name: "coach reads own student's activity summary", as: (w) => w.a.coach, path: (w) => API_ROUTES.progress.summary(w.a.student.id) },
   { name: "coach reads own student's revision", as: (w) => w.a.coach, path: (w) => API_ROUTES.revision.student(w.a.student.id) },
@@ -257,6 +269,12 @@ export const OWN_CASES: Case[] = [
   { name: "student reads own class's classroom tools", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.tools(w.a.liveClass.id) },
   { name: "student reports into own solo Puzzle Storm run", as: (w) => w.a.student, method: "PUT", path: (w) => API_ROUTES.puzzleRushSolo.progress(w.a.soloRun.id), body: soloReport() },
   { name: "student reads own batch's solo leaderboard", as: (w) => w.a.student, path: (w) => `${API_ROUTES.puzzleRushSolo.leaderboard}?batchId=${w.a.batch.id}&mode=STORM&period=ALL` },
+  { name: "student reads today's Puzzle of the Day", as: (w) => w.a.student, path: () => API_ROUTES.dailyPuzzle.today },
+  { name: "coach reads own batch's Puzzle of the Day schedule", as: (w) => w.a.coach, path: (w) => `${API_ROUTES.dailyPuzzle.schedule}?batchId=${w.a.batch.id}` },
+  { name: "coach clears a Puzzle of the Day override on own batch", as: (w) => w.a.coach, method: "PUT", path: () => API_ROUTES.dailyPuzzle.overrides, body: (w: World) => ({ batchId: w.a.batch.id, day: "2099-01-01", level: "EASY", puzzleId: null }) },
+  { name: "coach turns Puzzle of the Day on for own batch", as: (w) => w.a.coach, method: "PATCH", path: (w) => API_ROUTES.dailyPuzzle.batch(w.a.batch.id), body: { enabled: true } },
+  { name: "student reads Batch Battles", as: (w) => w.a.student, path: () => `${API_ROUTES.puzzleRushSolo.battles}?mode=STORM&period=ALL` },
+  { name: "coach changes Batch Battles for own batch", as: (w) => w.a.coach, method: "PATCH", path: (w) => API_ROUTES.puzzleRushSolo.battleSettings(w.a.batch.id), body: { battlesShowNames: false } },
   { name: "student reads own class's Puzzle Storm", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.puzzleRush(w.a.liveClass.id) },
   { name: "student reports into own class's Puzzle Storm", as: (w) => w.a.student, method: "PUT", path: (w) => API_ROUTES.liveClass.puzzleRushProgress(w.a.liveClass.id), body: (w: World) => rushReport(w.a.rush.id) },
   { name: "coach reads own class's Puzzle Storm", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.puzzleRush(w.a.liveClass.id) },
@@ -349,8 +367,25 @@ export function rushReport(rushId: string) {
 }
 
 export const WRONG_ROLE: Case[] = [
+  // Review F1: a student can't set their own rating, date of birth or level.
+  { name: "student sets their own rating", as: (w) => w.a.student, method: "PATCH", path: (w) => API_ROUTES.progress.playingProfile(w.a.student.id), body: { chessRating: 2400, dateOfBirth: null, experienceLevel: "ADVANCED" } },
+  // Closing an academy (docs/ACADEMY_CLOSURE.md): the academy's own super admin, and operators.
+  { name: "ADMIN asks to close the academy (super admin only)", as: (w) => w.admin, method: "POST", path: () => API_ROUTES.academyClosure.current, body: { choice: "KEEP_DATA", confirmName: "x", reason: "x" } },
+  { name: "coach downloads the academy's data", as: (w) => w.a.coach, path: () => API_ROUTES.academyClosure.export },
+  { name: "ADMIN lists closure requests (platform operators only)", as: (w) => w.admin, path: () => API_ROUTES.platform.closures },
+  { name: "student closes an academy from the console", as: (w) => w.a.student, method: "POST", path: () => API_ROUTES.platform.tenantClose("tenant_nexa"), body: { choice: "KEEP_DATA", confirmName: "x", reason: "x" } },
+  { name: "coach previews a roster import", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.users.importPreview, body: { rows: [{ firstName: "X" }] } },
+  { name: "student imports a roster", as: (w) => w.a.student, method: "POST", path: () => API_ROUTES.users.import, body: { rows: [{ firstName: "X" }] } },
+  { name: "coach re-sends a student's account invite", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.users.invite(w.b.student.id) },
+  { name: "ADMIN lets an admin also teach (super-admin only)", as: (w) => w.admin, method: "PUT", path: (w) => API_ROUTES.users.extraRoles(w.admin.id), body: { extraRoles: ["COACH"] } },
+  { name: "coach switches to an admin view it does not hold", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.auth.switchRole, body: { role: "ADMIN" } },
   { name: "coach starts a solo Puzzle Storm run", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.puzzleRushSolo.runs, body: { mode: "STORM" } },
   { name: "coach reads the solo Puzzle Storm overview", as: (w) => w.a.coach, path: () => API_ROUTES.puzzleRushSolo.overview },
+  { name: "coach opens a student's Puzzle of the Day", as: (w) => w.a.coach, path: () => API_ROUTES.dailyPuzzle.today },
+  { name: "student reads the Puzzle of the Day schedule", as: (w) => w.a.student, path: (w) => `${API_ROUTES.dailyPuzzle.schedule}?batchId=${w.a.batch.id}` },
+  { name: "coach turns Puzzle of the Day off for the academy", as: (w) => w.a.coach, method: "PUT", path: () => API_ROUTES.dailyPuzzle.settings, body: { enabled: false } },
+  { name: "coach reads the Batch Battles board", as: (w) => w.a.coach, path: () => `${API_ROUTES.puzzleRushSolo.battles}?mode=STORM&period=ALL` },
+  { name: "student changes own batch's Batch Battles settings", as: (w) => w.a.student, method: "PATCH", path: (w) => API_ROUTES.puzzleRushSolo.battleSettings(w.a.batch.id), body: { battlesShowNames: true } },
   { name: "student monitors own class's activity", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.activityRunMonitor(w.a.liveClass.id, w.a.playoutRun.id) },
   { name: "student opens a board through the coach's monitor", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.activityRunGame(w.a.liveClass.id, w.a.playoutRun.id, w.a.playoutGame.id) },
   { name: "student ends own class's activity", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.liveClass.activityRunEnd(w.a.liveClass.id, w.a.playoutRun.id) },

@@ -46,6 +46,7 @@ import { UsersAnalyticsSection } from "./sections/users.section";
 import { authenticateUser } from "../auth/authenticate";
 import { parseOrBadRequest } from "../common/zod-body.pipe";
 import { tenantFilter } from "../tenancy/tenant-sql";
+import { coachWhere } from "../common/coach-accounts";
 
 @Injectable()
 export class AnalyticsService {
@@ -169,8 +170,8 @@ export class AnalyticsService {
         createdAt: { gte: prevMonth.start, lt: prevMonth.end }
       }),
       countUsers({ isDeleted: false, role: "STUDENT" }),
-      countUsers({ isDeleted: false, role: "COACH" }),
-      countUsers({ isDeleted: false, role: "COACH", status: "ACTIVE" }),
+      countUsers({ isDeleted: false, ...coachWhere() }),
+      countUsers({ isDeleted: false, status: "ACTIVE", ...coachWhere() }),
       this.prisma.batch.count({ where: { isDeleted: false, status: "ACTIVE" } }),
       this.prisma.coachClass.count({
         where: { startsAt: { gte: month.start, lt: month.end } }

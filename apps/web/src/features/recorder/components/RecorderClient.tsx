@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import {
   ConnectionState,
   RemoteTrack,
@@ -265,7 +266,7 @@ export function RecorderClient({
         }, 1500);
       })
       .catch((e: unknown) => {
-        setError(e instanceof Error ? e.message : "Failed to connect");
+        setError(getErrorMessage(e, "Failed to connect"));
       });
 
     return () => {

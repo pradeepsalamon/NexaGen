@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "@/lib/navigation";
 import {
@@ -14,6 +15,7 @@ import {
   parsePgnToMoveTree,
   promoteToMainline,
   setMoveComment,
+  toggleMoveNag,
   type GameLibraryDetail,
   type MoveTree,
   type MoveTreePath,
@@ -233,6 +235,11 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
     setTree(setMoveComment(tree, path, text));
   };
 
+  const onToggleNag = (path: MoveTreePath, nag: number) => {
+    if (!tree) return;
+    setTree(toggleMoveNag(tree, path, nag));
+  };
+
   const discard = () => {
     writeDraft(game.id, null);
     if (saved) {
@@ -245,7 +252,7 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
     save.mutate(
       { pgn: currentPgn, version: game.version },
       {
-        onError: (err) => toast.error(err instanceof Error ? err.message : "The analysis could not be saved."),
+        onError: (err) => toast.error(getErrorMessage(err, "The analysis could not be saved.")),
         onSuccess: () => {
           writeDraft(game.id, null);
           toast.success("Analysis saved");
@@ -350,6 +357,7 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
               onPromote={onPromote}
               onDelete={onDeleteVariation}
               onComment={onComment}
+              onToggleNag={onToggleNag}
             />
           </Card>
 
@@ -442,7 +450,7 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
                   // Stay open until it is actually gone; a failure keeps the dialog.
                   event.preventDefault();
                   remove.mutate(game.id, {
-                    onError: (err) => toast.error(err instanceof Error ? err.message : "The game could not be deleted."),
+                    onError: (err) => toast.error(getErrorMessage(err, "The game could not be deleted.")),
                     onSuccess: () => {
                       writeDraft(game.id, null);
                       toast.success("Game deleted");

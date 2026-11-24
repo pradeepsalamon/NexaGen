@@ -3,7 +3,7 @@ import type { ProviderHealthService } from "../provider-health.service";
 import { CashfreeProvider } from "./cashfree.provider";
 import { hmacBase64, hmacHex, safeCompare } from "./provider-http";
 import { RazorpayProvider } from "./razorpay.provider";
-import { verifyStripeSignature } from "./stripe.provider";
+import { StripeProvider, verifyStripeSignature } from "./stripe.provider";
 
 /**
  * Signature verification is the only thing standing between a webhook endpoint
@@ -195,5 +195,80 @@ describe("verifyStripeSignature", () => {
     const valid = sign(now);
     const header = `${valid},v1=${"0".repeat(64)}`;
     expect(verifyStripeSignature(body, header, secret, now)).toBe(true);
+  });
+});
+
+// Review P3: an invoice's status ("paid", "open") isn't the subscription's.
+describe("StripeProvider.handleWebhook subscription status", () => {
+  const parse = (payload: Record<string, unknown>) =>
+    new StripeProvider(health).handleWebhook({ headers: {}, rawBody: JSON.stringify(payload) });
+
+  it("gives invoice events no subscription status", async () => {
+    const result = await parse({
+      data: { object: { object: "invoice", status: "paid", subscription: "sub_1" } },
+      id: "evt_1",
+      type: "invoice.paid"
+    });
+    expect(result.subject).toBe("SUBSCRIPTION");
+    expect(result.providerSubscriptionId).toBe("sub_1");
+    expect(result.subscriptionStatus).toBeNull();
+  });
+
+  it("marks a paid invoice as a cycle charge with its amount (review P2)", async () => {
+    const result = await parse({
+      data: {
+        object: { amount_paid: 118000, currency: "inr", object: "invoice", payment_intent: "pi_1", subscription: "sub_1" }
+      },
+      id: "evt_3",
+      type: "invoice.paid"
+    });
+    expect(result.subscriptionCharge).toBe(true);
+    expect(result.amount).toBe(118000);
+    expect(result.providerPaymentId).toBe("pi_1");
+  });
+
+  it("reads the status of a customer.subscription event", async () => {
+    const result = await parse({
+      data: { object: { id: "sub_1", object: "subscription", status: "past_due" } },
+      id: "evt_2",
+      type: "customer.subscription.updated"
+    });
+    expect(result.subscriptionStatus).toBe("PAST_DUE");
+  });
+});
+
+describe("RazorpayProvider.handleWebhook subscription charge (review P2)", () => {
+  const parse = (event: string, payload: Record<string, unknown>) =>
+    new RazorpayProvider(health).handleWebhook({ headers: {}, rawBody: JSON.stringify({ event, payload }) });
+
+  it("marks subscription.charged with its payment as a cycle charge", async () => {
+    const result = await parse("subscription.charged", {
+      payment: { entity: { amount: 118000, currency: "INR", id: "pay_9", status: "captured" } },
+      subscription: { entity: { id: "sub_r1", status: "active" } }
+    });
+    expect(result.subscriptionCharge).toBe(true);
+    expect(result.providerPaymentId).toBe("pay_9");
+    expect(result.providerSubscriptionId).toBe("sub_r1");
+    expect(result.amount).toBe(118000);
+  });
+
+  it("does not mark subscription.activated", async () => {
+    const result = await parse("subscription.activated", { subscription: { entity: { id: "sub_r1", status: "active" } } });
+    expect(result.subscriptionCharge).toBe(false);
+  });
+});
+
+// Review P10: two events about one payment (its success, then its refund) are two events.
+describe("CashfreeProvider.handleWebhook event id", () => {
+  it("doesn't use the payment id as the event id", async () => {
+    const parse = (type: string) =>
+      new CashfreeProvider(health).handleWebhook({
+        headers: {},
+        rawBody: JSON.stringify({ data: { payment: { cf_payment_id: "cf_1" } }, type })
+      });
+    const success = await parse("PAYMENT_SUCCESS_WEBHOOK");
+    const refund = await parse("REFUND_STATUS_WEBHOOK");
+    expect(success.eventId).not.toBe("cf_1");
+    expect(success.eventId).not.toBe(refund.eventId);
   });
 });

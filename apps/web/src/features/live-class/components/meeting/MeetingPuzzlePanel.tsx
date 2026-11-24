@@ -114,7 +114,7 @@ function AdjustPopover({
             </Button>
           ))}
         </div>
-        <form
+        <form noValidate
           className="flex gap-1.5"
           onSubmit={(e) => {
             e.preventDefault();
@@ -608,7 +608,7 @@ function EditRulesDialog({
         <DialogHeader>
           <DialogTitle>Points &amp; leaderboard</DialogTitle>
         </DialogHeader>
-        <div className="max-h-[60dvh] space-y-4 overflow-y-auto pr-1">
+        <div className="max-h-[60dvh] space-y-4 dialog-scroll-body">
           <PuzzleScoringFields idPrefix="edit-scoring" value={draftScoring} onChange={setDraftScoring} />
           <PuzzleScoringPreview scoring={draftScoring} />
           <PuzzleLeaderboardFields

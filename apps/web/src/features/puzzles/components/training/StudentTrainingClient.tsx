@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, CalendarCheck, CheckCircle2, Crown, Eye, Flame, Lightbulb, Puzzle, XCircle } from "lucide-react";
@@ -128,7 +129,7 @@ export function StudentTrainingClient() {
         <EmptyState
           icon={Puzzle}
           title="No puzzle right now"
-          description={(next.error as Error).message}
+          description={getErrorMessage(next.error)}
           action={{ label: "Try again", onClick: () => next.reset() }}
         />
       ) : pick ? (

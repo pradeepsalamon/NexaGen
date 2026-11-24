@@ -1,3 +1,4 @@
+import { NOOP_LEAD_STAGES } from "../lead/lead-stage.testing";
 import { Test, TestingModule } from "@nestjs/testing";
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
@@ -236,10 +237,12 @@ describe("LiveClassDemoService.joinDemoClass", () => {
       expect(registrationCreate).toHaveBeenCalledTimes(1);
     });
 
-    it("lets an already-registered (e.g. invited) contact in without the passcode", async () => {
+    it("still asks an already-registered contact for the passcode (a typed number proves nothing)", async () => {
       registrationFindUnique.mockResolvedValue({ id: "reg-1", name: "Asha", approval: DemoGuestApproval.APPROVED, joinedAt: null });
-      const result = await service.joinDemoClass("class-1", phoneRequest);
+      await expect(service.joinDemoClass("class-1", phoneRequest)).rejects.toThrow(ForbiddenException);
+      const result = await service.joinDemoClass("class-1", { ...phoneRequest, passcode: "KNIGHT7" });
       expect(result.registered).toBe(true);
+      expect(registrationCreate).not.toHaveBeenCalled();
     });
   });
 
@@ -292,6 +295,38 @@ describe("LiveClassDemoService.joinDemoClass", () => {
       expect(result.joined).toBe(true);
     });
 
+    it("sends an invited guest who typed their details to their personal link", async () => {
+      coachClassFindUnique.mockResolvedValue({
+        ...DEMO_CLASS,
+        demoAccessMode: DemoClassAccessMode.INVITE_ONLY,
+        liveSession: LIVE
+      });
+      registrationFindUnique.mockResolvedValue({
+        id: "reg-1", name: "Asha", approval: DemoGuestApproval.APPROVED, inviteToken: "tok", joinedAt: null
+      });
+
+      await expect(service.joinDemoClass("class-1", phoneRequest)).rejects.toMatchObject({
+        response: expect.objectContaining({ code: "DEMO_INVITE_REQUIRED" })
+      });
+      expect(generateAccessToken).not.toHaveBeenCalled();
+    });
+
+    it("joins under the registered name, not one typed now, with the registration in the identity", async () => {
+      coachClassFindUnique.mockResolvedValue({
+        ...DEMO_CLASS,
+        demoAccessMode: DemoClassAccessMode.INVITE_ONLY,
+        liveSession: LIVE
+      });
+      registrationFindUnique.mockResolvedValue({
+        id: "reg-1", name: "Asha", approval: DemoGuestApproval.APPROVED, joinedAt: null, leadId: null
+      });
+
+      await service.joinDemoClass("class-1", { ...phoneRequest, guestName: "Coach Kumar" });
+      const options = generateAccessToken.mock.calls[0][0];
+      expect(options.participantName).toBe("Asha");
+      expect(options.participantIdentity).toMatch(/^guest_reg-1_[0-9a-f-]{36}$/);
+    });
+
     it("refuses a guest the coach denied", async () => {
       registrationFindUnique.mockResolvedValue({ id: "reg-1", name: "Asha", approval: DemoGuestApproval.DENIED, joinedAt: null });
       await expect(service.joinDemoClass("class-1", phoneRequest)).rejects.toThrow(ForbiddenException);
@@ -316,9 +351,7 @@ describe("LiveClassDemoService.joinDemoClass", () => {
       expect(generateAccessToken).toHaveBeenCalledWith(expect.objectContaining({ participantName: "Meera" }));
       // A booked lead who actually joins moves to DEMO_ATTENDED.
       await Promise.resolve();
-      expect(leadUpdateMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ id: "lead-1" }), data: expect.objectContaining({ status: "DEMO_ATTENDED" }) })
-      );
+      expect(NOOP_LEAD_STAGES.useValue.applyQuietly).toHaveBeenCalledWith("lead-1", "DEMO_ATTENDED", expect.anything());
     });
 
     it("rejects a token that belongs to a different class", async () => {

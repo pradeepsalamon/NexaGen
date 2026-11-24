@@ -11,6 +11,10 @@ Object.assign(process.env, {
   CORS_ORIGIN: TEST_ORIGIN,
   // Encrypts academies' stored WhatsApp and gateway credentials.
   CREDENTIALS_ENCRYPTION_KEY: "integration-credentials-key-0123456789abcdef",
+  // Same reason: a box with Frappe keys would copy every test lead into the real CRM.
+  FRAPPE_CRM_API_KEY: "",
+  FRAPPE_CRM_API_SECRET: "",
+  FRAPPE_CRM_URL: "",
   // Analyses are only queued; specs drive GameAnalysisWorker.claim/run themselves.
   GAME_ANALYSIS_WORKER: "false",
   JWT_ACCESS_SECRET: TEST_ACCESS_SECRET,
@@ -21,6 +25,10 @@ Object.assign(process.env, {
   LIVEKIT_API_SECRET: "integration-secret-0123456789abcdef",
   LIVEKIT_URL: "http://127.0.0.1:7880",
   LOG_LEVEL: "silent",
+  // Same reason: never a real Meta dataset (the Conversions API spec stubs its own).
+  META_CAPI_ACCESS_TOKEN: "",
+  META_CAPI_TEST_EVENT_CODE: "",
+  META_DATASET_ID: "",
   NODE_ENV: "test",
   PLATFORM_RAZORPAY_KEY_ID: "rzp_test_platform",
   PLATFORM_RAZORPAY_KEY_SECRET: "integration-platform-key-secret",

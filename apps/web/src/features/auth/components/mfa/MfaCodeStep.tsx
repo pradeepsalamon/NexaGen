@@ -53,6 +53,7 @@ export function MfaCodeStep({ challengeToken, onCancel, onVerified }: MfaCodeSte
       </p>
       <FormField
         error={codeError}
+        errorVisible={Boolean(lockout) && codeError === lockout}
         id="mfa-code"
         label="Verification code"
       >

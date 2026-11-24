@@ -72,7 +72,7 @@ export function ClassTopicEditor({ classItem }: { classItem: CoachClass }) {
   }
 
   return (
-    <form className="space-y-2" onSubmit={onSubmit}>
+    <form noValidate className="space-y-2" onSubmit={onSubmit}>
       <label className="text-xs font-bold text-app-muted" htmlFor={`${labelId}-input`}>
         Topic
       </label>

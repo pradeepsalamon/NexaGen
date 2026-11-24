@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useEffect, useState } from "react";
 import {
   Dialog,
@@ -52,7 +53,7 @@ export function StudentAttendanceDialog({
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load attendance");
+          setError(getErrorMessage(err, "Failed to load attendance"));
         }
       })
       .finally(() => {

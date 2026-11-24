@@ -26,7 +26,12 @@ N days per coach / `ONE_TIME`) and **where** (`placements`: `CLASS_END` on
 - `FeedbackAnswer` snapshots the question label/type at submit time;
   `FeedbackResponse.overallRating` is the mean of its RATING answers, and the
   coach rating is the mean of those. Coaches only see responses from
-  `showToCoach` forms, with the student stripped (`toResponseDto(row, true)`).
+  `showToCoach` forms, with the student stripped (`toResponseDto(row, true)`),
+  and with no class and only the day (`anonymousDay`, noon UTC), so the time
+  after a class can't point at who wrote it (review G1). A form's responses
+  reach the coach (list and averages) only once it has
+  `COACH_FEEDBACK_MIN_RESPONSES` (3) about them; the rest count as
+  `withheldCount` (owner 2026-11-24). Admins see everything.
 - A form with responses cannot be deleted (FK is `Restrict`) — it is
   deactivated. A form without responses is deleted to Trash (`FeedbackForm`);
   responses and answers are not Trash entities.
@@ -54,7 +59,21 @@ variations/comments/NAGs round-trips via `moveTreeToPgn` /
   `historyIndex` cursor + `gameId`. Live sync / board snapshot carry optional
   `treePgn` / `treeLinePath` / `gameId` / `savedAt`; old clients still read the
   current line from `pgn`. `MoveTreeView` + `MoveHistory` render it; promote /
-  delete / comment are coach/staff only (AlertDialog confirm).
+  delete / annotate are coach/staff only (AlertDialog confirm for promote/delete).
+- **Annotations** (glyphs + comments): `MOVE_GLYPHS` in `move-tree.ts` is the
+  one glyph catalogue (standard PGN NAGs, three groups — move `!! ! !? ?! ? ?? □ ⨀`,
+  position `= ∞ ⩲ ⩱ ± ∓ +− −+`, observation `N ↑↑ ↑ → ⇆ ⊕ ∆` — each with a
+  name and a one-line meaning). `toggleMoveNag` is the only writer: one glyph
+  per group, clicking the chosen one removes it, NAGs outside the catalogue
+  (imported PGN) are kept. The coach opens **Annotate** from the bar above the
+  move list or by right-clicking a move (live-class Moves tab, analysis board,
+  Game Library); glyphs apply at once, the comment on Save. The list colours a
+  move by its quality glyph and shows each glyph's meaning on hover;
+  `ChessgroundBoard` draws the current move's first glyph as a badge on its
+  destination square (`lib/moveGlyphs.ts`, theme colours, chessground
+  `customSvg`). In a live class nothing new is sent: glyphs and comments ride
+  the coach's existing `treePgn`, receivers take a tree only from the coach,
+  and the board-state save keeps them.
 - **Game Library** (`apps/api/src/game-library/`, `features/game-library/`,
   pages `/games` + `/games/[id]`, routes `API_ROUTES.games.*`): `ChessGame`
   rows (`source` LIVE_BOARD / SIMUL / MATCH / IMPORT). `GameRecorderService`
@@ -180,7 +199,11 @@ coach-made) + `ConversationMember` (read state; `leftAt`) + `ChatMessage`.
   `enrolledAt`, a removed one loses access; a GROUP member sees from `joinedAt`.
   A DIRECT thread stays readable but `canSend: false` once the shared batch is
   gone. Groups are coach-created (students in the coach's batches only);
-  owner or admin edits members, the owner can't be removed.
+  owner or admin edits members, the owner can't be removed. A student who no
+  longer shares any batch with a coach-owned group's owner is taken out of the
+  group (`leftAt`) the next time they open it (review S10). An admin's contact
+  search finds students and every coach account, admins who teach included
+  (`coachWhere()`, S9).
 - **Sends are idempotent** on unique `(senderId, clientId)` — the web client
   generates the id once and reuses it on Retry.
 - **No websocket**: the web polls (open thread 4s, list 15s, sidebar unread 30s;
@@ -190,6 +213,39 @@ coach-made) + `ConversationMember` (read state; `leftAt`) + `ChatMessage`.
   the admin-set `CHAT_MESSAGES` retention window (default: kept forever;
   [INFRASTRUCTURE.md](INFRASTRUCTURE.md) "Retention sweep"). A thread whose
   messages all aged out still lists, with no last message.
+
+## 3.6k2b Assignment SOLVE_LINE scoring (wrong tries)
+
+`assignment/assignment-attempt.service.ts` + `assignment-evaluation.service.ts`
+(review S4, 2026-11-23). Every save-progress of a SOLVE_LINE answers "is this
+move right?", so a wrong move is counted on the attempt
+(`StudentAssignmentAttempt.wrongMoves`, once per new line, not per re-sent
+save). At submit each wrong try costs as much as a missed ply:
+`score = correct student plies / (student plies + wrong tries)`, and the same
+for accuracy — a line found by trying every move is still SOLVED but no longer
+100%. With **Allow retry of a wrong move** off, the first wrong move ends the
+line: further saves are refused and submit scores the stored line, never a
+resubmitted one.
+
+**Withdrawing a deployment** (`AssignmentService.undeploy`, review S8) hides
+it, not deletes it (owner 2026-11-24): it sets `AssignmentBatch.withdrawnAt`,
+and the soft-delete extension's `parentScopedWhere` hides the deployment and
+every student's copy from all reads, as for a trashed assignment. Their
+attempts stay (activity history keeps withdrawn work a student tried), and
+assigning the same work to the batch again (the deploy `upsert`) clears
+`withdrawnAt` and brings it all back. Nested `_count`s skip the extension, so
+they filter `withdrawnAt: null` themselves. Only the coach who assigned it may
+withdraw it; once that coach has left the batch (or is unknown), any coach of
+the batch may.
+
+## 3.6k2c Course module completion
+
+`course/course-progress.service.ts` (review S6, 2026-11-23). A **puzzle**
+module is complete only from a SOLVED `PuzzleAttempt` of its puzzle:
+`completeModule` refuses it otherwise, and `getForStudent` records it by
+itself once the puzzle is solved anywhere. An **assignment** module is study
+material read in the course (its PGN, never a SOLVE_LINE answer), so its
+"Mark complete" stays the student's own call.
 
 ## 3.6k3 Assignment due-date reminders
 
@@ -441,6 +497,20 @@ reversing an adjustment re-works the TDS without re-reading the settings.
   An approved or finalized record keeps its snapshot.
 - Recalculating an earlier period does not reach forward: recalculate the later
   one too while it is still in review.
+- Periods never overlap (`[startDate, endDate)`, cancelled ones aside), so a
+  class is paid and counted for TDS once (review R3, 2026-11-23).
+- An adjustment checks the record's status, writes and recomputes under the
+  record's row lock in one transaction, so it can't land on a record finalized
+  in between (review R2). An admin who also teaches can't adjust their own
+  record (403, review R8), nor approve, finalize or mark paid a period (or a
+  payout) holding their own non-zero pay while another active admin exists
+  (`assertNotSigningOffOwnPay`; a one-admin academy isn't locked out).
+- Recalculating includes every coach who already has a record in the period,
+  so one who dropped out of scope comes back as zero, not with the old figures
+  (review R7).
+- An approved coach cancellation keeps the coach as the canceller, with the
+  notice measured from the request time, so the coach-cancel rules pay it
+  (review R1); the reviewer is on the approval row.
 
 **Where it shows:** a "TDS (rate)" line under Deductions on the payslip PDF, a
 TDS row in the record's totals, and a TDS column on the admin period table and

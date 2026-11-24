@@ -157,6 +157,10 @@ export function ReferralSettingsPanel() {
             </span>
             <Switch checked={form.autoApproveCash} id="ref-auto-cash" onCheckedChange={(autoApproveCash) => update({ autoApproveCash })} />
           </label>
+          <p className="text-xs text-app-muted">
+            Either way, opening a referral link never pays a referrer, and referrer rewards for booking a demo always wait for an
+            admin: anyone can do both.
+          </p>
         </div>
       </SectionCard>
 

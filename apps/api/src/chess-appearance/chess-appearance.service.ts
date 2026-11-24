@@ -86,6 +86,16 @@ export class ChessAppearanceService {
     };
   }
 
+  /**
+   * The academy's own look (system → admin layers, no user), for server-drawn
+   * boards nobody is signed in to see: Puzzle of the Day's WhatsApp picture.
+   * Call inside the academy.
+   */
+  async academyAppearance() {
+    const row = await this.getActiveSettingsRow();
+    return resolveChessAppearance({ admin: row.settings }).config;
+  }
+
   // ── Resolved config (any authenticated role) ──
 
   async getResolvedAppearance(accessToken: string | undefined): Promise<ChessAppearanceResponse> {

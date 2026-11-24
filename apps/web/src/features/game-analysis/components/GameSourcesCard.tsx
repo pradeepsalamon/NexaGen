@@ -1,5 +1,7 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
+import { getErrorMessage } from "@/lib/errors";
 import { useRef, useState } from "react";
 import { FieldError, fieldErrorId } from "@/components/ui/FieldError";
 import {
@@ -91,6 +93,10 @@ function UploadDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
   const [names, setNames] = useState("");
   const [analyse, setAnalyse] = useState(true);
   const tooBig = pgn.length > PGN_IMPORT_LIMITS.maxChars;
+  // Checked when Upload is pressed (UI_RULES § "Form errors").
+  const [tried, setTried] = useState(false);
+  const pgnError = tried && tooBig ? `Too long: at most ${PGN_IMPORT_LIMITS.maxChars.toLocaleString("en-US")} characters` : undefined;
+  useRevealFormErrors(pgnError);
 
   const readFile = (file: File | undefined) => {
     if (!file) return;
@@ -101,7 +107,9 @@ function UploadDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
     void file.text().then(setPgn);
   };
 
-  const submit = () =>
+  const submit = () => {
+    setTried(true);
+    if (tooBig) return;
     upload.mutate(
       {
         analyse,
@@ -110,7 +118,7 @@ function UploadDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
         side,
       },
       {
-        onError: (err) => toast.error(err instanceof Error ? err.message : "The PGN could not be imported."),
+        onError: (err) => toast.error(getErrorMessage(err, "The PGN could not be imported.")),
         onSuccess: (res) => {
           const parts = [`${res.imported} imported`];
           if (res.duplicates) parts.push(`${res.duplicates} already there`);
@@ -125,6 +133,7 @@ function UploadDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
         },
       },
     );
+  };
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
@@ -152,8 +161,8 @@ function UploadDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
           </div>
           <div className="relative space-y-1">
             <Label htmlFor="pgn-text">PGN</Label>
-            <Textarea className="min-h-40 font-mono text-xs" id="pgn-text" aria-describedby={tooBig ? fieldErrorId("pgn-text") : undefined} hasError={tooBig} onChange={(e) => setPgn(e.target.value)} value={pgn} />
-            <FieldError id="pgn-text" message={tooBig ? `Too long: at most ${PGN_IMPORT_LIMITS.maxChars.toLocaleString("en-US")} characters` : undefined} />
+            <Textarea className="min-h-40 font-mono text-xs" id="pgn-text" aria-describedby={pgnError ? fieldErrorId("pgn-text") : undefined} hasError={Boolean(pgnError)} onChange={(e) => setPgn(e.target.value)} value={pgn} />
+            <FieldError id="pgn-text" message={pgnError} />
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
@@ -176,7 +185,7 @@ function UploadDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
           <Button onClick={() => onOpenChange(false)} variant="neutral">
             Cancel
           </Button>
-          <Button disabled={!pgn.trim() || tooBig || upload.isPending} onClick={submit}>
+          <Button disabled={!pgn.trim() || upload.isPending} onClick={submit}>
             {upload.isPending && <Spinner className="mr-2 size-4" aria-hidden />}
             Import
           </Button>
@@ -227,7 +236,7 @@ function LinkedAccounts({
               link.mutate(
                 { provider: free.includes(provider) ? provider : free[0], username: username.trim() },
                 {
-                  onError: (err) => toast.error(err instanceof Error ? err.message : "Could not link the account."),
+                  onError: (err) => toast.error(getErrorMessage(err, "Could not link the account.")),
                   onSuccess: () => setUsername(""),
                 },
               )
@@ -285,7 +294,7 @@ function AccountRow({
                 sync.mutate(
                   { analyse: true, id: account.id },
                   {
-                    onError: (err) => toast.error(err instanceof Error ? err.message : "The import failed."),
+                    onError: (err) => toast.error(getErrorMessage(err, "The import failed.")),
                     onSuccess: (res) =>
                       toast.success(
                         `${res.imported} new game(s)${res.analysesQueued ? `, ${res.analysesQueued} queued for analysis` : ""}${res.more ? " — import again for more" : ""}`,
@@ -324,7 +333,7 @@ function AccountRow({
               disabled={verify.isPending}
               onClick={() =>
                 verify.mutate(account.id, {
-                  onError: (err) => toast.error(err instanceof Error ? err.message : "Verification failed."),
+                  onError: (err) => toast.error(getErrorMessage(err, "Verification failed.")),
                   onSuccess: () => toast.success("Account verified — you can remove the code from your profile now."),
                 })
               }
@@ -363,7 +372,7 @@ function AccountRow({
                 unlink.mutate(
                   { deleteGames, id: account.id },
                   {
-                    onError: (err) => toast.error(err instanceof Error ? err.message : "Could not unlink."),
+                    onError: (err) => toast.error(getErrorMessage(err, "Could not unlink.")),
                     onSuccess: () => setConfirmUnlink(false),
                   },
                 )

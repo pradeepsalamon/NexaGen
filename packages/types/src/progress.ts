@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { PuzzleDifficulty } from "./puzzle";
 
 // Student progress: a puzzle rating (Elo against a fixed rating per puzzle
@@ -104,3 +105,19 @@ export type StudentProgressDto = {
 };
 
 export type StudentProgressResponse = { progress: StudentProgressDto };
+
+/**
+ * A student's rating, date of birth and level. Tournaments use them for entry,
+ * age groups and seeding, so only staff set them: an admin, or a coach of a
+ * batch the student is in (review F1). The student's own profile shows them
+ * read-only. `dateOfBirth` is a date only, `YYYY-MM-DD`.
+ */
+export const studentPlayingProfileSchema = z.object({
+  chessRating: z.number().int().min(0).max(4000).nullable(),
+  dateOfBirth: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Enter a date.")
+    .nullable(),
+  experienceLevel: z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED"])
+});
+export type StudentPlayingProfile = z.infer<typeof studentPlayingProfileSchema>;

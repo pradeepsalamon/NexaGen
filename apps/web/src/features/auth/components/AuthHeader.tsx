@@ -5,7 +5,7 @@ type AuthHeaderProps = {
   description?: ReactNode;
 };
 
-/** The auth card's heading: the page's only `h1`. */
+/** The auth card's heading: the page's only `h1`, in the app's page-heading type (`PageHeader`). */
 export function AuthHeader({ title, description }: AuthHeaderProps) {
   return (
     <div className="mb-6 grid gap-1.5">

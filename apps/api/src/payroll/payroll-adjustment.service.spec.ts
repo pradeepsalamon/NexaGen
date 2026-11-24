@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { PrismaService } from "../prisma/prisma.service";
 import { PayrollAdjustmentService } from "./payroll-adjustment.service";
@@ -56,18 +56,28 @@ describe("PayrollAdjustmentService", () => {
               update: jest.fn().mockImplementation(({ where: { id }, data }) => ({
                 ...adjustments.find((a) => a.id === id),
                 ...data
-              }))
+              })),
+              // The reversal claim: only a row not yet reversed changes.
+              updateMany: jest.fn().mockImplementation(({ where: { id }, data }) => {
+                const row = adjustments.find((a) => a.id === id);
+                if (!row || row.reversedAt) return { count: 0 };
+                Object.assign(row, data);
+                return { count: 1 };
+              }),
+              findUniqueOrThrow: jest
+                .fn()
+                .mockImplementation(({ where: { id } }) => adjustments.find((a) => a.id === id))
             }
           })
         },
         { provide: PayrollAuditService, useValue: { log: auditLog } }
       ]
     }).compile();
-    return { service: module.get(PayrollAdjustmentService), auditLog };
+    return { prisma: prisma as { $queryRaw: jest.Mock }, service: module.get(PayrollAdjustmentService), auditLog };
   };
 
   it("creates an EARNING adjustment and recomputes the totals", async () => {
-    const { service } = await build(baseRecord);
+    const { prisma, service } = await build(baseRecord);
     const adjustment = await service.create("rec_1", "admin_1", {
       type: "EARNING",
       description: "Tournament coaching",
@@ -76,6 +86,16 @@ describe("PayrollAdjustmentService", () => {
     });
     expect(adjustment.type).toBe("EARNING");
     expect(adjustment.amountMinor).toBe(2000);
+    // Review R2: the record's status is read under its row lock.
+    expect(prisma.$queryRaw).toHaveBeenCalled();
+  });
+
+  // Review R8: an admin who also teaches never adjusts their own pay.
+  it("refuses an adjustment to the actor's own payroll record", async () => {
+    const { service } = await build({ ...baseRecord, coachId: "admin_1" });
+    await expect(
+      service.create("rec_1", "admin_1", { amountMinor: 100, description: "x", reason: "x", type: "EARNING" })
+    ).rejects.toThrow(ForbiddenException);
   });
 
   it("refuses to create an adjustment for a record that doesn't exist", async () => {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { useEffect, useMemo, useState } from "react";
 import { FieldError } from "@/components/ui/FieldError";
 import { useQuery } from "@tanstack/react-query";
@@ -65,8 +66,14 @@ export function SimulStartDialog() {
   const inClassIds = students.filter((s) => s.inClass).map((s) => s.studentId);
   const tooMany = selected.size > SIMUL_MAX_PLAYERS;
   const replacing = simul?.status === "ACTIVE";
+  // Checked when Start is pressed (UI_RULES § "Form errors").
+  const [tried, setTried] = useState(false);
+  const playersError = tried && tooMany ? `A simul can have at most ${SIMUL_MAX_PLAYERS} boards` : undefined;
+  useRevealFormErrors(playersError);
 
   const submit = () => {
+    setTried(true);
+    if (tooMany) return;
     start.mutate(
       {
         colorMode,
@@ -140,7 +147,7 @@ export function SimulStartDialog() {
                 ))
               )}
             </div>
-            <FieldError id="simul-players" message={tooMany ? `A simul can have at most ${SIMUL_MAX_PLAYERS} boards` : undefined} />
+            <FieldError id="simul-players" message={playersError} />
           </section>
 
           <section className="space-y-2">
@@ -190,7 +197,7 @@ export function SimulStartDialog() {
             </Button>
             <Button
               onClick={submit}
-              disabled={selected.size === 0 || tooMany || start.isPending}
+              disabled={selected.size === 0 || start.isPending}
             >
               {start.isPending ? "Starting…" : `Start simul (${selected.size} ${selected.size === 1 ? "board" : "boards"})`}
             </Button>

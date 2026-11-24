@@ -17,6 +17,9 @@ import { useSidebarStore } from "@/stores/sidebarStore";
 import { resolvePageTitle } from "@/lib/pageTitles";
 import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/Spinner";
+import { rolesOf } from "@nexa-chess/types";
+import { roleViewLabel } from "@/features/auth/hooks/useSwitchRole";
+import { Badge } from "@/components/ui/Badge";
 
 /**
  * The header's own menu (three bars) button is switched off, not deleted: the nav is opened by
@@ -61,7 +64,12 @@ export function Header({
   return (
     <header
       className={cn(
-        "fixed inset-x-0 top-0 z-40 h-16 border-b border-app-border bg-app-surface px-3 text-app-text sm:px-4 md:px-6 lg:px-8",
+        // `right-scroll-bar-position`: while a menu or dialog locks scrolling, Radix hides the page's
+        // scrollbar and gives this class `right: <bar width>`, so the header keeps its width.
+        // Navy in both themes (owner, 2026-11-22), the nav's own shade (`bg-app-drawer`) with no
+        // rule under it: header and nav read as one frame around the page. `surface-brand`
+        // switches everything inside (icons, menus' triggers, badges) to the on-navy palette.
+        "surface-brand right-scroll-bar-position fixed inset-x-0 top-0 z-40 h-16 bg-app-drawer px-3 text-app-text sm:px-4 md:px-6 lg:px-8",
         // From xl the rail runs full height on the left and the header starts beside it. Fixed:
         // the expanded nav slides over the header's left end, it never pushes it.
         hasSidebar && navDocked && "left-[var(--app-rail-w,0px)]"
@@ -114,7 +122,7 @@ export function Header({
               ? { target: "_blank", rel: "noopener noreferrer" }
               : {})}
           >
-            <Logo mobileSize={28} size={36} />
+            <Logo mobileSize={28} onDark size={36} />
           </Link>
 
           {leftSlot}
@@ -167,7 +175,15 @@ export function Header({
               <Spinner aria-hidden="true" className="size-4" />
             </div>
           ) : activeUser ? (
-            <UserNavMenu user={activeUser} openLinksInNewTab={openLinksInNewTab} />
+            <>
+              {/* Multi-role accounts: which hat this session is wearing (docs/MULTI_ROLE_ACCOUNTS.md §5.6). */}
+              {rolesOf(activeUser).length > 1 && (
+                <Badge className={cn("hidden shrink-0 sm:inline-flex", compact && "sm:hidden lg:inline-flex")} variant="secondary">
+                  {roleViewLabel(activeUser.role)}
+                </Badge>
+              )}
+              <UserNavMenu user={activeUser} openLinksInNewTab={openLinksInNewTab} />
+            </>
           ) : pathname === "/login" ? null : (
             <Button asChild>
               <Link aria-label="Log in" href="/login">

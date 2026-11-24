@@ -112,8 +112,8 @@ export class LiveClassAccessService {
 
   /**
    * Public: a demo guest (no user, no session) by the `guestToken` its join
-   * returned. The token must name this class, its registration must still be
-   * admitted, and the class must be a LIVE demo. For the few in-room routes a
+   * returned. The token must name this class, its registration must be
+   * APPROVED (not pending or denied), and the class must be a LIVE demo. For the few in-room routes a
    * guest may call; everything else stays user-only.
    */
   async resolveDemoGuest(guestToken: string | undefined, classId: string) {
@@ -128,7 +128,10 @@ export class LiveClassAccessService {
     if (!registration || registration.classId !== classId || !registration.class.isDemo) {
       throw new UnauthorizedException("Join the demo class again to continue.");
     }
-    if (registration.approval === DemoGuestApproval.DENIED) {
+    // Only an admitted guest: a pending one (still in the waiting room) gets
+    // nothing from the room either, the class puzzle's solution included
+    // (review F2).
+    if (registration.approval !== DemoGuestApproval.APPROVED) {
       throw new ForbiddenException("The coach has not admitted you to this class.");
     }
     const liveSession = await this.prisma.liveSession.findUnique({ where: { classId } });

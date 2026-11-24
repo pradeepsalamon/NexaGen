@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { BadgeCheck, Download, Upload, X } from "lucide-react";
@@ -270,6 +271,7 @@ function WithdrawalActionDialog({ action, onClose }: { action: NonNullable<Actio
   const [note, setNote] = useState("");
   // A message goes under the field it is about (UI_RULES § "Form errors").
   const [error, setError] = useState<{ field: string; message: string } | null>(null);
+  useRevealFormErrors(error);
   const errorFor = (field: string) => (error?.field === field ? error.message : undefined);
   const pay = useReferralAdminMutation(
     () => referralAdminApi.payWithdrawal(withdrawal.id, { adminNote: note.trim() || undefined, payoutReference: reference.trim() }),

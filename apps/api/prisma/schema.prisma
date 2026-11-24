@@ -210,6 +210,7 @@ enum PuzzleAttemptContext {
   TRAINING // served by student training
   ASSIGNMENT // one puzzle of a PUZZLE_SET assignment (studentAssignmentId set)
   REVISION // a Smart Revision review (RevisionItem.currentAttemptId / RevisionReview.attemptId)
+  DAILY // Puzzle of the Day (DailyPuzzleEntry.attemptId)
 }
 
 // Lifecycle of one PuzzleAttempt by a student.
@@ -263,6 +264,10 @@ model User {
   avatarUrl String?
 
   role              UserRole   @default(STUDENT)
+  /// Roles held besides `role` (docs/MULTI_ROLE_ACCOUNTS.md). v1: only COACH,
+  /// only on ADMIN / SUPER_ADMIN accounts (service rule + CHECK constraint).
+  /// A login session acts in one role at a time (`AuthSession.activeRole`).
+  extraRoles        UserRole[] @default([])
   status            UserStatus @default(PENDING)
   /// The academy's hidden "Platform support" account (§I "Support access"):
   /// support sessions act as it, so no Nexa user id lands in another academy's
@@ -327,6 +332,8 @@ model User {
   supportLinkCodes                SupportLinkCode[]                @relation("SupportLinkCodeStudent")
   issuedSupportLinkCodes          SupportLinkCode[]                @relation("SupportLinkCodeIssuedBy")
   coachedBatches                  BatchCoach[]                     @relation("BatchCoaches")
+  roleChanges                     UserRoleChange[]                 @relation("UserRoleChangeUser")
+  roleChangesMade                 UserRoleChange[]                 @relation("UserRoleChangeActor")
   studentBatches                  BatchStudent[]                   @relation("BatchStudents")
   classes                         CoachClass[]                     @relation("ClassCoach")
   createdFeedbackForms            FeedbackForm[]                   @relation("FeedbackFormCreatedBy")
@@ -398,6 +405,8 @@ model User {
   startedPuzzleRushes             LiveClassPuzzleRush[]            @relation("LiveClassPuzzleRushStartedBy")
   puzzleRushEntries               LiveClassPuzzleRushEntry[]       @relation("LiveClassPuzzleRushEntryStudent")
   soloPuzzleRushRuns              SoloPuzzleRushRun[]              @relation("SoloPuzzleRushRunStudent")
+  dailyPuzzleEntries              DailyPuzzleEntry[]               @relation("DailyPuzzleEntryStudent")
+  dailyPuzzlesSet                 DailyPuzzle[]                    @relation("DailyPuzzleSetBy")
   activities                      StudentActivity[]                @relation("StudentActivity")
   classAttendances                ClassAttendance[]
   attendanceLogs                  AttendanceLog[]                  @relation("UserAttendanceLogs")
@@ -443,6 +452,8 @@ model User {
   // ── Coach payroll ──
   cancelledClasses                 CoachClass[]               @relation("ClassCancelledBy")
   invitedDemoRegistrations         DemoClassRegistration[]    @relation("DemoRegistrationInvitedBy")
+  /// Leads this account registered from (docs/LEAD_STAGES.md "Registration and enrolment").
+  leads                            Lead[]                     @relation("LeadUser")
   accountDeletionRequests          AccountDeletionRequest[]   @relation("AccountDeletionRequester")
   reviewedAccountDeletionRequests  AccountDeletionRequest[]   @relation("AccountDeletionReviewer")
   coachedDemoSchedules             DemoSchedule[]             @relation("DemoScheduleCoach")
@@ -579,6 +590,11 @@ model StudentProfile {
 
   parentRelationship String?
 
+  /// No longer read: the first step 2 opt-in time (docs/PUZZLE_OF_THE_DAY.md). Kept; migrations stay additive.
+  dailyPuzzleWhatsAppAt    DateTime?
+  /// The student switched Puzzle of the Day on WhatsApp off (it is on by default; docs/PUZZLE_OF_THE_DAY.md step 2).
+  dailyPuzzleWhatsAppOffAt DateTime?
+
   /// A coach's or admin's rule for automatic game sync; null = the student's own choice.
   gameAutoSyncRule        GameAutoSyncRule?
   /// Set by an admin, so a coach can't change it.
@@ -684,13 +700,45 @@ model AuthSession {
 
   /// Set when this session is a platform support visit (PlatformSupportSession.id).
   supportSessionId String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  /// The role this login session acts in (docs/MULTI_ROLE_ACCOUNTS.md). Null =
+  /// the account's primary `User.role`. Copied to the successor on refresh;
+  /// applied by `authenticateUser` only while the account still holds it.
+  activeRole       UserRole?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@index([userId])
   @@index([expiresAt])
   @@index([familyId])
   @@map("auth_sessions")
+}
+
+enum UserRoleChangeAction {
+  GRANTED
+  REMOVED
+}
+
+/// Audit of extra roles granted to / removed from an account
+/// (docs/MULTI_ROLE_ACCOUNTS.md §5.1). Kept with the account; in the privacy export.
+model UserRoleChange {
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id).
+  tenantId String @default("tenant_nexa")
+
+  userId String
+  user   User   @relation("UserRoleChangeUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  role   UserRole
+  action UserRoleChangeAction
+
+  /// Who granted or removed it; null once that account is purged.
+  actorId String?
+  actor   User?   @relation("UserRoleChangeActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("user_role_changes")
 }
 
 // TOTP second factor. One row per enrolled (or enrolling) user.
@@ -927,6 +975,18 @@ model Batch {
   /// docs/PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md). On by default since
   /// 2026-10-12; an admin turns it off per batch in the BatchForm.
   puzzleTrainingEnabled Boolean @default(true)
+
+  /// Batch Battles (docs/PUZZLE_RUSH_SOLO.md): the batch competes on the
+  /// academy's Storm/Racer batch board. null = automatic (group batches only,
+  /// via `batchTakesPartInBattles`). Admin, or a coach of the batch, sets it.
+  battlesEnabled     Boolean?
+  /// Other batches see this batch's top player's name ("Arjun K."). Off by
+  /// default: students are minors.
+  battlesShowNames   Boolean       @default(false)
+  /// Puzzle of the Day for this batch's students (docs/PUZZLE_OF_THE_DAY.md).
+  /// Admin, or a coach of the batch, turns it off.
+  dailyPuzzleEnabled Boolean       @default(true)
+  dailyPuzzles       DailyPuzzle[]
 
   createdById String?
   createdBy   User?   @relation("BatchCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -1214,30 +1274,36 @@ model DemoSchedule {
 /// connects to the LiveKit room (the class is live); a registration with a null
 /// `joinedAt` means they signed up ahead of the class starting.
 model DemoClassRegistration {
-  id            String                        @id @default(cuid())
+  id                String                        @id @default(cuid())
   /// Owning academy (Tenant.id). Required since §D4 of docs/SAAS_MULTI_TENANCY.md; the default goes in D5.
-  tenantId      String                        @default("tenant_nexa")
-  classId       String
-  class         CoachClass                    @relation(fields: [classId], references: [id], onDelete: Cascade)
-  name          String
-  contactMethod DemoRegistrationContactMethod
+  tenantId          String                        @default("tenant_nexa")
+  classId           String
+  class             CoachClass                    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  name              String
+  contactMethod     DemoRegistrationContactMethod
   /// Normalized (digits-only phone, or lowercased email) — the dedupe key.
-  contactValue  String
-  phoneNumber   String?
-  email         String?
+  contactValue      String
+  phoneNumber       String?
+  email             String?
   /// SELF = the guest registered on the join page; LEAD / INVITE = an admin
   /// assigned them. Any row admits its contact, whatever the access mode.
-  source        DemoRegistrationSource        @default(SELF)
-  leadId        String?
-  lead          Lead?                         @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  invitedById   String?
-  invitedBy     User?                         @relation("DemoRegistrationInvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
+  source            DemoRegistrationSource        @default(SELF)
+  leadId            String?
+  lead              Lead?                         @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  invitedById       String?
+  invitedBy         User?                         @relation("DemoRegistrationInvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
   /// Personal-link secret (`/demo/<classId>?invite=<token>`) for admin-added guests.
-  inviteToken   String?                       @unique
-  approval      DemoGuestApproval             @default(APPROVED)
-  approvalAt    DateTime?
-  joinedAt      DateTime?
-  createdAt     DateTime                      @default(now())
+  inviteToken       String?                       @unique
+  approval          DemoGuestApproval             @default(APPROVED)
+  approvalAt        DateTime?
+  joinedAt          DateTime?
+  /// WhatsApp demo reminders and the missed-demo message, each sent once (docs/LEAD_STAGES.md).
+  eveningReminderAt DateTime?
+  hourReminderAt    DateTime?
+  missedMessageAt   DateTime?
+  /// Last time the guest asked for their personal link again (one re-send per 10 minutes).
+  inviteResentAt    DateTime?
+  createdAt         DateTime                      @default(now())
 
   @@unique([classId, contactMethod, contactValue])
   @@index([classId])
@@ -1254,7 +1320,9 @@ enum LeadStatus {
   CONTACTED
   INTERESTED
   DEMO_SCHEDULED
+  DEMO_CONFIRMED
   DEMO_ATTENDED
+  NO_SHOW
   FOLLOW_UP
   PAYMENT_PENDING
   CONVERTED
@@ -1292,6 +1360,13 @@ model VisitorSession {
   fbclid String?
   gclid  String?
 
+  /// The visitor's answer on the cookie banner (docs/AD_MEASUREMENT.md): true = accepted the Meta
+  /// Pixel, false = declined, null = never answered. No Conversions API event without true.
+  adConsent   Boolean?
+  adConsentAt DateTime?
+  /// Meta's `_fbp` browser id, stored only after consent.
+  fbp         String?
+
   firstVisit DateTime @default(now())
   lastVisit  DateTime @updatedAt
   pageViews  Int      @default(1)
@@ -1328,6 +1403,10 @@ model Lead {
   lastActivityAt DateTime?
   convertedAt    DateTime?
 
+  /// The student account this lead registered as (linked by email or mobile, docs/LEAD_STAGES.md).
+  userId String?
+  user   User?   @relation("LeadUser", fields: [userId], references: [id], onDelete: SetNull)
+
   visitorSessionId String?
   visitorSession   VisitorSession? @relation(fields: [visitorSessionId], references: [id], onDelete: SetNull)
 
@@ -1346,6 +1425,10 @@ model Lead {
   supportTickets    SupportTicket[]
   /// Its copy in Frappe CRM, when one is sent (docs/WHATSAPP_SUPPORT.md §0 "Frappe CRM").
   crmPush           CrmLeadPush?
+  /// The Click-to-WhatsApp ad that brought this lead, when one did (first and latest click).
+  adClick           LeadAdClick?
+  /// Its Conversions API events for Meta (docs/AD_MEASUREMENT.md), one per event name.
+  metaCapiEvents    MetaCapiEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1357,6 +1440,7 @@ model Lead {
   deletedBy     User?     @relation("LeadDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
   deleteGroupId String?
 
+  @@index([userId])
   @@index([isDeleted])
   @@index([deletedAt])
   @@index([deletedById])
@@ -1381,11 +1465,15 @@ model LeadActivity {
   activityType String
   title        String
   description  String?
+  /// What made this entry, when it must happen once (a WhatsApp ad click: `wa-ad:<message id>`),
+  /// so a re-processed message never repeats it (review Part 1 #2). Null for everything else.
+  sourceKey    String?
 
   createdById String?
   createdBy   User?    @relation("LeadActivityCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
 
+  @@unique([leadId, sourceKey])
   @@index([leadId])
   @@map("lead_activities")
 }
@@ -2312,6 +2400,11 @@ model AssignmentBatch {
   assignedById String?
   assignedBy   User?      @relation("DeployedAssignments", fields: [assignedById], references: [id], onDelete: SetNull)
   dueDate      DateTime
+  /// Withdrawn by a coach (review S8): hidden from every read by the soft-delete
+  /// extension, students' copies and attempts kept; re-assigning clears it.
+  withdrawnAt   DateTime?
+  /// Who withdrew it (a user id; no relation, kept after that user is gone).
+  withdrawnById String?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
@@ -2367,6 +2460,9 @@ model StudentAssignmentAttempt {
   scorePercent        Int?
   accuracyPercent     Int?
   hintsUsed           Int                     @default(0)
+  /// SOLVE_LINE: wrong moves the student tried while saving progress. Each one
+  /// costs a ply in the score (review S4); never sent back as a solution.
+  wrongMoves          Int                     @default(0)
   durationSeconds     Int                     @default(0)
   result              String? // "SOLVED" | "PARTIAL" | "WIN" | "LOSS" | "DRAW" | "SUBMITTED"
   startedAt           DateTime                @default(now())
@@ -2417,10 +2513,12 @@ enum NotificationType {
   ASSIGNMENT_GRADED
   ASSIGNMENT_OVERDUE_COACH
   REVISION_DUE
+  DAILY_PUZZLE
   CLASS_SCHEDULED
   CLASS_REMINDER
   CLASS_REMINDER_COACH
   CLASS_CANCELLED
+  CLASS_RESCHEDULED
   CLASS_SUBSTITUTE_ASSIGNED
   ASSIGNMENT_ASSIGNED
   ANNOUNCEMENT
@@ -2702,6 +2800,8 @@ model Puzzle {
   courseModules      CourseModule[]
   assignmentItems    AssignmentPuzzle[]
   revisionItems      RevisionItem[]
+  dailyPuzzles       DailyPuzzle[]
+  dailyPuzzleEntries DailyPuzzleEntry[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -2774,6 +2874,7 @@ model PuzzleAttempt {
   updatedAt       DateTime            @updatedAt
 
   revisionReview RevisionReview?
+  dailyEntry     DailyPuzzleEntry?
 
   @@unique([puzzleId, studentId, attemptNumber])
   @@index([puzzleId])
@@ -3371,12 +3472,14 @@ enum MessagingEvent {
   CLASS_REMINDER
   CLASS_REMINDER_COACH
   CLASS_CANCELLED
+  CLASS_RESCHEDULED
   CLASS_SUBSTITUTE_ASSIGNED
   ASSIGNMENT_ASSIGNED
   ASSIGNMENT_DUE_SOON
   ASSIGNMENT_GRADED
   ASSIGNMENT_OVERDUE_COACH
   REVISION_DUE
+  DAILY_PUZZLE
   ANNOUNCEMENT
   ACCOUNT_WELCOME
   ACCOUNT_APPROVED
@@ -3459,15 +3562,20 @@ model MessagingRule {
   scheduleDayOfWeek Int?
   /// DAILY only: a weekend send rolls forward to Monday.
   weekdaysOnly      Boolean               @default(false)
+  /// DAILY only: the days it sends on (0 = Sunday .. 6 = Saturday); empty = every day,
+  /// or Monday–Friday while `weekdaysOnly` (@nexa-chess/types `messagingSendDays`).
+  scheduleDays      Int[]                 @default([])
 
   /// In-app heading and email subject. WhatsApp has no subject line and ignores it.
   title String
   body  String
 
   /// Approved WhatsApp template, for sends that may fall outside the 24h window.
-  whatsappTemplateName     String?
-  whatsappTemplateLanguage String?
-  whatsappTemplateParams   String[]
+  whatsappTemplateName        String?
+  whatsappTemplateLanguage    String?
+  whatsappTemplateParams      String[]
+  /// The template has an IMAGE header the rule fills (only rules that make a picture: Puzzle of the Day's board).
+  whatsappTemplateImageHeader Boolean  @default(false)
 
   updatedById String?
   updatedBy   User?   @relation("MessagingRuleUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
@@ -3513,6 +3621,8 @@ model MessageDelivery {
   documentMediaId  String?
   documentLink     String?
   documentFilename String?
+  /// A picture link (Puzzle of the Day's board): the template's IMAGE header, or sent with the text as its caption.
+  imageLink        String?
 
   /// When the outbox may send it. Future for a DAILY/WEEKLY rule or a backoff.
   scheduledFor  DateTime  @default(now())
@@ -6523,8 +6633,77 @@ model Tenant {
   platformInvoices   PlatformInvoice[]
   usage              TenantUsage?
   usageDays          TenantUsageDay[]
+  closures           TenantClosure[]
 
   @@map("tenants")
+}
+
+/// What an academy wants for its data when it closes (docs/ACADEMY_CLOSURE.md).
+enum TenantClosureChoice {
+  /// Close the academy and keep its data indefinitely (it can be reopened).
+  KEEP_DATA
+  /// Close the academy and erase its data after the undo window (financial records stay as the law requires).
+  DELETE_DATA
+}
+
+enum TenantClosureStatus {
+  /// The academy asked; nothing has changed yet.
+  REQUESTED
+  /// The academy took its request back before a decision.
+  WITHDRAWN
+  /// An operator said no; the academy carries on.
+  DECLINED
+  /// Closed with its data kept (KEEP_DATA). Can be reopened.
+  CLOSED
+  /// Closed; the purge runs once `purgeAfter` passes unless an operator cancels it.
+  PURGE_SCHEDULED
+  /// The purge job is erasing the data (lease in `purgeLeaseUntil`).
+  PURGING
+  /// The data is erased; only the financial records and the academy row remain.
+  PURGED
+  /// An operator stopped a scheduled purge; the academy stays closed with its data.
+  CANCELLED
+  /// Closed with its data kept (CLOSED or CANCELLED), then opened again by an operator.
+  REOPENED
+}
+
+/// One request to close an academy and its outcome (docs/ACADEMY_CLOSURE.md).
+/// Platform model: the console decides it across academies, and it outlives the academy's data.
+/// People are stored as plain ids + names (no FK): a purge anonymises the academy's users.
+model TenantClosure {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  choice TenantClosureChoice
+  status TenantClosureStatus @default(REQUESTED)
+  reason String?
+
+  /// The academy super admin who asked; null when an operator recorded a request made by email or phone.
+  requestedByUserId String?
+  requestedByName   String?
+  requestedByEmail  String?
+  requestedAt       DateTime @default(now())
+
+  /// The platform operator (a Nexa user) who approved, declined, cancelled or reopened it.
+  decidedByUserId String?
+  decidedAt       DateTime?
+  decisionNote    String?
+
+  /// DELETE_DATA: the purge may start after this (the undo window).
+  purgeAfter      DateTime?
+  purgeStartedAt  DateTime?
+  purgeLeaseUntil DateTime?
+  purgedAt        DateTime?
+  /// Rows deleted / kept per table and anonymised users, written by the purge.
+  purgeReport     Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, createdAt])
+  @@index([status, purgeAfter])
+  @@map("tenant_closures")
 }
 
 enum TenantDomainKind {
@@ -7904,6 +8083,10 @@ model ReferralRedemption {
   minOrderMinor    Int?
   freeDays         Int?
   currency         String
+  /// The voucher's plans and code lifetime when it was redeemed, so an edit to the voucher while
+  /// this waits for approval doesn't change what the student gets (review R4).
+  voucherPlanIds   String[]                 @default([])
+  codeValidDays    Int?
   /// Discounts: the personal one-use code issued on fulfilment.
   discountId       String?                  @unique
   discount         Discount?                @relation("ReferralRedemptionDiscount", fields: [discountId], references: [id], onDelete: Restrict)
@@ -8716,6 +8899,9 @@ model SupportSettings {
   menu                       Json?
   /// A number linked to a student (staff-issued code) may ask for its next class.
   accountAnswers             Boolean  @default(false)
+  /// Every new number that writes in (not an account, no open lead) becomes a Lead, bot on or off;
+  /// sends nothing (docs/LEAD_STAGES.md "WhatsApp lead capture"). Nexa's academy only for now.
+  captureLeads               Boolean  @default(false)
   updatedById                String?
   updatedBy                  User?    @relation("SupportSettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   createdAt                  DateTime @default(now())
@@ -8806,6 +8992,9 @@ model WhatsAppWebhookEvent {
   mediaFilename     String?
   /// The media's caption, redacted. Not bot input.
   mediaCaption      String?
+  /// Meta's Click-to-WhatsApp `referral` on the message (AdReferral: sourceType, sourceId, sourceUrl,
+  /// headline, ctwaClid); read by lead capture (docs/LEAD_STAGES.md).
+  adReferral        Json?
   /// sent | delivered | read | failed (statuses only)
   status            String?
   statusError       String?
@@ -8835,6 +9024,8 @@ model WhatsAppContact {
   lastInboundAt    DateTime?
   /// "STOP": no proactive WhatsApp (rules, system messages). Support replies still go.
   optedOutAt       DateTime?
+  /// No longer read: the first step 2 "PUZZLE" keyword sign-up (removed; docs/PUZZLE_OF_THE_DAY.md). Kept; migrations stay additive.
+  dailyPuzzleAt    DateTime?
   /// Wrong LINK codes since `linkFailuresFrom` (a rate limit: docs/WHATSAPP_SUPPORT.md §0 "Existing students").
   linkFailures     Int       @default(0)
   linkFailuresFrom DateTime?
@@ -9019,6 +9210,79 @@ model SupportUnansweredQuestion {
   @@map("support_unanswered_questions")
 }
 
+/// The Click-to-WhatsApp ad click(s) behind a lead: Meta's `referral` on the parent's message
+/// (docs/LEAD_STAGES.md "WhatsApp lead capture"). One row per lead: the first click and the latest.
+/// `ctwaClid` is what the Conversions API sends back to Meta (docs/AD_MEASUREMENT.md).
+model LeadAdClick {
+  id               String   @id @default(cuid())
+  tenantId         String   @default("tenant_nexa")
+  leadId           String   @unique
+  lead             Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  /// "ad" or "post" (Meta's `source_type`).
+  firstSourceType  String?
+  firstAdId        String?
+  firstCtwaClid    String?
+  firstHeadline    String?
+  firstSourceUrl   String?
+  firstSeenAt      DateTime
+  latestSourceType String?
+  latestAdId       String?
+  latestCtwaClid   String?
+  latestHeadline   String?
+  latestSourceUrl  String?
+  latestSeenAt     DateTime
+  /// The WhatsApp message id of the latest click: a re-run of the same message changes nothing.
+  latestMessageId  String
+  clicks           Int      @default(1)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([latestAdId])
+  @@map("lead_ad_clicks")
+}
+
+enum MetaCapiEventStatus {
+  PENDING
+  SENT
+  FAILED
+  /// Not sent on purpose (consent withdrawn, no WhatsApp account id); `error` says why.
+  SKIPPED
+}
+
+/// One Meta Conversions API event for a lead (docs/AD_MEASUREMENT.md): an outbox row written in
+/// the transaction that made the lead or moved its stage, sent by a sweep. Nexa's academy only.
+/// Holds no personal data: the hashed contact details are built from the lead at send time.
+model MetaCapiEvent {
+  id            String              @id @default(cuid())
+  tenantId      String              @default("tenant_nexa")
+  leadId        String
+  lead          Lead                @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  /// Meta's standard event: LeadSubmitted, Lead, QualifiedLead, Schedule or Purchase.
+  eventName     String
+  /// Meta's event_id; a website Lead shares it with the pixel's event so Meta counts one.
+  eventId       String
+  /// "whatsapp" (business_messaging, ctwa_clid) or "website".
+  channel       String
+  /// When it happened (Meta's event_time).
+  eventTime     DateTime
+  /// Purchase only: the linked paid order's amount in minor units, when there is one.
+  valueMinor    Int?
+  currency      String?
+  status        MetaCapiEventStatus @default(PENDING)
+  attempts      Int                 @default(0)
+  nextAttemptAt DateTime            @default(now())
+  claimedAt     DateTime?
+  sentAt        DateTime?
+  error         String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@unique([leadId, eventName])
+  @@index([status, nextAttemptAt])
+  @@index([createdAt])
+  @@map("meta_capi_events")
+}
+
 enum CrmLeadPushStatus {
   PENDING
   SENT
@@ -9029,20 +9293,25 @@ enum CrmLeadPushStatus {
 /// docs/WHATSAPP_SUPPORT.md §0 "Frappe CRM"). Written in the lead's
 /// transaction, sent after commit, retried by a sweep. Holds no personal data.
 model CrmLeadPush {
-  id            String            @id @default(cuid())
-  tenantId      String            @default("tenant_nexa")
-  leadId        String            @unique
-  lead          Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  status        CrmLeadPushStatus @default(PENDING)
-  attempts      Int               @default(0)
-  nextAttemptAt DateTime          @default(now())
-  claimedAt     DateTime?
+  id             String            @id @default(cuid())
+  tenantId       String            @default("tenant_nexa")
+  leadId         String            @unique
+  lead           Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  status         CrmLeadPushStatus @default(PENDING)
+  attempts       Int               @default(0)
+  nextAttemptAt  DateTime          @default(now())
+  claimedAt      DateTime?
   /// The Frappe document name (e.g. CRM-LEAD-2026-00042).
-  externalId    String?
-  error         String?
-  sentAt        DateTime?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  externalId     String?
+  /// The lead's stage last copied to Frappe (stage sync, docs/LEAD_STAGES.md); null = none yet.
+  sentStatus     LeadStatus?
+  /// The child's details arrived after the lead was copied (a chat lead that later booked a
+  /// demo): the next send sets student_name and adds a note in Frappe (review Part 1 #1).
+  detailsPending Boolean           @default(false)
+  error          String?
+  sentAt         DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
   @@index([status, nextAttemptAt])
   @@map("crm_lead_pushes")
@@ -9126,4 +9395,97 @@ model SupportLinkCode {
   @@index([createdById])
   @@index([expiresAt])
   @@map("support_link_codes")
+}
+
+// ── Puzzle of the Day (docs/PUZZLE_OF_THE_DAY.md) ──
+
+enum DailyPuzzleLevel {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum DailyPuzzleKind {
+  AUTO // the automatic pick, academy scope only
+  OVERRIDE // an admin's (academy) or a coach's (batch) choice
+}
+
+/// One puzzle for one academy day and level: the automatic pick, an admin's
+/// academy override, or a coach's override for one batch.
+model DailyPuzzle {
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id).
+  tenantId String @default("tenant_nexa")
+
+  /// Academy calendar day (Tenant.timezone).
+  day      DateTime         @db.Date
+  level    DailyPuzzleLevel
+  kind     DailyPuzzleKind
+  /// "academy", or "batch:<batchId>" for a coach/admin override on one batch.
+  scopeKey String
+  batchId  String?
+  batch    Batch?           @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  puzzleId String
+  puzzle   Puzzle  @relation(fields: [puzzleId], references: [id], onDelete: Cascade)
+  setById  String?
+  setBy    User?   @relation("DailyPuzzleSetBy", fields: [setById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, day, level, scopeKey, kind])
+  @@index([puzzleId])
+  @@index([batchId])
+  @@index([setById])
+  @@map("daily_puzzles")
+}
+
+/// A student's daily puzzle at one level on one day: the attempt, and its
+/// result once finished. The streak is computed from these, never stored.
+model DailyPuzzleEntry {
+  id       String @id @default(cuid())
+  /// Owning academy (Tenant.id).
+  tenantId String @default("tenant_nexa")
+
+  studentId String
+  student   User             @relation("DailyPuzzleEntryStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  day       DateTime         @db.Date
+  level     DailyPuzzleLevel
+  puzzleId  String
+  puzzle    Puzzle           @relation(fields: [puzzleId], references: [id], onDelete: Cascade)
+  attemptId String           @unique
+  attempt   PuzzleAttempt    @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  finishedAt     DateTime?
+  solved         Boolean?
+  /// Wrong moves sent by WhatsApp reply (docs/PUZZLE_OF_THE_DAY.md step 3); the academy's limits apply.
+  whatsappTries  Int       @default(0)
+  /// A hint was sent by WhatsApp.
+  whatsappHintAt DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@unique([studentId, day, level])
+  @@index([studentId, finishedAt])
+  @@index([puzzleId])
+  @@map("daily_puzzle_entries")
+}
+
+/// The academy's Puzzle of the Day switch (one row per academy; Nexa's id is "default").
+model DailyPuzzleSettings {
+  id                  String           @id @default("default")
+  /// Owning academy (Tenant.id).
+  tenantId            String           @unique @default("tenant_nexa")
+  enabled             Boolean          @default(true)
+  /// Step 3 (WhatsApp picture + answering by reply): the level whose academy puzzle is pictured.
+  whatsappLevel       DailyPuzzleLevel @default(MEDIUM)
+  /// Wrong replies allowed; after `whatsappHintAfter` wrong ones a HINT, after `whatsappAnswerAfter` the ANSWER.
+  whatsappMaxTries    Int              @default(3)
+  whatsappHintAfter   Int              @default(1)
+  whatsappAnswerAfter Int              @default(3)
+  updatedById         String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  @@map("daily_puzzle_settings")
 }

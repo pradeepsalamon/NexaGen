@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, FileText, Folder, Trophy } from "lucide-react";
 import {
@@ -231,7 +232,7 @@ export function PuzzleAssignModal({
       toast.success({ title: `Loaded: ${puzzle.title}` });
       onOpenChange(false);
     } catch (error) {
-      toast.error({ title: "Couldn't load the puzzle", message: (error as Error).message });
+      toast.error({ title: "Couldn't load the puzzle", message: getErrorMessage(error) });
     } finally {
       setLoadingId(null);
     }

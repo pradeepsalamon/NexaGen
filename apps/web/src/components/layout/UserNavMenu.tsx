@@ -3,20 +3,18 @@
 import { useBrandName } from "@/features/branding/context/TenantBrandProvider";
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "@/lib/navigation";
-import { useMutation } from "@tanstack/react-query";
 import {
+  ArrowLeftRight,
   LayoutDashboard,
   User as UserIcon,
   LogOut,
   ChevronDown,
   Palette
 } from "lucide-react";
-import type { AuthUser } from "@nexa-chess/types";
-import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
-import { logout } from "@/features/auth/api/authApi";
-import { useToast } from "@/providers/ToastProvider";
-import { getErrorMessage } from "@/lib/errors";
+import { rolesOf, type AuthUser } from "@nexa-chess/types";
+import { roleViewLabel, useSwitchRole } from "@/features/auth/hooks/useSwitchRole";
+import { getRoleDashboardHref } from "@/stores/authStore";
+import { useLogout } from "@/features/auth/hooks/useLogout";
 import { Badge } from "@/components/ui/Badge";
 import { ConfirmationModal } from "@/components/common/ConfirmationModal";
 import {
@@ -62,33 +60,14 @@ export function UserNavMenu({
   openLinksInNewTab = false
 }: UserNavMenuProps) {
   const brandName = useBrandName();
-  const router = useRouter();
-  const toast = useToast();
 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const clearSession = useAuthStore((state) => state.clearSession);
+  // Leaves the page only once the server ended the session (FE review AU2).
+  const logoutMutation = useLogout(() => setIsConfirmOpen(false));
 
-  const logoutMutation = useMutation({
-    mutationFn: logout,
-    onError: (error) => {
-      toast.error({
-        message: getErrorMessage(error),
-        title: "Logout request failed"
-      });
-    },
-    onSuccess: () => {
-      toast.success({
-        message: "You have been signed out.",
-        title: "Logout successful"
-      });
-    },
-    onSettled: () => {
-      setIsConfirmOpen(false);
-      clearSession();
-      router.replace("/login");
-      router.refresh();
-    }
-  });
+  const { isSwitching, switchTo } = useSwitchRole();
+  // Multi-role accounts (docs/MULTI_ROLE_ACCOUNTS.md): the other roles this login can act in.
+  const otherRoles = rolesOf(user).filter((role) => role !== user.role);
 
   const dashboardHref = getRoleDashboardHref(user.role);
   const newTabProps = openLinksInNewTab
@@ -135,6 +114,26 @@ export function UserNavMenu({
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+          {otherRoles.length > 0 && (
+            <>
+              <DropdownMenuGroup>
+                {otherRoles.map((role) => (
+                  <DropdownMenuItem
+                    className="flex cursor-pointer items-center gap-2.5 py-2 font-medium text-app-text"
+                    disabled={isSwitching}
+                    key={role}
+                    onSelect={() => {
+                      void switchTo(role).catch(() => undefined);
+                    }}
+                  >
+                    <ArrowLeftRight className="size-4 text-app-muted" />
+                    <span>Switch to {roleViewLabel(role).toLowerCase()}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+            </>
+          )}
           <DropdownMenuGroup>
             <DropdownMenuItem asChild>
               <Link

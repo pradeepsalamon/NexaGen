@@ -15,10 +15,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* The rail's navy ground from first paint; the nav itself mounts over it. */}
       <div
         aria-hidden="true"
-        className="fixed inset-y-0 left-0 z-20 hidden w-[var(--app-rail-w,0px)] py-2 pl-2 xl:block"
-      >
-        <div className="h-full rounded-panel bg-app-drawer" />
-      </div>
+        className="fixed inset-y-0 left-0 z-20 hidden w-[var(--app-rail-w,0px)] bg-app-drawer xl:block"
+      />
       <RoleSidebar />
       {/* Fixed: the rail's width only. Opening the nav never touches this padding. */}
       <div className="xl:pl-[var(--app-rail-w,0px)]">

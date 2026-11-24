@@ -1,5 +1,7 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
+import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { ArrowDown, ArrowUp, PencilLine, Plus, Trash2, Zap } from "lucide-react";
 import {
@@ -132,6 +134,8 @@ export function StagesPanel() {
 }
 
 function StageValueChips({ currency, stage }: { stage: ReferralStageItem; currency: string }) {
+  // Review R5: opening a link is free for anyone, so this stage never pays a referrer.
+  if (stage.trigger === "LINK_VISITED") return <p className="mt-1 text-xs text-app-muted">Never pays a referrer</p>;
   const chips = [
     stage.studentPoints ? `Student ${formatReferralPoints(stage.studentPoints)}` : null,
     stage.coachCashMinor ? `Coach ${money(stage.coachCashMinor, currency)}` : null,
@@ -175,12 +179,17 @@ function StageDialog({ currency, onClose, stage }: { stage: ReferralStageItem | 
   const [salesCash, setSalesCash] = useState(stage?.salesCashMinor ? String(toMajorUnits(stage.salesCashMinor, currency)) : "");
   // A message goes under the field it is about (UI_RULES § "Form errors").
   const [error, setError] = useState<{ field: string; message: string } | null>(null);
+  useRevealFormErrors(error);
   const errorFor = (field: string) => (error?.field === field ? error.message : undefined);
   const save = useReferralAdminMutation(
     (body: CreateReferralStageRequest) => (stage ? referralAdminApi.updateStage(stage.id, body) : referralAdminApi.createStage(body)),
     { failure: "Could not save the stage", success: stage ? "Stage updated" : "Stage added" }
   );
   const isLost = stage?.trigger === "LOST";
+  // Review R5: anyone can open a link or book a demo, so the first never pays a
+  // referrer and the second always waits for an admin (the API enforces both).
+  const isVisited = stage?.trigger === "LINK_VISITED";
+  const isDemoBooked = stage?.trigger === "DEMO_BOOKED";
 
   const submit = async () => {
     const values = {
@@ -211,7 +220,7 @@ function StageDialog({ currency, onClose, stage }: { stage: ReferralStageItem | 
               : "A new stage is added at the end; move it into place afterwards. Admins move referrals into it."}
           </DialogDescription>
         </DialogHeader>
-        <div className="grid max-h-[65dvh] gap-4 overflow-y-auto pr-1">
+        <div className="grid max-h-[65dvh] gap-4 dialog-scroll-body">
           <FormField error={errorFor("name")} id="stage-name" label="Name" required>
             <Input hasError={Boolean(errorFor("name"))} id="stage-name" maxLength={60} onChange={(event) => setName(event.target.value)} value={name} />
           </FormField>
@@ -232,12 +241,19 @@ function StageDialog({ currency, onClose, stage }: { stage: ReferralStageItem | 
           </FormField>
           <fieldset className="grid gap-3 rounded-control border border-app-border p-3">
             <legend className="px-1 text-sm font-semibold text-app-text">Reward per referral reaching this stage</legend>
-            {isLost ? (
+            {isVisited ? (
+              <p className="text-xs text-app-muted">
+                None. Anyone can open a referral link, so this stage never pays a referrer; rewards start from the next stage.
+              </p>
+            ) : isLost ? (
               <p className="text-xs text-app-muted">Usually nothing: these referrals decided not to join.</p>
             ) : (
-              <p className="text-xs text-app-muted">Blank = nothing. Applies to referrals reaching the stage from now on.</p>
+              <p className="text-xs text-app-muted">
+                Blank = nothing. Applies to referrals reaching the stage from now on.
+                {isDemoBooked ? " Referrer rewards here always wait for an admin to approve them, even with automatic approval on." : ""}
+              </p>
             )}
-            <div className="grid gap-x-3 gap-y-4 sm:grid-cols-2">
+            <div className={cn("grid gap-x-3 gap-y-4 sm:grid-cols-2", isVisited && "hidden")}>
               <FormField error={errorFor("student")} hint="Spent in the rewards store" id="stage-student" label="Student referrer (points)">
                 <Input hasError={Boolean(errorFor("student"))} id="stage-student" inputMode="numeric" onChange={(event) => setStudentPoints(event.target.value)} value={studentPoints} />
               </FormField>

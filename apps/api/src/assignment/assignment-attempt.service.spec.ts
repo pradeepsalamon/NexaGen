@@ -1,7 +1,13 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException
+} from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { UserRole, UserStatus } from "@prisma/client";
-import type { SolutionMove } from "@nexa-chess/types";
+import type { AttemptMove, SolutionMove } from "@nexa-chess/types";
+import { Chess } from "../common/chess/chess";
 import { AssignmentAttemptService } from "./assignment-attempt.service";
 import { AssignmentEvaluationService } from "./assignment-evaluation.service";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
@@ -298,6 +304,63 @@ describe("AssignmentAttemptService", () => {
     expect(result.attemptsRemaining).toBe(2);
   });
 
+  describe("SOLVE_LINE wrong tries (review S4)", () => {
+    const openAttempt = (over: Record<string, unknown> = {}) => ({
+      id: "att-1",
+      attemptNumber: 1,
+      status: "IN_PROGRESS",
+      movesJson: [],
+      hintsUsed: 0,
+      wrongMoves: 0,
+      durationSeconds: 0,
+      ...over
+    });
+    const withAttempt = (attempt: Record<string, unknown>, assignment: Record<string, unknown> = {}) =>
+      prisma.studentAssignment.findUnique.mockResolvedValue(
+        makeSa({ attempts: [attempt], assignmentBatch: { assignment: makeAssignment(assignment) } })
+      );
+    const line = (...ucis: string[]) => ucis.map((uci, i) => ({ ply: i + 1, uci, san: uci, fenAfter: START }));
+
+    it("counts a wrong move once, not again when the same line is re-sent", async () => {
+      withAttempt(openAttempt());
+      const res = await service.saveProgress(TOKEN, SA_ID, "att-1", { moves: line("d2d4") });
+      expect(res.moveFeedback?.correct).toBe(false);
+      expect(prisma.studentAssignmentAttempt.update.mock.calls[0][0].data.wrongMoves).toEqual({ increment: 1 });
+
+      withAttempt(openAttempt({ movesJson: line("d2d4"), wrongMoves: 1 }));
+      await service.saveProgress(TOKEN, SA_ID, "att-1", { moves: line("d2d4") });
+      expect(prisma.studentAssignmentAttempt.update.mock.calls[1][0].data).not.toHaveProperty("wrongMoves");
+    });
+
+    it("does not count a right move", async () => {
+      withAttempt(openAttempt());
+      await service.saveProgress(TOKEN, SA_ID, "att-1", { moves: line("e2e4") });
+      expect(prisma.studentAssignmentAttempt.update.mock.calls[0][0].data).not.toHaveProperty("wrongMoves");
+    });
+
+    it("takes each wrong try off the score of a line found by trial", async () => {
+      withAttempt(openAttempt({ wrongMoves: 2 }));
+      const full = SOLUTION.map((m, i) => ({ ply: i + 1, uci: m.uci, san: m.san, fenAfter: START }));
+      const res = await service.submit(TOKEN, SA_ID, "att-1", { moves: full });
+      // 4 student plies, all right, plus 2 wrong tries: 4 / 6.
+      expect(res.scorePercent).toBe(67);
+      expect(res.result).toBe("SOLVED");
+      expect(res.passed).toBe(false);
+    });
+
+    it("with retries off, refuses another try and scores the stored line, not a resubmitted one", async () => {
+      withAttempt(openAttempt({ movesJson: line("d2d4"), wrongMoves: 1 }), { allowRetry: false });
+      await expect(
+        service.saveProgress(TOKEN, SA_ID, "att-1", { moves: line("e2e4") })
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      const full = SOLUTION.map((m, i) => ({ ply: i + 1, uci: m.uci, san: m.san, fenAfter: START }));
+      const res = await service.submit(TOKEN, SA_ID, "att-1", { moves: full });
+      expect(res.scorePercent).toBe(0);
+      expect(res.result).toBe("PARTIAL");
+    });
+  });
+
   describe("hint", () => {
     const openAttempt = (over: Record<string, unknown> = {}) => ({
       id: "att-1",
@@ -360,5 +423,125 @@ describe("AssignmentAttemptService", () => {
     await expect(
       service.saveProgress(TOKEN, SA_ID, "att-1", { moves: [] })
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+  describe("PLAY_VS_ENGINE: the game is stored on the server (review S2/S3)", () => {
+    const UPDATED_AT = new Date("2026-11-23T10:00:00.000Z");
+    let getBestMove: jest.Mock;
+
+    /** A stored line with real SAN and FENs, as the server writes it. */
+    function line(...ucis: string[]): AttemptMove[] {
+      const board = new Chess(START);
+      return ucis.map((uci, i) => {
+        const res = board.move({ from: uci.slice(0, 2), to: uci.slice(2, 4) });
+        return { ply: i + 1, uci, san: res.san, fenAfter: board.fen() };
+      });
+    }
+
+    function engineSa(movesJson: AttemptMove[], over: Record<string, unknown> = {}) {
+      return makeSa({
+        attempts: [
+          { id: "att-1", attemptNumber: 1, status: "IN_PROGRESS", movesJson, hintsUsed: 0, durationSeconds: 0, updatedAt: UPDATED_AT }
+        ],
+        assignmentBatch: {
+          assignment: makeAssignment({
+            activityType: "PLAY_VS_ENGINE",
+            solutionMovesJson: null,
+            passThresholdPercent: 50,
+            engineLevel: 5,
+            ...over
+          })
+        }
+      });
+    }
+
+    beforeEach(() => {
+      getBestMove = jest.fn().mockResolvedValue({ uci: "e7e5" });
+      const evaluation = new AssignmentEvaluationService({
+        isAvailable: () => true,
+        getBestMove,
+        analyzePosition: jest.fn().mockRejectedValue(new Error("not in this test"))
+      } as unknown as StockfishService);
+      service = new AssignmentAttemptService(
+        { verifyAsync: jest.fn().mockResolvedValue({ sub: STUDENT_ID, type: "access" }) } as unknown as JwtService,
+        prisma as unknown as PrismaService,
+        evaluation,
+        { dispatchInBackground: jest.fn() } as unknown as MessagingDispatchService,
+        { record: jest.fn().mockResolvedValue(undefined) } as unknown as AnalyticsEventService,
+        { recordPractice: jest.fn() } as unknown as ProgressRecorderService
+      );
+    });
+
+    it("adds the student's move and the engine's reply from the stored position, claimed on the row", async () => {
+      prisma.studentAssignment.findUnique.mockResolvedValue(engineSa([]));
+
+      const res = await service.engineMove(TOKEN, SA_ID, "att-1", { uci: "e2e4", ply: 0 });
+
+      expect(res.moves.map((m) => m.san)).toEqual(["e4", "e5"]);
+      // The engine was asked about the server's position, never a client FEN.
+      expect(getBestMove.mock.calls[0][0]).toBe(line("e2e4")[0].fenAfter);
+      expect(prisma.studentAssignmentAttempt.updateMany).toHaveBeenCalledWith({
+        where: { id: "att-1", status: "IN_PROGRESS", updatedAt: UPDATED_AT },
+        data: { movesJson: res.moves }
+      });
+    });
+
+    it("refuses with 409 when the client's move count differs from the stored game", async () => {
+      prisma.studentAssignment.findUnique.mockResolvedValue(engineSa(line("e2e4", "e7e5")));
+      await expect(
+        service.engineMove(TOKEN, SA_ID, "att-1", { uci: "g1f3", ply: 0 })
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(getBestMove).not.toHaveBeenCalled();
+    });
+
+    it("refuses an illegal move, and a move on the engine's turn", async () => {
+      prisma.studentAssignment.findUnique.mockResolvedValue(engineSa([]));
+      await expect(
+        service.engineMove(TOKEN, SA_ID, "att-1", { uci: "e2e5", ply: 0 })
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      prisma.studentAssignment.findUnique.mockResolvedValue(engineSa(line("e2e4")));
+      await expect(
+        service.engineMove(TOKEN, SA_ID, "att-1", { uci: "e7e5", ply: 1 })
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(getBestMove).not.toHaveBeenCalled();
+    });
+
+    it("loses a race with another request (409) instead of forking the game", async () => {
+      prisma.studentAssignment.findUnique.mockResolvedValue(engineSa([]));
+      prisma.studentAssignmentAttempt.updateMany.mockResolvedValueOnce({ count: 0 });
+      await expect(
+        service.engineMove(TOKEN, SA_ID, "att-1", { uci: "e2e4", ply: 0 })
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("plays the engine's first move when the student has Black", async () => {
+      prisma.studentAssignment.findUnique.mockResolvedValue(
+        engineSa([], { studentColor: "black", orientation: "black" })
+      );
+      getBestMove.mockResolvedValue({ uci: "d2d4" });
+      const res = await service.engineMove(TOKEN, SA_ID, "att-1", { ply: 0 });
+      expect(res.moves.map((m) => m.san)).toEqual(["d4"]);
+    });
+
+    it("scores the stored game, not the move list the client submits", async () => {
+      // Stored: the student (White) is mated. Submitted: a line where White mates.
+      prisma.studentAssignment.findUnique.mockResolvedValue(
+        engineSa(line("f2f3", "e7e5", "g2g4", "d8h4"))
+      );
+      const forged = SOLUTION.map((m, i) => ({ ply: i + 1, uci: m.uci, san: m.san, fenAfter: START }));
+
+      const res = await service.submit(TOKEN, SA_ID, "att-1", { moves: forged });
+
+      expect(res.result).toBe("LOSS");
+      expect(res.scorePercent).toBe(0);
+    });
+
+    it("never saves the client's moves for an engine game on save-progress", async () => {
+      prisma.studentAssignment.findUnique.mockResolvedValue(engineSa([]));
+      await service.saveProgress(TOKEN, SA_ID, "att-1", { moves: [move("e2e4")], durationSeconds: 30 });
+      const data = prisma.studentAssignmentAttempt.update.mock.calls[0][0].data;
+      expect(data).not.toHaveProperty("movesJson");
+      expect(data.durationSeconds).toBe(30);
+    });
   });
 });

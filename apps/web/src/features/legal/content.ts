@@ -28,7 +28,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     id: "what-we-collect",
     items: [
       {
-        detail: "Name, email, username, phone number, profile picture, time zone and your role (student, coach or admin). If you registered yourself, when you accepted these terms and this policy, and which version.",
+        detail: "Name, email, username, phone number, profile picture, time zone and your role (student, coach or admin; an admin may also be allowed to teach, and that change is recorded with who made it and when). If you registered yourself, when you accepted these terms and this policy, and which version.",
         label: "Your account"
       },
       {
@@ -73,12 +73,12 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       },
       {
         detail:
-          "On the academy website: a visitor cookie (kept for a year) and a session cookie, with your IP address, browser, device type, the page you arrived from and any campaign tags in the link. If you book a demo, the student's name and age, the parent's name, phone number and (if given) email address, and chess experience.",
+          "On the academy website: a visitor cookie (kept for a year) and a session cookie, with your IP address, browser, device type, the page you arrived from and any campaign tags in the link, and your answer on the cookie banner (kept for six months). If you book a demo, the student's name and age, the parent's name, phone number and (if given) email address, and chess experience.",
         label: "Website visits and demo bookings"
       },
       {
         detail:
-          "If you message the academy's WhatsApp support number: your WhatsApp number and profile name, the messages you and our team exchange, and what you tell the assistant (for example the student's name and the details of your request). Card numbers and one-time codes are removed from a message before it is stored. Only academy admins read these conversations.",
+          "If you message the academy's WhatsApp support number: your WhatsApp number and profile name, the messages you and our team exchange, and what you tell the assistant (for example the student's name and the details of your request). Card numbers and one-time codes are removed from a message before it is stored. Only academy admins read these conversations. A first message from a number that isn't a student's or parent's may also start an enquiry record (the number, the WhatsApp profile name and, if you came from one of our ads, which ad), which our sales team works from.",
         label: "WhatsApp support"
       }
     ],
@@ -116,12 +116,45 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
         detail:
           "Error reports go to Sentry with only an internal user ID and your role — never your name, email or messages.",
         label: "Sentry"
+      },
+      {
+        detail:
+          "To measure our Facebook and Instagram ads: the Meta Pixel on the website if you accept it, and a few events from our server about enquiries that came from our ads. What is sent, and how to say no, is under \"Ad measurement\" below.",
+        label: "Meta (ads)"
       }
     ],
     paragraphs: [
-      "Your coaches and academy staff see what they need to teach and run your classes. We do not sell your data, and the website uses no third-party advertising or analytics trackers."
+      "Your coaches and academy staff see what they need to teach and run your classes. We do not sell your data. The only advertising tool is Meta's (see \"Ad measurement\"); the website uses no other third-party advertising or analytics trackers."
     ],
     title: "Who we share it with"
+  },
+  {
+    id: "ad-measurement",
+    items: [
+      {
+        detail:
+          "Only if you press Accept on the cookie banner, on our public pages (never inside the app, in a class or on another academy's site). It tells Meta the pages you view and that you sent the demo form, and Meta sets its own cookie (_fbp). Without Accept nothing from Meta loads.",
+        label: "Meta Pixel (website)"
+      },
+      {
+        detail:
+          "If you booked a demo on the website after accepting: that an enquiry was made, a demo was booked or a student enrolled (with the amount paid), together with the parent's phone number and email scrambled (hashed) so they can't be read, your IP address and browser, and the ad click details from your link or Meta's cookie.",
+        label: "From our server, for website enquiries"
+      },
+      {
+        detail:
+          "If you wrote to us on WhatsApp by tapping one of our ads: the same events, with only the click id Meta gave that conversation and our WhatsApp account's id. No phone number, name or message is sent.",
+        label: "From our server, for WhatsApp ad enquiries"
+      },
+      {
+        detail: "A child's name, age or chess level, anything from a student's account, and any message you write.",
+        label: "Never sent to Meta"
+      }
+    ],
+    paragraphs: [
+      "You can decline on the banner, or change your answer later with \"Change cookie choices\" on this page. After you decline, we also stop sending the website events about your visits, including any not yet sent."
+    ],
+    title: "Ad measurement"
   },
   {
     id: "how-long",
@@ -129,6 +162,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       { detail: "Removed a day after they expire.", label: "Sign-in sessions and reset links" },
       { detail: "Removed after 180 days of inactivity unless you booked a demo.", label: "Website visit records" },
       { detail: "Removed after 90 days.", label: "Help-centre searches" },
+      { detail: "Our record of what was sent to Meta is removed after 180 days.", label: "Ad measurement events" },
       { detail: "Removed after 30 days.", label: "Class transcripts" },
       { detail: "Our copy is removed after a year.", label: "Emails academy staff write to you" },
       {
@@ -171,6 +205,32 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       "Passwords are stored only as salted hashes, staff accounts can use two-factor sign-in, sessions expire, and repeated wrong passwords lock an account for 15 minutes. Invoices and payment proofs are stored privately and only open through your signed-in account."
     ],
     title: "Security"
+  },
+  {
+    id: "browser",
+    items: [
+      {
+        detail: "Kept in cookies the page's own scripts can't read, and ended when you sign out or the session expires.",
+        label: "Sign-in"
+      },
+      {
+        detail:
+          "Your account id, first name, role, profile photo link and time zone, so the app opens straight away. Your email, phone, date of birth and parent details are never kept in the browser; they are loaded fresh each visit.",
+        label: "Who is signed in"
+      },
+      {
+        detail:
+          "Theme, text size, board look, camera and microphone choice, video background and class layout, kept on this device only.",
+        label: "Your settings"
+      },
+      {
+        detail:
+          "A referral code or ad link you arrived with, until you sign up, and unsaved drafts such as game notes.",
+        label: "Sign-up source and drafts"
+      }
+    ],
+    paragraphs: ["Signing out ends the session; clearing your browser's site data removes everything listed here."],
+    title: "What your browser keeps"
   },
   {
     id: "changes",

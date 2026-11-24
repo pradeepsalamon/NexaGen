@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   Logger,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
@@ -23,6 +24,8 @@ import {
   UserRole,
 } from "@prisma/client";
 import { LiveClassAccessService } from "./live-class-access.service";
+import { liveSettingLocked } from "./live-class-effective-settings";
+import { LiveClassSettingsService } from "./live-class-settings.service";
 import { withScreenShareSources } from "./live-class.util";
 
 /** Student screen-share requests: per-student grant widening on top of the class policy. */
@@ -33,8 +36,19 @@ export class LiveClassScreenShareService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly livekit: LiveKitService,
-    private readonly access: LiveClassAccessService
+    private readonly access: LiveClassAccessService,
+    private readonly settings: LiveClassSettingsService
   ) {}
+
+  /**
+   * One student's screen share is an exception to a class-wide DISABLED, and
+   * a coach's exception never gets round an admin's lock (review L2).
+   */
+  private async assertScreenShareNotLocked(classId: string) {
+    if (await liveSettingLocked(classId, "student.screenShare", this.settings)) {
+      throw new ForbiddenException("Your academy has locked screen sharing off for students.");
+    }
+  }
 
   private static toScreenShareRequestEntry(row: {
     id: string;
@@ -70,7 +84,10 @@ export class LiveClassScreenShareService {
     }
   }
 
-  /** Best-effort: widen one connected student's LiveKit grant to also allow screen share. */
+  /**
+   * Best-effort: widen a connected student's LiveKit grant to also allow screen share, on every
+   * connection they have (a second tab included, review L3).
+   */
   private async widenScreenShareGrant(
     liveSession: { roomName: string },
     studentId: string,
@@ -78,10 +95,10 @@ export class LiveClassScreenShareService {
   ): Promise<void> {
     try {
       const participants = await this.livekit.listParticipants(liveSession.roomName);
-      const participant = participants.find((p) => p.identity.split("_")[0] === studentId);
-      if (!participant) return;
       const grants = withScreenShareSources(deriveLiveKitGrants(settings, "STUDENT"));
-      await this.livekit.updateParticipantPermissions(liveSession.roomName, participant.identity, grants);
+      for (const participant of participants.filter((p) => p.identity.split("_")[0] === studentId)) {
+        await this.livekit.updateParticipantPermissions(liveSession.roomName, participant.identity, grants);
+      }
     } catch (error) {
       this.logger.warn(`Failed to widen screen-share grant for student ${studentId}`, error as Error);
     }
@@ -100,16 +117,17 @@ export class LiveClassScreenShareService {
   ): Promise<void> {
     try {
       const participants = await this.livekit.listParticipants(liveSession.roomName);
-      const participant = participants.find((p) => p.identity.split("_")[0] === studentId);
-      if (!participant) return;
       const grants = deriveLiveKitGrants(settings, "STUDENT");
-      await this.livekit.updateParticipantPermissions(liveSession.roomName, participant.identity, grants);
       const allowedSources = new Set(grants.canPublishSources);
-      for (const track of participant.tracks ?? []) {
-        if (track.muted) continue;
-        const label = LiveKitService.trackSourceLabel(track.source);
-        if (label && !allowedSources.has(label)) {
-          await this.livekit.muteParticipantTrack(liveSession.roomName, participant.identity, track.sid);
+      // Every connection of the student: a revoke must not leave a second tab sharing (review L3).
+      for (const participant of participants.filter((p) => p.identity.split("_")[0] === studentId)) {
+        await this.livekit.updateParticipantPermissions(liveSession.roomName, participant.identity, grants);
+        for (const track of participant.tracks ?? []) {
+          if (track.muted) continue;
+          const label = LiveKitService.trackSourceLabel(track.source);
+          if (label && !allowedSources.has(label)) {
+            await this.livekit.muteParticipantTrack(liveSession.roomName, participant.identity, track.sid);
+          }
         }
       }
     } catch (error) {
@@ -157,6 +175,7 @@ export class LiveClassScreenShareService {
     if (effectiveSettings?.student.screenShare === "ALLOWED") {
       throw new BadRequestException("Screen sharing is already allowed for this class.");
     }
+    await this.assertScreenShareNotLocked(classId);
 
     const existing = await this.prisma.liveClassScreenShareRequest.findUnique({
       where: { liveSessionId_studentId: { liveSessionId: liveSession.id, studentId: user.id } },
@@ -188,6 +207,7 @@ export class LiveClassScreenShareService {
     body: ResolveScreenShareRequest,
   ): Promise<ScreenShareRequestEntry> {
     const { liveSession } = await this.access.resolveClassManager(accessToken, classId);
+    if (body.action === "APPROVE") await this.assertScreenShareNotLocked(classId);
 
     const fromStatus =
       body.action === "REVOKE" ? ScreenShareRequestStatus.APPROVED : ScreenShareRequestStatus.PENDING;
@@ -261,6 +281,7 @@ export class LiveClassScreenShareService {
     if (settings.student.screenShare === "ALLOWED") {
       throw new BadRequestException("Screen sharing is already allowed for everyone in this class.");
     }
+    await this.assertScreenShareNotLocked(classId);
 
     const student = await this.prisma.user.findFirst({
       where: { id: body.studentId, role: UserRole.STUDENT },

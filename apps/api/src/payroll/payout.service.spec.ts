@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -12,7 +12,11 @@ import { PayrollAuditService } from "./payroll-audit.service";
  * one twice for the same record is a no-op, not a duplicate.
  */
 describe("PayoutService", () => {
-  const build = async (record: Record<string, unknown> | null, existingPayout: Record<string, unknown> | null = null) => {
+  const build = async (
+    record: Record<string, unknown> | null,
+    existingPayout: Record<string, unknown> | null = null,
+    { ownRecord = null, otherAdmin = null }: { ownRecord?: unknown; otherAdmin?: unknown } = {}
+  ) => {
     const auditLog = jest.fn().mockResolvedValue(undefined);
     let payoutState = existingPayout ? { ...existingPayout } : null;
     const prisma: Record<string, unknown> = {};
@@ -44,9 +48,11 @@ describe("PayoutService", () => {
               findUniqueOrThrow: jest.fn().mockImplementation(() => payoutState)
             },
             coachPayrollRecord: {
+              findFirst: jest.fn().mockResolvedValue(ownRecord),
               findUnique: jest.fn().mockResolvedValue(record),
               update: jest.fn().mockResolvedValue(undefined)
-            }
+            },
+            user: { findFirst: jest.fn().mockResolvedValue(otherAdmin) }
           })
         },
         { provide: PayrollAuditService, useValue: { log: auditLog } },
@@ -122,6 +128,16 @@ describe("PayoutService", () => {
       });
       expect(payout.status).toBe("PAID");
       expect(payout.reference).toBe("UTR123456");
+    });
+
+    it("refuses to let an admin mark their own pay paid when another admin exists (review R8)", async () => {
+      const { service } = await build({ id: "rec_1", status: "FINALIZED" }, pendingPayout, {
+        otherAdmin: { id: "admin_2" },
+        ownRecord: { id: "rec_1" }
+      });
+      await expect(
+        service.markPaid("payout_1", "admin_1", { method: "x", paidAt: "2026-10-05T00:00:00.000Z", reference: "x" })
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it("refuses to mark an already-paid payout paid again", async () => {

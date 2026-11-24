@@ -19,7 +19,8 @@ import {
   type InvoiceLine,
   type InvoiceSellerDetails,
   type InvoiceStats,
-  type TaxBreakdown
+  type TaxBreakdown,
+  type TaxContext
 } from "@nexa-chess/types";
 import {
   InvoiceStatus,
@@ -92,6 +93,22 @@ export class InvoiceService {
     private readonly settings: InvoiceSettingsService
   ) {}
 
+  /**
+   * The tax the invoice for this buyer would carry on `taxableAmount`: the same
+   * seller, billing profile and `computeTax` that `issue` uses. Checkout prices
+   * orders with it, so what is charged is what the invoice totals (review P4).
+   */
+  async taxFor(
+    userId: string,
+    taxableAmount: number,
+    taxPercent: number,
+    tx?: PrismaTransactionClient
+  ): Promise<TaxBreakdown> {
+    const seller = sellerFromSettings(await this.settings.get());
+    const billing = await this.billingProfiles.resolve(userId, tx);
+    return computeTax(taxableAmount, taxContextFor(seller, billing, taxPercent));
+  }
+
   // ────────────────────────────────────────────────
   // Issue
   // ────────────────────────────────────────────────
@@ -126,14 +143,7 @@ export class InvoiceService {
     const lines = this.buildLines(input, discountAmount);
     const { subtotal, taxableAmount } = sumInvoiceLines(lines);
 
-    const tax = computeTax(taxableAmount, {
-      sellerStateCode: seller.stateCode,
-      sellerCountry: seller.country,
-      buyerStateCode: stateCodeFromGstin(billing.gstin) ?? billing.stateCode ?? null,
-      buyerCountry: billing.country,
-      ratePercent: input.taxPercent,
-      buyerHasGstin: Boolean(billing.gstin)
-    });
+    const tax = computeTax(taxableAmount, taxContextFor(seller, billing, input.taxPercent));
 
     // Tax lands on the invoice as a whole, but each line carries its share so
     // a multi-line invoice still shows a per-line rate.
@@ -741,6 +751,22 @@ ${taxRows}
  * and the schema's defaults fill in the rest rather than the reader crashing on
  * a historical receipt.
  */
+/** Seller and buyer facts the tax engine needs; one place for issue and checkout. */
+function taxContextFor(
+  seller: InvoiceSellerDetails,
+  billing: BillingAddress,
+  ratePercent: number
+): TaxContext {
+  return {
+    sellerStateCode: seller.stateCode,
+    sellerCountry: seller.country,
+    buyerStateCode: stateCodeFromGstin(billing.gstin) ?? billing.stateCode ?? null,
+    buyerCountry: billing.country,
+    ratePercent,
+    buyerHasGstin: Boolean(billing.gstin)
+  };
+}
+
 export function normalizeLines(value: Prisma.JsonValue): InvoiceLine[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((entry) => {

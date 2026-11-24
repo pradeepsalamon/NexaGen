@@ -1,4 +1,6 @@
 import { Test, type TestingModule } from "@nestjs/testing";
+import { EntitlementService } from "../platform/entitlement.service";
+import { PlanRestrictionException } from "../platform/plan-restriction.exception";
 import { PrismaService } from "../prisma/prisma.service";
 import { trashEntities } from "../prisma/soft-delete.extension";
 import { TrashRepository } from "./trash.repository";
@@ -37,9 +39,14 @@ function buildDelegates(): Record<string, DelegateMock> {
 describe("TrashRepository", () => {
   let repository: TrashRepository;
   let delegates: Record<string, DelegateMock>;
+  let entitlements: { assertCanCreateBatch: jest.Mock; assertSeatAvailable: jest.Mock };
 
   beforeEach(async () => {
     delegates = buildDelegates();
+    entitlements = {
+      assertCanCreateBatch: jest.fn().mockResolvedValue(undefined),
+      assertSeatAvailable: jest.fn().mockResolvedValue(undefined)
+    };
 
     const prismaService = {
       ...delegates,
@@ -52,6 +59,7 @@ describe("TrashRepository", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TrashRepository,
+        { provide: EntitlementService, useValue: entitlements },
         { provide: PrismaService, useValue: prismaService }
       ]
     }).compile();
@@ -146,6 +154,47 @@ describe("TrashRepository", () => {
 
       expect(delegates.studentProfile.updateMany).not.toHaveBeenCalled();
       expect(delegates.coachProfile.updateMany).not.toHaveBeenCalled();
+    });
+
+    // Review T2: a restore takes a seat or a batch like a create does.
+    it("checks the plan's seat for an active user before restoring", async () => {
+      delegates.user.findFirst.mockResolvedValue({
+        deleteGroupId: null,
+        id: "user-1",
+        role: "STUDENT",
+        status: "ACTIVE"
+      });
+      entitlements.assertSeatAvailable.mockRejectedValue(
+        PlanRestrictionException.limitReached("maxStudents", 10)
+      );
+
+      await expect(repository.restore("User", "user-1", "admin-1")).rejects.toBeInstanceOf(
+        PlanRestrictionException
+      );
+      expect(entitlements.assertSeatAvailable).toHaveBeenCalledWith(delegates, "STUDENT", "user-1");
+      expect(delegates.user.update).not.toHaveBeenCalled();
+    });
+
+    it("takes no seat for a user who was not active", async () => {
+      delegates.user.findFirst.mockResolvedValue({
+        deleteGroupId: null,
+        id: "user-1",
+        role: "STUDENT",
+        status: "ARCHIVED"
+      });
+      await repository.restore("User", "user-1", "admin-1");
+      expect(entitlements.assertSeatAvailable).not.toHaveBeenCalled();
+    });
+
+    it("checks the plan's batch limit before restoring a batch", async () => {
+      delegates.batch.findFirst.mockResolvedValue({ deleteGroupId: null, id: "batch-1" });
+      entitlements.assertCanCreateBatch.mockRejectedValue(
+        PlanRestrictionException.limitReached("maxBatches", 3)
+      );
+      await expect(repository.restore("Batch", "batch-1", "admin-1")).rejects.toBeInstanceOf(
+        PlanRestrictionException
+      );
+      expect(delegates.batch.update).not.toHaveBeenCalled();
     });
   });
 

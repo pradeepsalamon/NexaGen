@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { useEffect, useRef, useState } from "react";
 import {
   COACH_COMPENSATION_MODEL_LABELS,
@@ -93,6 +94,10 @@ export function CompensationProfileDialog({
   const tdsPercentValue = Number(tdsPercent);
   const tdsPercentValid =
     tdsPercent.trim() === "" || (Number.isFinite(tdsPercentValue) && tdsPercentValue >= 0 && tdsPercentValue <= 100);
+  // Checked when Save profile is pressed (UI_RULES § "Form errors").
+  const [triedProfile, setTriedProfile] = useState(false);
+  const tdsError = triedProfile && !tdsPercentValid ? "Enter a rate from 0 to 100." : undefined;
+  useRevealFormErrors(tdsError);
 
   const [calculationType, setCalculationType] = useState<CompensationCalculationType>("HOURLY_RATE");
   const [rateMajor, setRateMajor] = useState("");
@@ -165,7 +170,7 @@ export function CompensationProfileDialog({
                 />
               </FormField>
               <FormField
-                error={tdsPercentValid ? undefined : "Enter a rate from 0 to 100."}
+                error={tdsError}
                 hint="Blank = the academy's rate. 0 = no TDS for this coach."
                 id="profile-tds-rate"
                 label="TDS rate (%)"
@@ -190,9 +195,10 @@ export function CompensationProfileDialog({
             </div>
 
             <Button
-              disabled={!tdsPercentValid}
               isLoading={updateProfile.isPending}
-              onClick={() =>
+              onClick={() => {
+                setTriedProfile(true);
+                if (!tdsPercentValid) return;
                 updateProfile.mutate({
                   coachId,
                   body: {
@@ -202,8 +208,8 @@ export function CompensationProfileDialog({
                     tdsRateBps: tdsPercent.trim() === "" ? null : Math.round(tdsPercentValue * 100),
                     notes: notes.trim() || undefined
                   }
-                })
-              }
+                });
+              }}
               size="sm"
             >
               Save profile

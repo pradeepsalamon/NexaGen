@@ -121,9 +121,19 @@ export function useBoardPersistence({ store, classId, writer, reader, gate, flus
     };
     window.addEventListener("pagehide", onPageHide);
 
+    // Hidden comes before unload (and is all a phone may give): save now with
+    // an ordinary request, which has no keepalive size cap (FE review L1).
+    const onVisibility = () => {
+      if (document.visibilityState !== "hidden" || !dirty || inFlight) return;
+      if (timer) clearTimeout(timer);
+      save();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
       unsubscribe();
       window.removeEventListener("pagehide", onPageHide);
+      document.removeEventListener("visibilitychange", onVisibility);
       if (timer) clearTimeout(timer);
       onPageHide();
     };

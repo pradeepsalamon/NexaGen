@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Select } from "@/components/ui/Select";
 import { useToast } from "@/providers/ToastProvider";
 import {
   Users,
@@ -13,12 +14,14 @@ import {
   CalendarDays,
   Phone,
   GraduationCap,
-  ChevronDown,
   Mail,
   ArrowRight,
   CircleCheckBig
 } from "lucide-react";
 import { createLeadRequestSchema, type LeadExperienceLevel } from "@nexa-chess/types";
+import { adMeasurementAllowed } from "@/features/ad-consent/lib/adConsent";
+import { adConsentSettled } from "@/features/ad-consent/lib/consentSync";
+import { newMetaEventId, trackMetaPixel } from "@/features/ad-consent/lib/metaPixel";
 import { readReferralCode } from "@/features/referrals/lib/referralStorage";
 import { useCreateLeadMutation } from "../hooks/useLeadPublicApi";
 
@@ -77,7 +80,7 @@ export function DemoBookingSection() {
 
   const createLead = useCreateLeadMutation();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanPhone = formData.phone.replace(/\D/g, "");
 
@@ -108,6 +111,10 @@ export function DemoBookingSection() {
     }
 
 
+    // After the banner's Accept: the pixel's Lead and the server's share one id (docs/AD_MEASUREMENT.md).
+    const metaEventId = adMeasurementAllowed() ? newMetaEventId() : undefined;
+    // An Accept still on its way to the server must reach the visit before the lead does.
+    if (metaEventId) await adConsentSettled();
     createLead.mutate(
       {
         studentName,
@@ -117,10 +124,12 @@ export function DemoBookingSection() {
         phone: cleanPhone,
         email,
         // From a /r/<code> visit; the API prefers its own attribution cookie.
-        referralCode: readReferralCode()
+        referralCode: readReferralCode(),
+        metaEventId
       },
       {
         onSuccess: () => {
+          if (metaEventId) trackMetaPixel("Lead", {}, metaEventId);
           setSubmitted(true);
           setTimeout(() => setSubmitted(false), 5000);
           setFormData({
@@ -369,23 +378,14 @@ export function DemoBookingSection() {
                       className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-accent-ink"
                       strokeWidth={2.2}
                     />
-                    <select
+                    <Select
                       id="demo-program"
                       value={formData.program}
                       onChange={(e) =>
                         setFormData({ ...formData, program: e.target.value })
                       }
-                      className={`${inputBaseClass} appearance-none pl-10 pr-9 cursor-pointer`}
-                    >
-                      {programOptions.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown
-                      className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 size-4 text-app-subtle"
-                      strokeWidth={2.2}
+                      options={programOptions}
+                      className={`${inputBaseClass} min-h-11 pl-10 pr-9 cursor-pointer`}
                     />
                   </div>
                   <p

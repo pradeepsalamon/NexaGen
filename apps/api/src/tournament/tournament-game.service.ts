@@ -103,6 +103,45 @@ export function toGameSummary(g: GameRow): TournamentGameSummaryDto {
   };
 }
 
+/** Who is looking at a list of games, for the spectator delay (review S7). */
+export type GameSummaryViewer = {
+  /** Hosts, broadcasters and admins see every game live. */
+  live: boolean;
+  /** A player sees their own games live. */
+  userId: string | null;
+  delaySec: number;
+  now?: number;
+};
+
+/** True when this viewer sees `g` live, or its delay is off or already passed. */
+function seesGameNow(g: GameRow, viewer: GameSummaryViewer, cutoff: number): boolean {
+  if (viewer.live || viewer.delaySec <= 0) return true;
+  if (viewer.userId && (g.whitePlayer.user.id === viewer.userId || g.blackPlayer?.user.id === viewer.userId)) return true;
+  if (g.status === TournamentGameStatus.FINISHED) return (g.finishedAt?.getTime() ?? 0) <= cutoff;
+  return g.status !== TournamentGameStatus.ONGOING;
+}
+
+/**
+ * A game summary as this viewer may see it. Within the spectator delay a
+ * spectator gets the ply the delayed board shows and no result, points or
+ * finish time, the same cut `toDto` makes for the board (review S7).
+ */
+export function toGameSummaryFor(g: GameRow, viewer: GameSummaryViewer): TournamentGameSummaryDto {
+  const summary = toGameSummary(g);
+  const cutoff = (viewer.now ?? Date.now()) - viewer.delaySec * 1000;
+  if (seesGameNow(g, viewer, cutoff)) return summary;
+  return {
+    ...summary,
+    blackHalfPoints: null,
+    endReason: null,
+    finishedAt: null,
+    ply: movesOf(g.movesJson).filter((m) => m.at <= cutoff).length,
+    result: null,
+    status: TournamentGameStatus.ONGOING,
+    whiteHalfPoints: null
+  };
+}
+
 /**
  * Tournament games (docs/TOURNAMENTS.md Phase 4): moves and actions by the two
  * players, host decisions, and the views. Every move is validated on the
@@ -144,7 +183,8 @@ export class TournamentGameService {
     query: PaginatedQuery & { status?: TournamentGameStatus; round?: number; playerId?: string }
   ): Promise<TournamentGamesResponse & { pagination: ReturnType<typeof paginationMeta> }> {
     const user = await this.access.authenticate(accessToken);
-    await this.access.load(user, tournamentId);
+    const loaded = await this.access.load(user, tournamentId);
+    const viewer = this.summaryViewer(user, loaded);
     const { page, pageSize, skip, take } = resolvePagination(query);
     const where: Prisma.TournamentGameWhereInput = {
       tournamentId,
@@ -162,12 +202,14 @@ export class TournamentGameService {
       }),
       this.prisma.tournamentGame.count({ where })
     ]);
-    return { games: rows.map(toGameSummary), pagination: paginationMeta(total, page, pageSize) };
+    return { games: rows.map((g) => toGameSummaryFor(g, viewer)), pagination: paginationMeta(total, page, pageSize) };
   }
 
   async rounds(accessToken: string | undefined, tournamentId: string): Promise<TournamentRoundsResponse> {
     const user = await this.access.authenticate(accessToken);
-    const { tournament } = await this.access.load(user, tournamentId);
+    const loaded = await this.access.load(user, tournamentId);
+    const { tournament } = loaded;
+    const viewer = this.summaryViewer(user, loaded);
     const rounds = await this.prisma.tournamentRound.findMany({
       include: { games: { include: gameInclude, orderBy: [{ boardNumber: "asc" }, { gameNumber: "asc" }] } },
       orderBy: { number: "asc" },
@@ -180,7 +222,7 @@ export class TournamentGameService {
     return {
       rounds: rounds.map((r) => ({
         completedAt: r.completedAt?.toISOString() ?? null,
-        games: (tournament.format === TournamentFormat.KNOCKOUT ? knockoutGames.filter((g) => g.roundNumber === r.number) : r.games).map(toGameSummary),
+        games: (tournament.format === TournamentFormat.KNOCKOUT ? knockoutGames.filter((g) => g.roundNumber === r.number) : r.games).map((g) => toGameSummaryFor(g, viewer)),
         number: r.number,
         startedAt: r.startedAt.toISOString(),
         status: r.status
@@ -191,23 +233,41 @@ export class TournamentGameService {
 
   async bracket(accessToken: string | undefined, tournamentId: string): Promise<TournamentBracketResponse> {
     const user = await this.access.authenticate(accessToken);
-    const { tournament } = await this.access.load(user, tournamentId);
+    const loaded = await this.access.load(user, tournamentId);
+    const { tournament } = loaded;
+    const viewer = this.summaryViewer(user, loaded);
+    const cutoff = Date.now() - viewer.delaySec * 1000;
+    const delayedFor = (players: (string | null)[]) =>
+      !viewer.live && viewer.delaySec > 0 && !(viewer.userId && players.includes(viewer.userId));
     if (tournament.format !== TournamentFormat.KNOCKOUT) throw new NotFoundException("This tournament has no bracket.");
     const [matches, players] = await Promise.all([
       this.prisma.tournamentKnockoutMatch.findMany({
-        include: { games: { orderBy: { gameNumber: "asc" }, select: { blackHalfPoints: true, id: true, whiteHalfPoints: true, whitePlayerId: true } } },
+        include: { games: { orderBy: { gameNumber: "asc" }, select: { blackHalfPoints: true, finishedAt: true, id: true, status: true, whiteHalfPoints: true, whitePlayerId: true } } },
         orderBy: [{ bracketRound: "asc" }, { slot: "asc" }],
         where: { tournamentId }
       }),
       this.prisma.tournamentPlayer.findMany({ select: playerSelect, where: { tournamentId } })
     ]);
     const byId = new Map(players.map((p) => [p.id, toGamePlayer(p)]));
+    const userByPlayer = new Map(players.map((p) => [p.id, p.user.id]));
     const rounds = matches.reduce((max, m) => Math.max(max, m.bracketRound), 0);
     return {
       matches: matches.map((m) => {
+        // A spectator doesn't see a game's points, or the match it decides,
+        // before the delay has passed (review S7).
+        const userIds = [m.playerAId, m.playerBId].map((id) => (id ? (userByPlayer.get(id) ?? null) : null));
+        const hidden = delayedFor(userIds)
+          ? new Set(
+              m.games
+                .filter((g) => g.status !== TournamentGameStatus.FINISHED || (g.finishedAt?.getTime() ?? 0) > cutoff)
+                .map((g) => g.id)
+            )
+          : new Set<string>();
+        const pending = hidden.size > 0;
         let a = 0;
         let b = 0;
         for (const g of m.games) {
+          if (hidden.has(g.id)) continue;
           const aWhite = g.whitePlayerId === m.playerAId;
           a += (aWhite ? g.whiteHalfPoints : g.blackHalfPoints) ?? 0;
           b += (aWhite ? g.blackHalfPoints : g.whiteHalfPoints) ?? 0;
@@ -216,13 +276,13 @@ export class TournamentGameService {
           a: m.playerAId ? (byId.get(m.playerAId) ?? null) : null,
           b: m.playerBId ? (byId.get(m.playerBId) ?? null) : null,
           bracketRound: m.bracketRound,
-          decidedBy: m.decidedBy,
+          decidedBy: pending && m.decidedBy === "GAMES" ? null : m.decidedBy,
           gameIds: m.games.map((g) => g.id),
           id: m.id,
           score: { a, b },
           slot: m.slot,
-          status: m.status,
-          winnerPlayerId: m.winnerId
+          status: pending && m.decidedBy === "GAMES" ? "ONGOING" : m.status,
+          winnerPlayerId: pending && m.decidedBy === "GAMES" ? null : m.winnerId
         };
       }),
       rounds
@@ -550,6 +610,17 @@ export class TournamentGameService {
         TOURNAMENT_CLOCK_START_PLY
       ) ?? Number.POSITIVE_INFINITY
     );
+  }
+
+  private summaryViewer(
+    user: Parameters<TournamentAccessService["actor"]>[0],
+    loaded: Awaited<ReturnType<TournamentAccessService["load"]>>
+  ): GameSummaryViewer {
+    return {
+      delaySec: loaded.tournament.spectatorDelaySec,
+      live: canBroadcast(this.access.actor(user), loaded.facts),
+      userId: user.id
+    };
   }
 
   private colorOf(game: GameRow, userId: string): Color | null {

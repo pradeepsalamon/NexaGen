@@ -1,17 +1,18 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { classSubstitutePayloadSchema, type ClassSubstitutePayload } from "@nexa-chess/types";
-import { BatchStatus, ClassStatus, UserRole, UserStatus, type ApprovalRequest } from "@prisma/client";
+import { BatchStatus, ClassStatus, UserStatus, type ApprovalRequest } from "@prisma/client";
 import { assertNoSchedulingConflict } from "../../coach/class-scheduling.util";
 import { MessagingDispatchService } from "../../messaging/messaging-dispatch.service";
 import type { PrismaService, PrismaTransactionClient } from "../../prisma/prisma.service";
 import type { ApprovalActor, ApprovalHandler, PreparedApproval } from "../approval-handler";
+import { coachWhere, isCoachAccount } from "../../common/coach-accounts";
 
 const HOUR = 3_600_000;
 const URGENT_WITHIN_HOURS = 6;
 
 const asClient = (tx: PrismaTransactionClient) => tx as unknown as PrismaService;
 
-const activeCoach = { isDeleted: false, role: UserRole.COACH, status: UserStatus.ACTIVE } as const;
+const activeCoach = { isDeleted: false, status: UserStatus.ACTIVE, ...coachWhere() };
 
 /**
  * `CLASS_SUBSTITUTE_COACH`: a coach asks for a colleague to take one of their
@@ -93,7 +94,7 @@ export class ClassSubstituteHandler implements ApprovalHandler<ClassSubstitutePa
 
     const cls = await tx.coachClass.findUnique({
       select: {
-        coach: { select: { isDeleted: true, role: true, status: true } },
+        coach: { select: { extraRoles: true, isDeleted: true, role: true, status: true } },
         coachId: true,
         endsAt: true,
         startsAt: true,
@@ -105,7 +106,7 @@ export class ClassSubstituteHandler implements ApprovalHandler<ClassSubstitutePa
     if (
       cls.coachId !== request.requesterId ||
       cls.coach.isDeleted ||
-      cls.coach.role !== UserRole.COACH ||
+      !isCoachAccount(cls.coach) ||
       cls.coach.status !== UserStatus.ACTIVE
     ) {
       throw new ConflictException("The class is no longer this coach's (or the coach is inactive). Reject this request.");

@@ -28,12 +28,14 @@ import {
   resolveOrderBy,
   resolvePagination
 } from "../common/pagination";
+import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { TrashRepository } from "../trash/trash.repository";
 import { authenticateUser } from "../auth/authenticate";
 import { batchClassWindow } from "../common/batch-dates";
 import { queryEnum } from "../common/query-params";
 import { EntitlementService } from "../platform/entitlement.service";
+import { coachWhere } from "../common/coach-accounts";
 
 type AuthenticatedUser = Pick<User, "id" | "email" | "role" | "status">;
 /** The client handed to a `prisma.$transaction(async (tx) => …)` callback. */
@@ -74,7 +76,8 @@ export class BatchService {
     private readonly entitlements: EntitlementService,
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
-    private readonly trashRepository: TrashRepository
+    private readonly trashRepository: TrashRepository,
+    private readonly messaging: MessagingDispatchService
   ) { }
 
   async list(
@@ -128,8 +131,8 @@ export class BatchService {
       this.prisma.user.findMany({
         orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
         where: {
-          role: UserRole.COACH,
-          status: UserStatus.ACTIVE
+          status: UserStatus.ACTIVE,
+          ...coachWhere()
         }
       }),
       this.prisma.user.findMany({
@@ -181,6 +184,8 @@ export class BatchService {
       return tx.batch.create({
         data: {
           batchType: payload.batchType ?? null,
+          battlesEnabled: payload.battlesEnabled ?? null,
+          battlesShowNames: payload.battlesShowNames ?? false,
           createdById: user.id,
           description: this.toNullableString(payload.description),
           endsAt: this.toNullableDate(payload.endsAt),
@@ -227,11 +232,15 @@ export class BatchService {
 
     await this.assertAssignableUsers(payload.coachIds, payload.studentIds);
 
+    let cancelledClassIds: string[] = [];
     const batch = await this.prisma.$transaction(async (transaction) => {
       await transaction.batch.update({
         data: {
           // null clears the default (derive from roster size); undefined leaves it.
           batchType: payload.batchType,
+          // Batch Battles: null = automatic; undefined leaves it.
+          battlesEnabled: payload.battlesEnabled,
+          battlesShowNames: payload.battlesShowNames,
           description:
             payload.description === undefined
               ? undefined
@@ -309,11 +318,16 @@ export class BatchService {
       });
 
       if (payload.startsAt !== undefined || payload.endsAt !== undefined) {
-        await this.cancelClassesOutsideDates(transaction, updated, user.id);
+        cancelledClassIds = await this.cancelClassesOutsideDates(transaction, updated, user.id);
       }
 
       return updated;
     });
+
+    // After commit, one per class (review M1): families were never told.
+    for (const classId of cancelledClassIds) {
+      this.messaging.dispatchInBackground({ classId, event: "CLASS_CANCELLED" });
+    }
 
     return { batch: this.toBatch(batch, user) };
   }
@@ -335,7 +349,19 @@ export class BatchService {
       ...(from ? [{ startsAt: { lt: from } }] : []),
       ...(until ? [{ startsAt: { gte: until } }] : [])
     ];
-    if (outside.length === 0) return;
+    if (outside.length === 0) return [];
+
+    const due = await transaction.coachClass.findMany({
+      select: { id: true },
+      where: {
+        batchId: batch.id,
+        OR: outside,
+        startsAt: { gt: new Date() },
+        status: ClassStatus.SCHEDULED
+      }
+    });
+    const ids = due.map((c) => c.id);
+    if (ids.length === 0) return [];
 
     await transaction.coachClass.updateMany({
       data: {
@@ -344,13 +370,9 @@ export class BatchService {
         cancelledById: userId,
         status: ClassStatus.CANCELLED
       },
-      where: {
-        batchId: batch.id,
-        OR: outside,
-        startsAt: { gt: new Date() },
-        status: ClassStatus.SCHEDULED
-      }
+      where: { id: { in: ids }, status: ClassStatus.SCHEDULED }
     });
+    return ids;
   }
 
   async archive(
@@ -440,8 +462,8 @@ export class BatchService {
         ? this.prisma.user.count({
           where: {
             id: { in: uniqueCoachIds },
-            role: UserRole.COACH,
-            status: UserStatus.ACTIVE
+            status: UserStatus.ACTIVE,
+            ...coachWhere()
           }
         })
         : 0,
@@ -490,6 +512,8 @@ export class BatchService {
       endsAt: batch.endsAt?.toISOString() ?? null,
       id: batch.id,
       name: batch.name,
+      battlesEnabled: batch.battlesEnabled,
+      battlesShowNames: batch.battlesShowNames,
       puzzleTrainingEnabled: batch.puzzleTrainingEnabled,
       scheduleNotes: batch.scheduleNotes,
       startsAt: batch.startsAt?.toISOString() ?? null,

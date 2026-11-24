@@ -12,7 +12,7 @@ import {
   useConnectionState,
 } from "@livekit/components-react";
 import { ConnectionState, type DataPublishOptions } from "livekit-client";
-import { useParams } from "next/navigation";
+import { useMemberClassId } from "@/features/live-class/providers/LiveRoomContext";
 import { useBoardStore, BoardContext } from "../context/BoardProvider";
 import { useBoardStore as usePersistedStore } from "../store/boardStore";
 import { BoardControlSide, BoardSyncMessage } from "../types/sync";
@@ -518,10 +518,13 @@ export function useBoardSyncEngine(): BoardSyncActions {
     flushForceSync();
   }, [flushForceSync]);
 
-  const params = useParams<{ roomId?: string }>();
+  // From the room context, never `useParams().roomId` (CLAUDE.md §3.7; FE
+  // review L2): a demo guest's room is /demo/[classId], and a guest gets ""
+  // (no session to read or write with).
+  const memberClassId = useMemberClassId();
   useBoardPersistence({
     store,
-    classId: params?.roomId,
+    classId: memberClassId || undefined,
     writer: isCoach && !suppressBroadcast,
     // Signed-in students only: a demo guest has no session to read with.
     reader: !isCoach && !!user,

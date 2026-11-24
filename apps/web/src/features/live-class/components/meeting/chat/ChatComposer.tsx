@@ -67,7 +67,7 @@ export const ChatComposer = memo(function ChatComposer({
 
   return (
     <div className="shrink-0 border-t border-app-border bg-app-surface p-3 pb-[calc(12px+env(safe-area-inset-bottom))]">
-      <form
+      <form noValidate
         onSubmit={handleSubmit}
         className={cn(
           "flex items-end gap-1.5 rounded-control border bg-app-surface py-1 pl-3 pr-1 transition-colors",

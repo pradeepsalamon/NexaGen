@@ -57,8 +57,18 @@ web `features/admin/components/DemoClass*` + `demo-classes/*`, public page
 - **A guest is a `DemoClassRegistration`, not a user.** One row per
   `(classId, contactMethod, contactValue)`; `contactValue` is the normalized
   phone (`WhatsAppService.normalizeRecipient`, so `98765…` and `+91 98765…`
-  match) or lowercased email. **Any existing row admits its contact in every
-  access mode** — an invite, a lead booking, or an earlier self-registration.
+  match) or lowercased email. **A typed phone/email is never proof** (review
+  L6, 2026-11-23): an existing row is reused (a guest re-polling the join page,
+  a lead booking), but a `PASSCODE` class still needs the passcode, and an
+  admin-invited row (`inviteToken` set) of an `INVITE_ONLY` class is refused
+  with `DEMO_INVITE_REQUIRED` — that guest comes in by their personal link.
+  The join page then offers **Send my link again** (`API_ROUTES.liveClass.
+  demoResendInvite`, public, `DemoInviteService.resendInvite`): the link goes
+  only to the contact stored on the invitation, at most once per 10 minutes
+  (`inviteResentAt`), and the reply is always `{ accepted: true }` so it never
+  tells who is invited (owner 2026-11-24).
+  The guest always joins under the registration's own `name`, never one typed
+  at join time.
 - **Access mode** (`CoachClass.demoAccessMode`): `PUBLIC` / `PASSCODE`
   (`demoPasscode`, stored readable so the admin can share it; compared
   case-insensitively in constant time) / `INVITE_ONLY`. The mode only gates a
@@ -69,9 +79,19 @@ web `features/admin/components/DemoClass*` + `demo-classes/*`, public page
   branches on the prefix). `POST .../demo/:id/join` is throttled to 20/min.
 - **Personal invite links**: every admin-added guest (lead or new invitee) gets
   a unique `inviteToken`; `/demo/<classId>?invite=<token>` admits them with no
-  typing. The phone/email is the fallback. Invitations go out by email /
+  typing (in a `PUBLIC`/`PASSCODE` class the phone/email still works as a
+  fallback, with the passcode). Invitations go out by email /
   WhatsApp free text (best effort — outside the 24h window WhatsApp won't
   deliver; an approved template is the fix).
+- **Removing a guest**: the LiveKit identity is
+  `guest_<registrationId>_<uuid>` (`demoGuestRegistrationId`), so the coach's
+  Remove from class (`kickParticipant`) sets the registration to `DENIED` and
+  disconnects every connection of that guest; the join, the guest-token routes
+  and the `participant_joined` webhook (`enforceGuestRemovalOnJoin`) then keep
+  them out. A guest from before this identity format can only be disconnected.
+- **Guest-token routes need an APPROVED registration** (review F2): a pending
+  or removed guest gets nothing from the room, the class puzzle's solution
+  included (`LiveClassAccessService.resolveDemoGuest`).
 - **A guest in the room has no session** — only the LiveKit token the join
   mints, plus a `guestToken` (`live-class/demo-guest-token.ts`: a 6h JWT of
   `type: "demo_guest"` naming the registration + class, so `authenticateUser`

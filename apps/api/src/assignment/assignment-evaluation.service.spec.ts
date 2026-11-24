@@ -88,6 +88,14 @@ describe("AssignmentEvaluationService", () => {
       expect(result.review[3].correct).toBe(false);
     });
 
+    it("counts each wrong try like a missed ply (review S4)", () => {
+      const played = SCHOLARS.map((m) => move(m.uci));
+      const result = service.evaluateSolveLine(START, SCHOLARS, played, "white", 4);
+      expect(result.solved).toBe(true);
+      expect(result.scorePercent).toBe(50);
+      expect(result.accuracyPercent).toBe(50);
+    });
+
     it("marks unplayed student moves as pending (null) in the review", () => {
       const played = [move("e2e4"), move("e7e5")];
       const result = service.evaluateSolveLine(START, SCHOLARS, played, "white");

@@ -10,6 +10,7 @@ import { ConnectionStatus } from "@/components/layout/ConnectionStatus";
 import { EmailVerificationBanner } from "@/components/layout/EmailVerificationBanner";
 import { Header } from "@/components/layout/Header";
 import { NavigationProgress } from "@/components/layout/NavigationProgress";
+import { PageScrollbar } from "@/components/layout/PageScrollbar";
 import { TooltipProvider } from "@/components/ui/Tooltip";
 import { TenantBrandProvider } from "@/features/branding/context/TenantBrandProvider";
 import { ChessAppearanceProvider } from "@/features/chess-appearance/context/ChessAppearanceProvider";
@@ -20,6 +21,12 @@ import { AcquisitionCapture } from "./AcquisitionCapture";
 import { SessionBootstrap } from "./SessionBootstrap";
 import { ThemeProvider } from "./ThemeProvider";
 import { ToastProvider } from "./ToastProvider";
+
+// Starts remembering where each press lands, so a dialog opened from a lazily loaded
+// chunk still grows out of the control that opened it (lib/motion/launchOrigin.ts).
+import "@/lib/motion/launchOrigin";
+// Focus rings only for keyboard use on buttons, tabs and menu items (lib/inputModality.ts).
+import "@/lib/inputModality";
 
 // The full chessboard visual system (board themes + piece sets), imported
 // exactly once here instead of once per board component.
@@ -72,6 +79,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
               <NavigationProgress />
               <ConnectionStatus />
               {!isChromeless && <Header />}
+              {/* Signed in: the page's thumb-only scrollbar, below whichever header the page has
+                  (the app's, or the home page's own); none on auth and live-class pages. */}
+              <PageScrollbar headerRem={isMeetingRoute || isAuthRoute || isReferralLink ? 0 : 4} />
               <div className={!isChromeless ? "pt-16" : ""}>
                 {!isChromeless && <EmailVerificationBanner />}
                 {children}

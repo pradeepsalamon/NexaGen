@@ -12,8 +12,10 @@ export const systemMessageKeySchema = z.enum([
   "PASSWORD_RESET",
   "ACCOUNT_ACCESS",
   "ACADEMY_ADMIN_INVITE",
+  "ACCOUNT_INVITE",
   "EMAIL_VERIFICATION",
   "EMAIL_CHANGED",
+  "PHONE_CHANGED",
   "PARENT_CONTACT_CHANGED",
   "ACCOUNT_DELETION_COMPLETED",
   "ACCOUNT_DELETION_DECLINED",
@@ -24,8 +26,11 @@ export const systemMessageKeySchema = z.enum([
   "NEW_LEAD_ADMIN",
   "SUPPORT_TICKET_ADMIN",
   "SUPPORT_REPLY_REMINDER_ADMIN",
+  "LEADS_AWAITING_DEMO_ADMIN",
   "ACCOUNT_DELETION_REQUESTED_ADMIN",
   "TENANT_INTEGRITY_ALERT",
+  "ACADEMY_CLOSURE_REQUESTED",
+  "ACADEMY_CLOSURE_DECIDED",
   "TOURNAMENT_REGISTERED",
   "TOURNAMENT_INVITED",
   "TOURNAMENT_STARTING_SOON",
@@ -290,6 +295,27 @@ export const SYSTEM_MESSAGE_DEFINITIONS: Record<SystemMessageKey, SystemMessageD
       whatsappBody: "Hi {{recipient.firstName}}, set your password and sign in to your {{academy.name}} referral board here (works once, expires in 24 hours): {{links.reset}}"
     }
   },
+  ACCOUNT_INVITE: {
+    key: "ACCOUNT_INVITE",
+    group: "ACCOUNT",
+    label: "Invite to a new account",
+    description:
+      "Sent to a student or coach whose account an admin imported from a spreadsheet, or when an admin re-sends the invite. The link sets their password.",
+    sentTo: "The new student or coach",
+    channels: EMAIL_AND_WHATSAPP,
+    channelNote: ONE_TIME_LINK,
+    defaultChannels: ["EMAIL"],
+    variables: ["academy.name", "recipient.firstName", "links.reset"],
+    requiredVariables: ["links.reset"],
+    actionVariable: "links.reset",
+    defaults: {
+      subject: "Your {{academy.name}} account is ready",
+      body: "Hi {{recipient.firstName}},\n\n{{academy.name}} has made an account for you. Use the button below to choose your password and sign in. This link works once and expires in 7 days.",
+      actionLabel: "Set password and sign in",
+      whatsappBody:
+        "Hi {{recipient.firstName}}, {{academy.name}} has made an account for you. Choose your password and sign in here (works once, expires in 7 days): {{links.reset}}"
+    }
+  },
   ACADEMY_ADMIN_INVITE: {
     key: "ACADEMY_ADMIN_INVITE",
     group: "ACCOUNT",
@@ -341,6 +367,24 @@ export const SYSTEM_MESSAGE_DEFINITIONS: Record<SystemMessageKey, SystemMessageD
     defaults: {
       subject: "Your {{academy.name}} email address was changed",
       body: "The email address on your {{academy.name}} account was changed to {{email.new}}.\n\nIf you made this change, no action is needed.\nIf you did not, contact the academy immediately: someone else may have access to your account.",
+      actionLabel: null,
+      whatsappBody: null
+    }
+  },
+  PHONE_CHANGED: {
+    key: "PHONE_CHANGED",
+    group: "ACCOUNT",
+    label: "Phone number changed",
+    description:
+      "Warns the account's owner that its phone number changed (the phone can receive password resets), so a hijacked account's owner finds out. Never includes the new number.",
+    sentTo: "The account's email, its old phone number and its in-app inbox",
+    channels: ALL_CHANNELS,
+    defaultChannels: ["EMAIL", "IN_APP"],
+    inAppLink: "/profile",
+    variables: ["academy.name"],
+    defaults: {
+      subject: "Your {{academy.name}} phone number was changed",
+      body: "The phone number on your {{academy.name}} account was changed.\n\nIf you made this change, no action is needed.\nIf you did not, contact the academy immediately: someone else may have access to your account.",
       actionLabel: null,
       whatsappBody: null
     }
@@ -536,6 +580,25 @@ export const SYSTEM_MESSAGE_DEFINITIONS: Record<SystemMessageKey, SystemMessageD
       whatsappBody: null
     }
   },
+  LEADS_AWAITING_DEMO_ADMIN: {
+    key: "LEADS_AWAITING_DEMO_ADMIN",
+    group: "ADMIN",
+    label: "Leads waiting for a demo time",
+    description:
+      "Sent once a day when some leads asked for a demo but have no demo class yet, or missed the one they were booked into (docs/LEAD_STAGES.md).",
+    sentTo: "Email: the addresses in ADMIN_EMAILS. WhatsApp and in-app: the academy's admins and super admins",
+    channels: ALL_CHANNELS,
+    defaultChannels: ["EMAIL", "IN_APP"],
+    inAppLink: "/admin/leads",
+    variables: ["academy.name", "leads.awaitingCount", "leads.awaitingList"],
+    requiredVariables: ["leads.awaitingCount"],
+    defaults: {
+      subject: "{{leads.awaitingCount}} leads waiting for a demo time",
+      body: "These leads asked for a demo but have no demo class yet, or missed theirs. Book each one a time from the Leads page.\n\n{{leads.awaitingList}}",
+      actionLabel: null,
+      whatsappBody: null
+    }
+  },
   SUPPORT_REPLY_REMINDER_ADMIN: {
     key: "SUPPORT_REPLY_REMINDER_ADMIN",
     group: "ADMIN",
@@ -597,6 +660,45 @@ export const SYSTEM_MESSAGE_DEFINITIONS: Record<SystemMessageKey, SystemMessageD
       subject: "Tenant integrity check: {{integrity.violationCount}} cross-academy rows",
       body: "The nightly tenant integrity check went through {{integrity.linksChecked}} relationships and found {{integrity.violationCount}} rows that point at another academy's rows.\n\n{{integrity.summary}}\n\nThis is monitoring only: nothing was blocked or changed. Open the platform console to see every table, row id and academy.",
       actionLabel: "Open the integrity report",
+      whatsappBody: null
+    }
+  },
+  ACADEMY_CLOSURE_REQUESTED: {
+    key: "ACADEMY_CLOSURE_REQUESTED",
+    group: "PLATFORM",
+    label: "An academy asked to close",
+    description:
+      "Sent when an academy's super admin asks to close the academy, keeping its data or deleting it (docs/ACADEMY_CLOSURE.md). Nothing changes until an operator approves it in the platform console.",
+    sentTo: "Nexa's platform operators (super admins)",
+    platformOnly: true,
+    channels: ALL_CHANNELS,
+    defaultChannels: ["EMAIL", "IN_APP"],
+    variables: ["closure.academy", "closure.choice", "closure.reason", "links.closures"],
+    requiredVariables: ["closure.academy"],
+    actionVariable: "links.closures",
+    defaults: {
+      subject: "{{closure.academy}} asked to close",
+      body: "{{closure.academy}} asked to close the academy.\n\nWhat they want for their data: {{closure.choice}}\n\nReason: {{closure.reason}}\n\nNothing has changed yet. Open the platform console to approve or decline it.",
+      actionLabel: "Open closure requests",
+      whatsappBody: null
+    }
+  },
+  ACADEMY_CLOSURE_DECIDED: {
+    key: "ACADEMY_CLOSURE_DECIDED",
+    group: "ACCOUNT",
+    label: "Academy closure decided",
+    description:
+      "Sent to the super admin who asked to close the academy when the platform approves or declines it.",
+    sentTo: "The super admin who asked",
+    channels: EMAIL_AND_WHATSAPP,
+    channelNote: "No in-app copy: once the academy is closed nobody can sign in to read it.",
+    defaultChannels: ["EMAIL"],
+    variables: ["academy.name", "recipient.firstName", "closure.outcome"],
+    requiredVariables: ["closure.outcome"],
+    defaults: {
+      subject: "Your request to close {{academy.name}}",
+      body: "Hi {{recipient.firstName}},\n\n{{closure.outcome}}",
+      actionLabel: null,
       whatsappBody: null
     }
   }

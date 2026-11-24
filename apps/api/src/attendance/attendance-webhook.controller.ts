@@ -12,7 +12,7 @@ import {
   forwardRef,
 } from "@nestjs/common";
 import type { Request } from "express";
-import { Prisma } from "@prisma/client";
+import { Prisma, UserRole } from "@prisma/client";
 import { WebhookReceiver, type WebhookEvent } from "livekit-server-sdk";
 import { DisconnectReason } from "@livekit/protocol";
 import { getApiEnv } from "@nexa-chess/config/api";
@@ -283,8 +283,14 @@ export class AttendanceWebhookController {
 
     if (!userId) return;
 
-    // Skip guest participants (those with identity starting with "guest_")
-    if (participantIdentity?.startsWith("guest_")) return;
+    // Guests (`guest_…`) are not attendees. A guest the coach removed who
+    // reconnects with an older LiveKit token is put back out.
+    if (participantIdentity?.startsWith("guest_")) {
+      if (event.event === "participant_joined") {
+        await this.moderation.enforceGuestRemovalOnJoin(liveSession, participantIdentity);
+      }
+      return;
+    }
 
     // Skip an admin's hidden spectator seat (`spectator_<userId>_<tab>`): the
     // split above would read "spectator" as the user id, and a watching admin is
@@ -306,7 +312,20 @@ export class AttendanceWebhookController {
     }
 
     const isCoach = userId === liveSession.coachId;
-    const isBoard = participantIdentity?.endsWith("_board");
+    // Only the class's own coach has a pop-out board (`<coachId>_board`;
+    // getToken refuses `clientId=board` to anyone else). Review L7.
+    const isBoard = isCoach && participantIdentity === `${userId}_board`;
+
+    // Everyone else counts only as a student: an admin who joins visibly, or a
+    // co-coach, is not an attendee (review L8). A stray `_board` identity of
+    // someone else is not the coach's board either.
+    if (!isCoach) {
+      const participant = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      });
+      if (participant?.role !== UserRole.STUDENT) return;
+    }
 
     // Per-tab id (`_<tabId>` LiveKit identity suffix, joinedSession.ts
     // #getTabClientId), used by the student join/leave paths below to tell two

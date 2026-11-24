@@ -11,11 +11,14 @@ import type {
   AuthUser,
   CreateUserRequest,
   PaginatedQuery,
+  UpdateExtraRolesRequest,
+  UpdateExtraRolesResponse,
   UpdateUserRequest,
   UserListResponse,
   UserResponse
 } from "@nexa-chess/types";
-import { Prisma, User, UserRole, UserStatus } from "@prisma/client";
+import { canHoldExtraRole } from "@nexa-chess/types";
+import { type CoachProfile, Prisma, User, UserRole, UserRoleChangeAction, UserStatus } from "@prisma/client";
 import { hashSecret } from "../auth/auth.utils";
 import {
   paginationMeta,
@@ -30,6 +33,7 @@ import { queryEnum } from "../common/query-params";
 import { EntitlementService } from "../platform/entitlement.service";
 import { ReferralTrackerService } from "../referral/referral-tracker.service";
 import { requireTenantId } from "../tenancy/tenant-sql";
+import type { PrismaTransactionClient } from "../prisma/prisma.service";
 
 type AuthenticatedUser = Pick<User, "id" | "email" | "role" | "status">;
 type UserWithProfiles = Prisma.UserGetPayload<{ include: typeof userInclude }>;
@@ -119,9 +123,10 @@ export class UserService {
     // `withDeleted` bypasses the soft-delete filter. users.email is uniquely
     // indexed across deleted rows too, so a filtered read would miss the
     // conflict and the insert would fail with P2002 -> unhandled 500.
-    const existingUser = await this.prisma.withDeleted.user.findUnique({
-      where: { tenantId_email: { email: data.email, tenantId: requireTenantId("user") } }
-    });
+    // Sign-in looks the email up lowercased, so it is stored that way, and a
+    // case-only variant of an existing email is the same person (review A4).
+    data = { ...data, email: normalizeEmail(data.email) };
+    const existingUser = await this.findEmailOwner(data.email);
 
     if (existingUser) {
       throw new BadRequestException("User with this email already exists.");
@@ -206,11 +211,10 @@ export class UserService {
       throw new BadRequestException("You cannot change your own status.");
     }
 
+    if (data.email) data = { ...data, email: normalizeEmail(data.email) };
     if (data.email && data.email !== userToUpdate.email) {
       // See create(): must include soft-deleted rows, the unique index does.
-      const existingUser = await this.prisma.withDeleted.user.findUnique({
-        where: { tenantId_email: { email: data.email, tenantId: requireTenantId("user") } }
-      });
+      const existingUser = await this.findEmailOwner(data.email, id);
       if (existingUser) {
         throw new BadRequestException("User with this email already exists.");
       }
@@ -225,11 +229,23 @@ export class UserService {
       // Becoming an active student/coach (by role or status) takes a plan seat.
       const nextRole = data.role ?? userToUpdate.role;
       const nextStatus = data.status ?? userToUpdate.status;
+      // Extra roles the new primary role may not hold go with the change
+      // (docs/MULTI_ROLE_ACCOUNTS.md §3; e.g. an admin who teaches made a coach).
+      const currentExtraRoles = userToUpdate.extraRoles ?? [];
+      const keptExtraRoles = currentExtraRoles.filter((role) => canHoldExtraRole(nextRole, role));
       if (
         nextStatus === UserStatus.ACTIVE &&
         (nextRole !== userToUpdate.role || userToUpdate.status !== UserStatus.ACTIVE)
       ) {
         await this.entitlements.assertSeatAvailable(tx, nextRole, id);
+        // Reactivating an admin who can teach takes a coach seat again.
+        if (userToUpdate.status !== UserStatus.ACTIVE && keptExtraRoles.includes(UserRole.COACH)) {
+          await this.entitlements.assertSeatAvailable(tx, UserRole.COACH, id);
+        }
+      }
+      const droppedExtraRoles = currentExtraRoles.filter((role) => !keptExtraRoles.includes(role));
+      if (droppedExtraRoles.length > 0) {
+        await this.recordRoleChanges(tx, id, droppedExtraRoles, UserRoleChangeAction.REMOVED, authUser.id);
       }
       const upd = await tx.user.update({
         data: {
@@ -238,14 +254,26 @@ export class UserService {
           lastName: data.lastName,
           password: passwordHash,
           role: data.role,
-          status: data.status
+          status: data.status,
+          ...(keptExtraRoles.length !== currentExtraRoles.length ? { extraRoles: keptExtraRoles } : {})
         },
         where: { id }
       });
 
       // A link sent to the old address must not vouch for the new one.
-      if (data.email && data.email !== userToUpdate.email) {
+      const emailChanged = Boolean(data.email && data.email !== userToUpdate.email);
+      if (emailChanged) {
         await tx.emailVerificationToken.updateMany({
+          data: { usedAt: new Date() },
+          where: { usedAt: null, userId: id }
+        });
+      }
+
+      // A reset or invite link already sent (perhaps to a mistyped address)
+      // must not take the account after the admin fixes the email or sets a
+      // password (review A1).
+      if (emailChanged || passwordHash) {
+        await tx.passwordResetToken.updateMany({
           data: { usedAt: new Date() },
           where: { usedAt: null, userId: id }
         });
@@ -354,10 +382,16 @@ export class UserService {
 
     this.assertCanModifyTarget(authUser, userToArchive);
 
-    const updated = await this.prisma.user.update({
-      where: { id, isDeleted: false, isPlatformSupport: false },
-      data: { status: UserStatus.ARCHIVED },
-      include: userInclude
+    // Revoked with the archive (review A3): otherwise a refresh token from
+    // before it (up to 7 days) works again the moment the account is restored.
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.user.update({
+        where: { id, isDeleted: false, isPlatformSupport: false },
+        data: { status: UserStatus.ARCHIVED },
+        include: userInclude
+      });
+      await this.revokeSessions(tx, id);
+      return row;
     });
 
     return { user: this.toAuthUser(updated) };
@@ -381,6 +415,9 @@ export class UserService {
     const updated = await this.prisma.$transaction(async (tx) => {
       if (userToRestore.status !== UserStatus.ACTIVE) {
         await this.entitlements.assertSeatAvailable(tx, userToRestore.role, id);
+        if (userToRestore.extraRoles?.includes(UserRole.COACH) && userToRestore.role !== UserRole.COACH) {
+          await this.entitlements.assertSeatAvailable(tx, UserRole.COACH, id);
+        }
       }
       return tx.user.update({
         where: { id, isDeleted: false, isPlatformSupport: false },
@@ -395,6 +432,122 @@ export class UserService {
     });
 
     return { user: this.toAuthUser(updated) };
+  }
+
+  /**
+   * "Can also teach" (docs/MULTI_ROLE_ACCOUNTS.md §5.2): sets the extra roles
+   * of an ADMIN / SUPER_ADMIN account. Only a SUPER_ADMIN acting as one may
+   * do it (their own account included: a solo academy owner has one login).
+   * Granting COACH takes a coach seat and makes sure the account has an
+   * approved coach profile; removing it lets the account's sessions in coach
+   * view fall back to the primary role on their next request.
+   */
+  async setExtraRoles(
+    accessToken: string | undefined,
+    id: string,
+    data: UpdateExtraRolesRequest
+  ): Promise<UpdateExtraRolesResponse> {
+    const authUser = await this.getAuthenticatedUser(accessToken);
+    if (authUser.role !== UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException("Only a super admin can change who can also teach.");
+    }
+
+    const target = await this.prisma.user.findUnique({
+      include: userInclude,
+      where: { id, isDeleted: false, isPlatformSupport: false }
+    });
+    if (!target) {
+      throw new NotFoundException("User not found.");
+    }
+
+    const wanted = [...new Set(data.extraRoles as UserRole[])];
+    for (const role of wanted) {
+      if (!canHoldExtraRole(target.role, role)) {
+        throw new BadRequestException("Only an admin or super admin account can also teach.");
+      }
+    }
+    const current = target.extraRoles ?? [];
+    const granted = wanted.filter((role) => !current.includes(role));
+    const removed = current.filter((role) => !wanted.includes(role));
+    if (granted.length > 0 && target.status !== UserStatus.ACTIVE) {
+      throw new BadRequestException("Activate the account before letting it teach.");
+    }
+    // Trashed rows too: `userId` is unique, so a retired profile is revived, not re-created.
+    const coachProfile = granted.includes(UserRole.COACH)
+      ? await this.prisma.withDeleted.coachProfile.findUnique({ where: { userId: id } })
+      : null;
+
+    const updated = granted.length === 0 && removed.length === 0
+      ? target
+      : await this.prisma.$transaction(async (tx) => {
+          if (granted.includes(UserRole.COACH)) {
+            // Under the plan's coach-limit lock, like any new coach.
+            await this.entitlements.assertSeatAvailable(tx, UserRole.COACH, id);
+            await this.ensureApprovedCoachProfile(tx, id, coachProfile, authUser.id);
+          }
+          // Claim on the roles we read, so two concurrent edits can't both apply.
+          const claimed = await tx.user.updateMany({
+            data: { extraRoles: wanted },
+            // Also pin the role (and, for a grant, the status) we validated, so a
+            // concurrent edit of the account makes this a conflict, not a bad grant.
+            where: {
+              extraRoles: { equals: current },
+              id,
+              isDeleted: false,
+              role: target.role,
+              ...(granted.length > 0 ? { status: UserStatus.ACTIVE } : {})
+            }
+          });
+          if (claimed.count !== 1) {
+            throw new ConflictException("This account changed meanwhile. Reload and try again.");
+          }
+          await this.recordRoleChanges(tx, id, granted, UserRoleChangeAction.GRANTED, authUser.id);
+          await this.recordRoleChanges(tx, id, removed, UserRoleChangeAction.REMOVED, authUser.id);
+          return tx.user.findUniqueOrThrow({ include: userInclude, where: { id } });
+        });
+
+    // Batches keep this account as their coach (history); the admin sees which.
+    const coachedBatches = removed.includes(UserRole.COACH)
+      ? (
+          await this.prisma.batchCoach.findMany({
+            orderBy: { batch: { name: "asc" } },
+            select: { batch: { select: { id: true, name: true } } },
+            where: { batch: { isDeleted: false }, coachId: id, isDeleted: false }
+          })
+        ).map((row) => row.batch)
+      : [];
+
+    return { coachedBatches, user: this.toAuthUser(updated) };
+  }
+
+  /** An approved, live coach profile (payroll rates, transcript consent hang off it). */
+  private async ensureApprovedCoachProfile(
+    tx: PrismaTransactionClient,
+    userId: string,
+    profile: Pick<CoachProfile, "approvalStatus" | "id" | "isDeleted"> | null,
+    actorId: string
+  ) {
+    const approval = { approvalStatus: UserStatus.ACTIVE, approvedAt: new Date(), approvedById: actorId };
+    if (!profile) {
+      await tx.coachProfile.create({ data: { ...approval, userId } });
+    } else if (profile.isDeleted || profile.approvalStatus !== UserStatus.ACTIVE) {
+      await tx.coachProfile.update({
+        data: { ...approval, deletedAt: null, deletedById: null, isDeleted: false },
+        where: { id: profile.id }
+      });
+    }
+  }
+
+  private async recordRoleChanges(
+    tx: PrismaTransactionClient,
+    userId: string,
+    roles: UserRole[],
+    action: UserRoleChangeAction,
+    actorId: string
+  ) {
+    for (const role of roles) {
+      await tx.userRoleChange.create({ data: { action, actorId, role, userId } });
+    }
   }
 
   async delete(accessToken: string | undefined, id: string): Promise<{ ok: true }> {
@@ -421,13 +574,39 @@ export class UserService {
 
     // Retire the user together with their student/coach profile in one group so
     // a trash restore brings the profile back too (AUDIT M13/M14).
-    await this.prisma.$transaction((tx) =>
-      this.trashRepository.cascadeSoftDelete(tx, "User", id, authUser.id, {
+    // Sessions go with the account (review A3), so a trash restore doesn't
+    // bring an old refresh token back to life.
+    await this.prisma.$transaction(async (tx) => {
+      await this.trashRepository.cascadeSoftDelete(tx, "User", id, authUser.id, {
         metadata: { title: userToDelete.email }
-      })
-    );
+      });
+      await this.revokeSessions(tx, id);
+    });
 
     return { ok: true };
+  }
+
+  private async revokeSessions(tx: PrismaTransactionClient, userId: string) {
+    await tx.authSession.updateMany({
+      data: { revokedAt: new Date() },
+      where: { revokedAt: null, userId }
+    });
+  }
+
+  /**
+   * Another account of this academy with the email in any letter case,
+   * soft-deleted ones included: `users.email` is uniquely indexed across
+   * deleted rows, so a filtered read would miss the conflict (P2002 -> 500).
+   */
+  private findEmailOwner(email: string, exceptUserId?: string) {
+    return this.prisma.withDeleted.user.findFirst({
+      select: { id: true },
+      where: {
+        email: { equals: email, mode: "insensitive" },
+        tenantId: requireTenantId("user"),
+        ...(exceptUserId ? { id: { not: exceptUserId } } : {})
+      }
+    });
   }
 
   private getAuthenticatedUser(accessToken: string | undefined) {
@@ -509,7 +688,9 @@ export class UserService {
           }
         : null,
       email: user.email,
+      extraRoles: [...(user.extraRoles ?? [])],
       firstName: user.firstName,
+      hasSignedIn: user.lastLoginAt !== null,
       id: user.id,
       isEmailVerified: user.isEmailVerified,
       lastName: user.lastName,
@@ -535,10 +716,19 @@ export class UserService {
   }
 }
 
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
 /** A concurrent create/edit won the email (or username) between the pre-check and the write. */
 function rethrowUniqueAsConflict(error: unknown): never {
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
     throw new ConflictException("User with this email already exists.");
+  }
+  // A "Can also teach" grant landed between this edit's read and its write, and
+  // the new role can't hold it (docs/MULTI_ROLE_ACCOUNTS.md): the database refused.
+  if (error instanceof Error && error.message.includes("users_extra_roles_v1_check")) {
+    throw new ConflictException("This account changed meanwhile. Reload and try again.");
   }
   throw error;
 }

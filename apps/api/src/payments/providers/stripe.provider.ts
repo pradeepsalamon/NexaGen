@@ -292,14 +292,21 @@ export class StripeProvider implements PaymentProviderAdapter {
                 pickString(object, "payment_status") === "no_payment_required"
                 ? "ACTIVE"
                 : "PENDING_ACTIVATION"
-            : mapSubscriptionStatus(pickString(object, "status"))
+            : // An invoice's status (paid, open, …) says nothing about the
+              // subscription; only customer.subscription.* events carry one
+              // (review P3).
+              eventType.startsWith("customer.subscription.")
+              ? mapSubscriptionStatus(pickString(object, "status"))
+              : null
           : null,
+      subscriptionCharge: eventType === "invoice.paid" || eventType === "invoice.payment_succeeded",
       method: methodFromObject(object),
       methodDetail: methodDetail(object),
       amount:
         pickNumber(object, "amount_total") ??
         pickNumber(object, "amount") ??
-        pickNumber(object, "amount_received"),
+        pickNumber(object, "amount_received") ??
+        pickNumber(object, "amount_paid"),
       amountRefunded: pickNumber(object, "amount_refunded"),
       currency: pickString(object, "currency")?.toUpperCase() ?? null,
       failureCode: pickString(object, "last_payment_error", "code"),

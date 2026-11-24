@@ -53,7 +53,7 @@ export function EndClassButton({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-2">
-            <Button variant="outline" disabled={endClass.isPending} onClick={() => setOpen(false)}>
+            <Button variant="neutral" disabled={endClass.isPending} onClick={() => setOpen(false)}>
               Cancel
             </Button>
             <Button variant="destructive" disabled={endClass.isPending} onClick={confirm}>

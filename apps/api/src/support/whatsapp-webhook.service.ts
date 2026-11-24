@@ -3,11 +3,13 @@ import { BadRequestException, ForbiddenException, Injectable, Logger, Unauthoriz
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { getApiEnv } from "@nexa-chess/config/api";
 import { DEFAULT_TENANT_ID } from "@nexa-chess/types";
+import type { Prisma } from "@prisma/client";
 import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { asPlatform, runInTenant } from "../tenancy/tenant-context";
 import { WhatsAppCredentialsService } from "../whatsapp/whatsapp-credentials.service";
 import { SupportConversationService } from "./support-conversation.service";
+import { SupportLeadCaptureService } from "./support-lead-capture.service";
 import { type EffectiveSupportSettings, SupportSettingsService, supportAnswersNumber } from "./support-settings.service";
 import { parseWhatsAppWebhook, verifyWhatsAppSignature, type ParsedWhatsAppEvent } from "./whatsapp-webhook.parse";
 
@@ -45,6 +47,7 @@ export class WhatsAppWebhookService {
   private readonly env = getApiEnv();
 
   constructor(
+    private readonly capture: SupportLeadCaptureService,
     private readonly conversations: SupportConversationService,
     private readonly credentials: WhatsAppCredentialsService,
     private readonly jobLocks: JobLockService,
@@ -88,8 +91,9 @@ export class WhatsAppWebhookService {
 
     const ids = await runInTenant(target.tenantId, "webhook:whatsapp", async () => {
       const settings = await this.settings.forBot();
+      const capturing = this.capture.enabled(settings);
       await this.prisma.whatsAppWebhookEvent.createMany({
-        data: events.map((event) => this.toRow(event, settings)),
+        data: events.map((event) => this.toRow(event, settings, capturing)),
         skipDuplicates: true
       });
       if (target.tenantId !== DEFAULT_TENANT_ID) {
@@ -116,7 +120,7 @@ export class WhatsAppWebhookService {
     return this.credentials.inboundFor(webhookKey);
   }
 
-  private toRow(event: ParsedWhatsAppEvent, settings: EffectiveSupportSettings) {
+  private toRow(event: ParsedWhatsAppEvent, settings: EffectiveSupportSettings, capturing: boolean) {
     const base = {
       dedupeKey: event.dedupeKey,
       kind: event.kind,
@@ -131,8 +135,10 @@ export class WhatsAppWebhookService {
     return {
       ...base,
       // Rollback is "switch off": messages that arrive meanwhile are recorded but never
-      // replayed when the bot comes back on.
-      ignoredAt: supportAnswersNumber(settings, event.waId) ? null : new Date(),
+      // replayed when the bot comes back on. Lead capture works with the bot off, so its
+      // messages are processed (capture only; the bot still never answers them).
+      ignoredAt: capturing || supportAnswersNumber(settings, event.waId) ? null : new Date(),
+      ...(event.adReferral ? { adReferral: event.adReferral as unknown as Prisma.InputJsonObject } : {}),
       mediaCaption: event.media?.caption ?? null,
       mediaFilename: event.media?.filename ?? null,
       mediaId: event.media?.id ?? null,
@@ -166,7 +172,7 @@ export class WhatsAppWebhookService {
     if (!event) return;
     try {
       if (event.kind === "status") await this.conversations.handleStatus(event);
-      else await this.conversations.handleMessage(event);
+      else await this.handleCustomerMessage(event);
       await this.prisma.whatsAppWebhookEvent.update({ data: { error: null, processedAt: new Date() }, where: { id } });
     } catch (error) {
       const message = (error as Error).message.slice(0, 500);
@@ -180,6 +186,29 @@ export class WhatsAppWebhookService {
         })
         .catch(() => undefined);
     }
+  }
+
+  /**
+   * Lead capture first (when on), then the bot, only for a number it answers now: with capture
+   * on, a message may be stored only for capture. With capture off this is the bot alone, as
+   * before. A capture failure doesn't stop the bot's answer; it fails the event afterwards, and
+   * the retry is harmless on both sides (capture and the transcript are idempotent per message).
+   */
+  private async handleCustomerMessage(event: Prisma.WhatsAppWebhookEventGetPayload<object>): Promise<void> {
+    const settings = await this.settings.forBot();
+    const capturing = this.capture.enabled(settings);
+    let captureError: unknown = null;
+    if (capturing) {
+      try {
+        await this.capture.capture(event);
+      } catch (error) {
+        captureError = error;
+      }
+    }
+    if (!capturing || supportAnswersNumber(settings, event.waId)) await this.conversations.handleMessage(event);
+    // The bot isn't answering this number: STOP / START still decide proactive WhatsApp.
+    else await this.capture.recordOptCommand(event);
+    if (captureError) throw captureError;
   }
 
   /** Events nobody finished: a crash after the 200, or a failure waiting for its lease to expire. */

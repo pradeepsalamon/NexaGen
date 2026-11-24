@@ -152,6 +152,7 @@ function VideoGeneratorWorkspace({ isManager }: ToolContext) {
       };
     } catch (e) {
       return {
+        // eslint-disable-next-line no-restricted-syntax -- a PGN replay error from the chosen game
         error: e instanceof Error ? e.message : "That game can't be replayed.",
         frames: 0,
       };
@@ -212,6 +213,7 @@ function VideoGeneratorWorkspace({ isManager }: ToolContext) {
     } catch (e) {
       if (!(e instanceof DOMException && e.name === "AbortError")) {
         setError(
+          // eslint-disable-next-line no-restricted-syntax -- the local video encoder's own error
           e instanceof Error ? e.message : "The video couldn't be created.",
         );
       }

@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/ToastProvider";
-import { useAssignableUsersQuery, useBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
+import { useAssignableUsersQuery, useAllBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
 import {
   useCreateScheduleMutation,
   usePreviewScheduleMutation
@@ -55,7 +55,7 @@ export function ScheduleBuilderClient() {
   const router = useRouter();
   const toast = useToast();
 
-  const { data: batchesData } = useBatchesQuery({ pageSize: 100 });
+  const { data: batchesData } = useAllBatchesQuery();
   const { data: assignable } = useAssignableUsersQuery();
   const previewMutation = usePreviewScheduleMutation();
   const createMutation = useCreateScheduleMutation();

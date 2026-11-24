@@ -12,6 +12,7 @@ import { LiveKitService } from "./livekit.service";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import { LiveSessionStatus, LiveKitTokenOptions } from "./types/live-class.types";
 import {
+  DEFAULT_LIVE_CLASS_SETTINGS,
   deriveLiveKitGrants,
   liveClassSettingsSchema,
   type DemoClassPublicInfo,
@@ -23,15 +24,14 @@ import {
   DemoClassAccessMode,
   DemoGuestApproval,
   DemoRegistrationContactMethod,
-  LeadStatus,
   Prisma,
 } from "@prisma/client";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { SystemNotifier } from "../mail/system-notifier.service";
 import { formatDemoTime } from "../messaging/messaging.format";
 import { LiveClassWaitingRoomService } from "./live-class-waiting-room.service";
-import { signDemoGuestToken } from "./demo-guest-token";
-import { ReferralTrackerService } from "../referral/referral-tracker.service";
+import { DEMO_GUEST_IDENTITY_PREFIX, signDemoGuestToken } from "./demo-guest-token";
+import { LeadStageService } from "../lead/lead-stage.service";
 import { requireTenantId } from "../tenancy/tenant-sql";
 
 /** Public demo classes: guest registration, access modes and the guest join token. */
@@ -47,7 +47,7 @@ export class LiveClassDemoService {
     private readonly notifier: SystemNotifier,
     private readonly waitingRoom: LiveClassWaitingRoomService,
     private readonly jwtService: JwtService,
-    private readonly referrals: ReferralTrackerService
+    private readonly leadStages: LeadStageService
   ) {}
 
   /**
@@ -193,12 +193,15 @@ export class LiveClassDemoService {
     // `crypto.randomUUID()` — the old `Math.random().toString(36).substring(7)`
     // yielded ~4 chars, so two guests could collide and LiveKit would evict the
     // earlier one for a duplicate identity (AUDIT M18).
-    const participantIdentity = `guest_${randomUUID()}`;
+    // The registration id rides in the identity so the coach can remove this
+    // guest (`kickParticipant`) and a denied guest is put back out on join.
+    const participantIdentity = `${DEMO_GUEST_IDENTITY_PREFIX}${registration.id}_${randomUUID()}`;
 
     const tokenOptions: LiveKitTokenOptions = {
       roomName: liveSession.roomName,
       participantIdentity,
-      participantName: body.guestName || registration.name,
+      // The name the coach saw when admitting them, never one typed now.
+      participantName: registration.name,
       isCoach: false,
       grants: this.guestGrants(liveSession.effectiveSettings, coachClass.id)
     };
@@ -272,7 +275,22 @@ export class LiveClassDemoService {
     const existing = await this.prisma.demoClassRegistration.findUnique({
       where: { classId_contactMethod_contactValue: key }
     });
-    if (existing) return { registration: existing, created: false };
+
+    // A typed phone/email is never verified, so matching an existing row does
+    // not stand in for the class's gate: anyone could type a booked guest's
+    // number. An admin-invited guest comes in by their personal link (it was
+    // sent to that contact); in PASSCODE mode everyone still needs the code.
+    // Returning self-registered guests (re-polling the join page) keep working:
+    // they typed the passcode the first time and type it again.
+    if (
+      existing?.inviteToken &&
+      coachClass.demoAccessMode === DemoClassAccessMode.INVITE_ONLY
+    ) {
+      throw new ForbiddenException({
+        message: "You were invited to this class. Open the personal invite link we sent you to join.",
+        code: "DEMO_INVITE_REQUIRED"
+      });
+    }
 
     if (
       coachClass.demoAccessMode === DemoClassAccessMode.PASSCODE &&
@@ -283,6 +301,8 @@ export class LiveClassDemoService {
         code: "DEMO_PASSCODE_INVALID"
       });
     }
+
+    if (existing) return { registration: existing, created: false };
 
     const approval =
       coachClass.demoAccessMode === DemoClassAccessMode.INVITE_ONLY
@@ -323,23 +343,9 @@ export class LiveClassDemoService {
     return timingSafeEqual(digest(given), digest(expected));
   }
 
-  /** Best-effort: a booked lead who actually joined moves to DEMO_ATTENDED. */
+  /** Best-effort: a booked lead who actually joined moves to Demo attended. */
   private async markLeadAttended(leadId: string, topic: string) {
-    try {
-      await this.prisma.lead.updateMany({
-        where: {
-          id: leadId,
-          status: { in: [LeadStatus.NEW, LeadStatus.CONTACTED, LeadStatus.INTERESTED, LeadStatus.DEMO_SCHEDULED] }
-        },
-        data: { status: LeadStatus.DEMO_ATTENDED, lastActivityAt: new Date() }
-      });
-      await this.prisma.leadActivity.create({
-        data: { leadId, activityType: "DEMO_ATTENDED", title: `Joined demo class: ${topic}` }
-      });
-      await this.referrals.onLeadEvent(leadId, "DEMO_ATTENDED");
-    } catch (error) {
-      this.logger.warn(`Could not mark lead ${leadId} as attended: ${(error as Error).message}`);
-    }
+    await this.leadStages.applyQuietly(leadId, "DEMO_ATTENDED", { activity: { title: `Joined demo class: ${topic}` } });
   }
 
   /** Best-effort — a failed confirmation never blocks registration or join. */
@@ -375,14 +381,14 @@ export class LiveClassDemoService {
     }
   }
 
-  /** Guests get the class's student publish policy; no snapshot keeps the default grants. */
+  /**
+   * Guests get the class's student publish policy. Without a readable snapshot
+   * they get the default student policy, never the wide-open grants (review L4).
+   */
   private guestGrants(snapshot: Prisma.JsonValue | null, classId: string): LiveKitTokenOptions["grants"] {
-    if (!snapshot) return undefined;
-    try {
-      return deriveLiveKitGrants(liveClassSettingsSchema.parse(snapshot), "STUDENT");
-    } catch (error) {
-      this.logger.warn(`Invalid effectiveSettings for demo class ${classId}; using default grants`, error as Error);
-      return undefined;
-    }
+    const parsed = snapshot ? liveClassSettingsSchema.safeParse(snapshot) : null;
+    if (parsed?.success) return deriveLiveKitGrants(parsed.data, "STUDENT");
+    if (parsed) this.logger.warn(`Invalid effectiveSettings for demo class ${classId}; using the default student policy`);
+    return deriveLiveKitGrants(DEFAULT_LIVE_CLASS_SETTINGS, "STUDENT");
   }
 }

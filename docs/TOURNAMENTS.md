@@ -78,7 +78,10 @@ ever involved. Arena points are plain integers.
   `startsAt`, `registrationOpensAt`, `registrationClosesAt`,
   `lateRegistrationRounds`, `minPlayers`, `maxPlayers`, `eligibilityJson`
   (Zod: age-group set + cutoff date, rating range, experience levels, batch
-  ids), `rulesText`, `prizesText` (no fee columns in v1, decision 5),
+  ids; the student's rating, date of birth and level it reads are staff-set
+  since 2026-11-23, review F1: `PATCH /progress/students/:id/playing-profile`
+  by an admin or the student's coach, read-only on the student's own profile,
+  each change in `trash_audit_logs` as `STUDENT_PLAYING_PROFILE_CHANGE`), `rulesText`, `prizesText` (no fee columns in v1, decision 5),
   `clockInitialMs`, `clockIncrementMs`, `startFen`, `rounds`, `roundBreakSec`,
   `arenaDurationMin`, `arenaConfigJson` (win/draw points, streaks, berserk),
   `knockoutConfigJson` (games per match, tiebreak game, armageddon),
@@ -328,7 +331,14 @@ class uses. No new infrastructure.
     or after `visibleAt`. **The delay is enforced on the server**: the
     spectator endpoint returns only the moves whose `moveTimesJson` timestamp
     is older than `spectatorDelaySec`. Spectators therefore never receive live
-    moves, even by calling the API directly.
+    moves, even by calling the API directly. The packet itself carries no
+    result: a finished game's `visibleAt` is its `finishedAt` + the delay
+    (review F5). **Summaries keep the delay too** (`toGameSummaryFor`, review
+    S7): in the game list, rounds, bracket and the `live` snapshot a spectator
+    sees a game that is ongoing, or ended within the delay, at its delayed ply
+    with no result, points or finish time (still listed among the ongoing
+    games), and a knockout match decided by such a game stays undecided.
+    Players see their own games live; hosts and broadcasters see everything.
   - `tournament_commentary`: `{ id }`, then the client refetches the feed (cursor-paged).
 - **Fallback**: when LiveKit is not configured or the connection drops,
   the same hooks poll with `refetchInterval` (2 s for the player's own game,
@@ -684,8 +694,10 @@ same rules. **No behaviour change.**
     - A coach host only reaches students of their own live batches; admins
       reach any academy student.
     - Approval-required tournaments take entries as PENDING.
-    - Withdrawal is possible while the tournament is still PUBLISHED. A
-      withdrawn player may re-enter; rejected and disqualified players may not.
+    - Withdrawal is possible while the tournament is still PUBLISHED, checked
+      under the tournament row lock the start also takes (review F4), so a
+      withdrawal racing the start never lands after round 1 paired the player.
+      A withdrawn player may re-enter; rejected and disqualified players may not.
     - Seed rating and age group are snapshotted at entry.
   - `approval/handlers/tournament-publish.handler.ts`: snapshot = the
     tournament `version`. Approval re-checks that it is still a draft, still

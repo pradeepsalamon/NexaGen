@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "@/lib/navigation";
@@ -234,7 +235,7 @@ export function ActivityLibraryTable({
         succeeded += res.updated;
       }
     } catch (error) {
-      failed.push({ label: "The rest", reason: (error as Error).message });
+      failed.push({ label: "The rest", reason: getErrorMessage(error) });
     }
     setSelected(new Map());
     setResult({ action: enumLabel(action), failed, succeeded });

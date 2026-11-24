@@ -13,6 +13,20 @@ export function verifyWhatsAppSignature(rawBody: string, header: string | string
   return given.length === expected.length && timingSafeEqual(given, expected);
 }
 
+/**
+ * Meta's Click-to-WhatsApp `referral` on a customer's message: which ad (or post) they tapped.
+ * `ctwaClid` is the click id the Conversions API sends back (docs/AD_MEASUREMENT.md).
+ */
+export interface AdReferral {
+  /** "ad" or "post". */
+  sourceType: string | null;
+  /** The ad's (or post's) id. */
+  sourceId: string | null;
+  sourceUrl: string | null;
+  headline: string | null;
+  ctwaClid: string | null;
+}
+
 /** One incoming customer message, with only the fields the bot reads. Text is redacted. */
 export interface ParsedWhatsAppMessage {
   kind: "message";
@@ -29,6 +43,8 @@ export interface ParsedWhatsAppMessage {
   occurredAt: Date;
   /** An image or document (the only media kept, for staff): Meta's media id and what it says about it. */
   media: { id: string; mimeType: string | null; filename: string | null; caption: string | null } | null;
+  /** Present when the message came from a Click-to-WhatsApp ad (or a post's WhatsApp button). */
+  adReferral: AdReferral | null;
 }
 
 /** A delivery update for a message we sent. */
@@ -102,9 +118,25 @@ function readMedia(message: Json): ParsedWhatsAppMessage["media"] {
   };
 }
 
+/** The message's `referral`, when Meta sent one with anything in it. */
+export function readAdReferral(message: Json): AdReferral | null {
+  const referral = obj(message.referral);
+  if (!referral) return null;
+  const read: AdReferral = {
+    ctwaClid: str(referral.ctwa_clid, 512),
+    headline: str(referral.headline, 200),
+    sourceId: str(referral.source_id, 64),
+    sourceType: str(referral.source_type, 20),
+    sourceUrl: str(referral.source_url, 1000)
+  };
+  return Object.values(read).some((value) => value !== null) ? read : null;
+}
+
 /**
  * Flattens a webhook body into the events the bot acts on. Anything it doesn't
- * recognise (other fields, malformed entries) is skipped, never thrown on.
+ * recognise (other fields, malformed entries) is skipped, never thrown on. That includes the
+ * WhatsApp Business app's coexistence fields (`smb_message_echoes`, `smb_app_state_sync`,
+ * `history`): staff replies typed in the app are not customer messages.
  */
 export function parseWhatsAppWebhook(body: unknown): ParsedWhatsAppEvent[] {
   const events: ParsedWhatsAppEvent[] = [];
@@ -134,6 +166,7 @@ export function parseWhatsAppWebhook(body: unknown): ParsedWhatsAppEvent[] {
         const read = readMessage(message);
         const redaction = read.text ? redactSupportText(read.text) : { redacted: false, text: null };
         events.push({
+          adReferral: readAdReferral(message),
           dedupeKey: `msg:${wamid}`,
           kind: "message",
           media: readMedia(message),

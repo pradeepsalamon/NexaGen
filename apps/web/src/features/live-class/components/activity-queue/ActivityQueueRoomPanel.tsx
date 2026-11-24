@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useCallback, useContext, useMemo } from "react";
 import { MessageCircleQuestion } from "lucide-react";
 import type { ActivityQueueItem } from "@nexa-chess/types";
@@ -50,7 +51,7 @@ export function ActivityQueueRoomPanel({ classId, onOpenResponses }: { classId: 
           void loadPuzzle(item.puzzleId).catch(() => undefined);
         }
       } catch (error) {
-        toast.error({ title: `Couldn't put "${item.title}" on the board`, message: (error as Error).message });
+        toast.error({ title: `Couldn't put "${item.title}" on the board`, message: getErrorMessage(error) });
       }
     },
     [store, loadPuzzle, toast]

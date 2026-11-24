@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocalParticipant } from "@livekit/components-react";
 import { MAX_TRANSCRIPT_LINE_LENGTH, MAX_TRANSCRIPT_LINES_PER_REQUEST, type TranscriptLineInput } from "@nexa-chess/types";
@@ -80,7 +81,7 @@ function TranscriptRunner({ classId }: { classId: string }) {
       if (status && status >= 400 && status < 500 && status !== 401 && status !== 429) {
         // Not retryable: these lines are not wanted. Drop them and stop listening.
         queueRef.current = [];
-        setRefused(cause instanceof Error ? cause.message : "The transcript was refused.");
+        setRefused(getErrorMessage(cause, "The transcript was refused."));
       } else {
         // Offline or a server hiccup: keep the lines (each has its own clientId, so a retry is safe).
         queueRef.current.unshift(...batch);

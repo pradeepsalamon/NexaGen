@@ -33,7 +33,7 @@ function useBrandingMutation<TArgs>(fn: (args: TArgs) => Promise<TenantBrandingR
     mutationFn: fn,
     onSuccess: (data) => {
       queryClient.setQueryData(queryKeys.branding.admin, data);
-      void queryClient.invalidateQueries({ queryKey: ["tenant", "public-config"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.tenant.publicConfig });
       toast.success({ title });
     }
   });

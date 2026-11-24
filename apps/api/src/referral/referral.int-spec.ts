@@ -16,6 +16,7 @@ import {
 import { UserRole, UserStatus, type User } from "@prisma/client";
 import { TEST_ORIGIN } from "../test/integration/app-env";
 import { createTestApp, type TestApp } from "../test/integration/app";
+import { ReferralTrackerService } from "./referral-tracker.service";
 import { createUser, resetDatabase } from "../test/integration/db";
 import { runInTenant } from "../tenancy/tenant-context";
 import { ReferralCreditsService } from "./referral-credits.service";
@@ -115,7 +116,12 @@ describe("referral programme (real app, real Postgres)", () => {
     let me = await summary(student);
     expect(me.totals).toEqual({ converted: 0, referrals: 2, visits: 2 });
     // A student earns points only: the students' bonus, never the staff one.
-    expect([me.wallet, me.money, me.points.balance]).toEqual(["POINTS", null, 50]);
+    // Review R5: anyone can book a demo, so that bonus waits for an admin even with auto-approve on.
+    expect([me.wallet, me.money, me.points.balance]).toEqual(["POINTS", null, 0]);
+    const held = await t.prisma.referralReward.findFirstOrThrow({ where: { referrerId: student.id, status: "PENDING" } });
+    expect((await t.call(admin, "POST", API_ROUTES.adminReferrals.approveReward(held.id))).status).toBe(200);
+    me = await summary(student);
+    expect(me.points.balance).toBe(50);
     expect(me.bonuses.map((b) => b.name)).toEqual(["Every two"]);
     expect(me.earnings.map((e) => [e.stageName, e.referrer])).toEqual([
       ["Demo attended", 100],
@@ -330,9 +336,15 @@ describe("referral programme (real app, real Postgres)", () => {
     expect((await t.call(sales, "GET", API_ROUTES.auth.me)).status).toBe(200);
     expect((await t.call(sales, "GET", API_ROUTES.referrals.me)).status).toBe(200);
     expect((await t.call(sales, "GET", API_ROUTES.subscription.current)).status).toBe(200);
-    for (const path of [API_ROUTES.student.dashboard, API_ROUTES.users.list, API_ROUTES.notifications.list, API_ROUTES.adminReferrals.overview]) {
+    for (const path of [API_ROUTES.student.dashboard, API_ROUTES.users.list, API_ROUTES.adminReferrals.overview]) {
       expect({ path, status: (await t.call(sales, "GET", path)).status }).toEqual({ path, status: 403 });
     }
+    // Its own account chrome works: the referral notices are in-app by default
+    // (docs/REFERRALS.md § "Notifications"), every page sends the heartbeat, and
+    // anyone may ask to delete their own account.
+    expect((await t.call(sales, "GET", API_ROUTES.notifications.list)).status).toBe(200);
+    expect((await t.call(sales, "POST", API_ROUTES.presence.heartbeat)).body).toEqual({ liveClass: null, pull: null });
+    expect((await t.call(sales, "GET", API_ROUTES.privacy.deletionRequest)).status).toBe(200);
     // SALES sees its own prospects in full, contact included.
     const code = (await summary(sales)).code!;
     const visitor = browser();
@@ -571,5 +583,80 @@ describe("referral programme (real app, real Postgres)", () => {
     expect(res.status).toBe(201);
     const created = await t.prisma.user.findFirstOrThrow({ where: { email } });
     expect((await t.prisma.referral.findUniqueOrThrow({ where: { id: referral.id } })).referredUserId).toBe(created.id);
+  });
+  // Review R4: a redemption waiting for approval keeps the voucher's terms from when it was made.
+  it("fulfils a pending redemption on the voucher's terms when it was redeemed, not after an edit", async () => {
+    const buyer = await active(UserRole.STUDENT);
+    const planA = await t.prisma.plan.create({ data: { amount: 99900, code: "r4-a", currency: "INR", name: "Plan A" } });
+    const planB = await t.prisma.plan.create({ data: { amount: 99900, code: "r4-b", currency: "INR", name: "Plan B" } });
+    await t.call(admin, "POST", API_ROUTES.adminReferrals.adjustCredits, { amountMinor: 100, note: "R4", userId: buyer.id, wallet: "POINTS" });
+    const created = (
+      await t.call(admin, "POST", API_ROUTES.adminReferrals.vouchers, {
+        amountOffMinor: 5000,
+        codeValidDays: 30,
+        name: "R4 voucher",
+        planIds: [planA.id],
+        pointsCost: 10,
+        requiresApproval: true,
+        type: "FIXED_DISCOUNT"
+      })
+    ).body as ReferralVoucherItem;
+    const pending = (await t.call(buyer, "POST", API_ROUTES.referrals.redeemVoucher(created.id), {})).body as ReferralRedemptionItem;
+    expect(pending.status).toBe("PENDING");
+    expect((await t.call(admin, "PATCH", API_ROUTES.adminReferrals.voucher(created.id), { codeValidDays: 1, planIds: [planB.id] })).status).toBe(200);
+    expect((await t.call(admin, "POST", API_ROUTES.adminReferrals.approveRedemption(pending.id))).status).toBe(200);
+
+    const row = await t.prisma.referralRedemption.findUniqueOrThrow({ include: { discount: true }, where: { id: pending.id } });
+    expect(row.discount?.planIds).toEqual([planA.id]);
+    const days = (row.discount!.endsAt!.getTime() - Date.now()) / 86_400_000;
+    expect(Math.round(days)).toBe(30);
+  });
+  // Review R5: a link visit pays the referrer nothing, and a referrer's own lead isn't theirs to earn on.
+  it("pays nothing for a link visit and ignores a lead with the referrer's own phone", async () => {
+    const referrer = await active(UserRole.STUDENT);
+    await t.prisma.user.update({ data: { phoneNumber: "9000012345" }, where: { id: referrer.id } });
+    await t.call(admin, "GET", API_ROUTES.adminReferrals.stages);
+    expect((await stageValues("refstage_visited", { studentPoints: 10 })).status).toBe(200);
+    const code = (await summary(referrer)).code!;
+
+    for (let i = 0; i < 3; i += 1) await browser()("POST", API_ROUTES.referrals.visit, { code });
+    expect(await t.prisma.referralReward.count({ where: { referrerId: referrer.id } })).toBe(0);
+
+    // Straight to the tracker: the lead form's own rate limit is spent by the tests above.
+    const own = await t.prisma.lead.create({
+      data: { experienceLevel: "beginner", parentName: "Self", phone: "+91 90000 12345", studentAge: 9, studentName: "Self Booked" }
+    });
+    await t.app.get(ReferralTrackerService).attachLead({ leadId: own.id, prospectName: "Self Booked", referralCode: code });
+    expect(await t.prisma.referral.count({ where: { leadId: own.id } })).toBe(0);
+    const other = await t.prisma.lead.create({
+      data: { experienceLevel: "beginner", parentName: "Other", phone: "9111112222", studentAge: 9, studentName: "Other Kid" }
+    });
+    await t.app.get(ReferralTrackerService).attachLead({ leadId: other.id, prospectName: "Other Kid", referralCode: code });
+    expect(await t.prisma.referral.count({ where: { leadId: other.id } })).toBe(1);
+    await stageValues("refstage_visited", { studentPoints: 0 });
+  });
+  // Review R6: an admin who also teaches refers as a coach, and the link works.
+  it("gives an admin who also teaches a working link, as a coach", async () => {
+    const teacher = await active(UserRole.ADMIN);
+    await t.prisma.user.update({ data: { extraRoles: [UserRole.COACH] }, where: { id: teacher.id } });
+    const mine = await summary(teacher);
+    expect(mine.wallet).toBe("CASH");
+    expect(mine.code).toBeTruthy();
+    const visit = (await browser()("POST", API_ROUTES.referrals.visit, { code: mine.code })).body as { valid: boolean };
+    expect(visit.valid).toBe(true);
+
+    const plainAdmin = await active(UserRole.ADMIN);
+    expect((await t.call(plainAdmin, "GET", API_ROUTES.referrals.me)).status).toBe(403);
+  });
+  // Review R9: a manual adjustment goes to the wallet the person's role earns.
+  it("refuses a manual adjustment in the wrong wallet for the person's role", async () => {
+    const kid = await active(UserRole.STUDENT);
+    const coach = await active(UserRole.COACH);
+    const adjust = (userId: string, wallet: string) =>
+      t.call(admin, "POST", API_ROUTES.adminReferrals.adjustCredits, { amountMinor: 100, note: "R9", userId, wallet });
+    expect((await adjust(kid.id, "CASH")).status).toBe(400);
+    expect((await adjust(coach.id, "POINTS")).status).toBe(400);
+    expect((await adjust(kid.id, "POINTS")).status).toBeLessThan(300);
+    expect((await adjust(coach.id, "CASH")).status).toBeLessThan(300);
   });
 });

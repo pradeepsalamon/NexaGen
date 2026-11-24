@@ -27,6 +27,7 @@ type ServerDefaults = Pick<
   | "SUPPORT_AGENT_REPLY_TEMPLATE"
   | "SUPPORT_AGENT_REPLY_TEMPLATE_LANGUAGE"
   | "SUPPORT_BOT_ENABLED"
+  | "SUPPORT_CAPTURE_LEADS"
   | "SUPPORT_LEAD_NUDGE_HOURS"
   | "SUPPORT_STAFF_REMINDER_MINUTES"
   | "SUPPORT_TEST_NUMBERS_ALLOWLIST"
@@ -53,6 +54,7 @@ export function resolveSupportSettings(
     | "agentReplyTemplate"
     | "agentReplyTemplateLanguage"
     | "botEnabled"
+    | "captureLeads"
     | "hours"
     | "leadNudgeHours"
     | "menu"
@@ -69,6 +71,8 @@ export function resolveSupportSettings(
       agentReplyTemplate: row.agentReplyTemplate,
       agentReplyTemplateLanguage: row.agentReplyTemplateLanguage,
       botEnabled: row.botEnabled,
+      // Nexa's academy only for now (docs/LEAD_STAGES.md "WhatsApp lead capture").
+      captureLeads: tenantId === DEFAULT_TENANT_ID && row.captureLeads,
       hours: storedHours(row.hours),
       leadNudgeHours: row.leadNudgeHours,
       menu: storedMenu(row.menu),
@@ -84,6 +88,7 @@ export function resolveSupportSettings(
       agentReplyTemplate: env.SUPPORT_AGENT_REPLY_TEMPLATE || null,
       agentReplyTemplateLanguage: env.SUPPORT_AGENT_REPLY_TEMPLATE_LANGUAGE,
       botEnabled: env.SUPPORT_BOT_ENABLED,
+      captureLeads: env.SUPPORT_CAPTURE_LEADS,
       hours: null,
       leadNudgeHours: env.SUPPORT_LEAD_NUDGE_HOURS,
       menu: DEFAULT_SUPPORT_MENU,
@@ -98,6 +103,7 @@ export function resolveSupportSettings(
     agentReplyTemplate: null,
     agentReplyTemplateLanguage: "en",
     botEnabled: false,
+    captureLeads: false,
     hours: null,
     leadNudgeHours: 20,
     menu: DEFAULT_SUPPORT_MENU,
@@ -180,6 +186,8 @@ export class SupportSettingsService {
       agentReplyTemplate: body.agentReplyTemplate || null,
       agentReplyTemplateLanguage: body.agentReplyTemplateLanguage,
       botEnabled: body.botEnabled,
+      // Absent = unchanged (an older page); never on for another academy.
+      ...(body.captureLeads === undefined ? {} : { captureLeads: tenantId === DEFAULT_TENANT_ID && body.captureLeads }),
       hours: body.hours ? { days: [...body.hours.days].sort((a, b) => a.day - b.day), timezone: body.hours.timezone } : Prisma.DbNull,
       leadNudgeHours: body.leadNudgeHours,
       menu: body.menu as unknown as Prisma.InputJsonValue,

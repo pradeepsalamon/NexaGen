@@ -19,6 +19,8 @@ export type ToastAction = {
 type ToastInput = {
   action?: ToastAction;
   durationMs?: number;
+  /** Same id replaces the toast already showing instead of stacking a new one. */
+  id?: string;
   message?: string;
   title: string;
   type: ToastType;
@@ -68,11 +70,13 @@ function getDefaultDuration(type: ToastType): number {
   }
 }
 
-function showToast({ action, durationMs, message, title, type }: ToastInput): string | number {
+/** Module-level so non-component code (lib/forms) can raise the same toasts as useToast(). */
+export function showToast({ action, durationMs, id, message, title, type }: ToastInput): string | number {
   const options = {
     action,
     description: message,
-    duration: durationMs ?? getDefaultDuration(type)
+    duration: durationMs ?? getDefaultDuration(type),
+    ...(id ? { id } : {})
   };
 
   switch (type) {

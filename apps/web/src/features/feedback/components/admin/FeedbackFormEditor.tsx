@@ -1,5 +1,6 @@
 "use client";
 
+import { onInvalidSubmit } from "@/lib/forms";
 import { useEffect, useMemo, useId } from "react";
 import { FieldError as SharedFieldError } from "@/components/ui/FieldError";
 import { Controller, useForm } from "react-hook-form";
@@ -30,7 +31,7 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
-import { useBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
+import { useAllBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
 import { useSaveFeedbackFormMutation } from "../../hooks/useFeedbackApi";
 import { blankQuestion, defaultFormValues, formToValues } from "../../lib/formDefaults";
 import { QuestionEditor } from "./QuestionEditor";
@@ -74,7 +75,7 @@ export function FeedbackFormEditor({
   form: FeedbackFormDto | null;
 }) {
   const save = useSaveFeedbackFormMutation();
-  const { data: batchData } = useBatchesQuery({ pageSize: 100 });
+  const { data: batchData } = useAllBatchesQuery();
   const batches = useMemo(() => batchData?.batches ?? [], [batchData]);
 
   const {
@@ -86,7 +87,7 @@ export function FeedbackFormEditor({
     setValue,
     watch
   } = useForm<UpsertFeedbackFormRequest>({
-    mode: "onTouched",
+    mode: "onSubmit",
     defaultValues: defaultFormValues(),
     resolver: zodResolver(upsertFeedbackFormRequestSchema)
   });
@@ -125,7 +126,7 @@ export function FeedbackFormEditor({
           : q
       )
     );
-    void handleSubmit(onValid)();
+    void handleSubmit(onValid, onInvalidSubmit)();
   };
 
   const toggleBatch = (id: string, checked: boolean) =>

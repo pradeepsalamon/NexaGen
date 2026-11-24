@@ -134,8 +134,26 @@ describe('UploadController — deleteImage', () => {
     expect(deleteImage).not.toHaveBeenCalled();
   });
 
-  it('lets an admin delete any image', async () => {
+  it('lets an admin delete a profile upload of the academy that is not their own avatar', async () => {
     me = { avatarUrl: null, id: 'u1', role: 'ADMIN', status: 'ACTIVE' };
-    await expect(controller.deleteImage(OTHER, req())).resolves.toEqual({ success: true });
+    await expect(controller.deleteImage(OWN, req())).resolves.toEqual({ success: true });
+  });
+
+  // Review S5: one Cloudinary account serves every academy, and the delete
+  // goes by public id, so an admin is held to the same folder check.
+  it.each([
+    ['another folder of the academy', OTHER],
+    [
+      "another academy's profile upload",
+      'https://res.cloudinary.com/demo/image/upload/v1700000000/tenants/t2/profiles/abc123.jpg',
+    ],
+    [
+      'a profile-folder path on another host',
+      'https://evil.example.com/demo/image/upload/v1700000000/nexa_chess/profiles/abc123.jpg',
+    ],
+  ])('refuses an admin deleting %s', async (_label, url) => {
+    me = { avatarUrl: null, id: 'u1', role: 'SUPER_ADMIN', status: 'ACTIVE' };
+    await expect(controller.deleteImage(url, req())).rejects.toBeInstanceOf(ForbiddenException);
+    expect(deleteImage).not.toHaveBeenCalled();
   });
 });

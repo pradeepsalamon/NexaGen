@@ -1,5 +1,7 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
+import { getErrorMessage } from "@/lib/errors";
 import { useEffect, useState, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ApprovalActionType } from "@nexa-chess/types";
@@ -50,6 +52,7 @@ export function RequestApprovalDialog({
   const queryClient = useQueryClient();
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
+  useRevealFormErrors(error);
 
   useEffect(() => {
     if (open) {
@@ -65,7 +68,7 @@ export function RequestApprovalDialog({
       toast.success({ title: "Request sent", message: "An admin will review it. You'll be notified of the outcome." });
       onOpenChange(false);
     },
-    onError: (err) => setError(err instanceof Error ? err.message : "Couldn't send the request.")
+    onError: (err) => setError(getErrorMessage(err, "Couldn't send the request."))
   });
 
   const tooShort = reason.trim().length < 3;

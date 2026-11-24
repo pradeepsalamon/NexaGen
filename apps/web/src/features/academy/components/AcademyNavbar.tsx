@@ -19,6 +19,7 @@ import { revealOriginOf, type ThemeRevealOrigin } from "@/lib/theme/themeReveal"
 import { useTheme } from "@/providers/ThemeProvider";
 import { useAuthStore, getRoleDashboardHref } from "@/stores/authStore";
 import { logout } from "@/features/auth/api/authApi";
+import { logoutEndedSession } from "@/features/auth/hooks/useLogout";
 
 const navItems = [
   { label: "Home", href: "#" },
@@ -326,12 +327,14 @@ export function AcademyNavbar({
     (async () => {
       try {
         await logout();
-      } catch {
-        // Ignore network errors on logout
-      } finally {
-        clearSession();
-        router.refresh();
+      } catch (error) {
+        // Only a session the server ended (or never had) is signed out here;
+        // otherwise the cookies stay valid and the next page signs them back
+        // in (FE review AU2). The menu stays as it is for another try.
+        if (!logoutEndedSession(error)) return;
       }
+      clearSession();
+      router.refresh();
     });
 
   // Scroll state + scroll-spy (highlights the section currently on screen)

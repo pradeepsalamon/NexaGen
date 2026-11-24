@@ -1,18 +1,17 @@
-import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import {
-  isAllowedSubscriptionTransition,
   type ChangeTenantPlanRequest,
   type PlatformDealRequest,
   type PlatformTenantSubscriptionResponse,
   type RecordPlatformPaymentRequest,
-  type TenantSubscriptionStatusType,
   type TransitionTenantSubscriptionRequest
 } from "@nexa-chess/types";
 import {
   PlatformPaymentMethod,
   Prisma,
+  TenantStatus,
   TenantSubscriptionEventSource,
   TenantSubscriptionStatus,
   type TenantSubscription
@@ -26,56 +25,10 @@ import { PlatformService } from "./platform.service";
 
 const DAY_MS = 24 * 60 * 60_000;
 
-export type SubscriptionTransition = {
-  tenantId: string;
-  to: TenantSubscriptionStatusType;
-  source: TenantSubscriptionEventSource;
-  actorUserId?: string | null;
-  note?: string | null;
-  /** Other columns to change in the same write (dates, plan). */
-  data?: Prisma.TenantSubscriptionUncheckedUpdateInput;
-  /** The event's change set, for audit. */
-  changes?: Record<string, unknown>;
-};
-
-/**
- * The one funnel for a subscription's status (docs/SAAS_MULTI_TENANCY.md §G
- * "State machine"): the allowed-transition guard, the write, and the
- * `TenantSubscriptionEvent`, all in the caller's transaction. Phase 6's
- * gateway webhooks call this too (after their own idempotent event row).
- */
-export async function applySubscriptionTransition(
-  tx: PrismaTransactionClient,
-  transition: SubscriptionTransition
-): Promise<TenantSubscription> {
-  const current = await tx.tenantSubscription.findUnique({ include: { plan: true }, where: { tenantId: transition.tenantId } });
-  if (!current) throw new NotFoundException("This academy has no subscription.");
-  if (!isAllowedSubscriptionTransition(current.status, transition.to)) {
-    throw new ConflictException(`A subscription can't go from ${current.status} to ${transition.to}.`);
-  }
-  // Status-filtered claim: a concurrent transition from the same state loses.
-  const claimed = await tx.tenantSubscription.updateMany({
-    data: { ...(transition.data as Prisma.TenantSubscriptionUncheckedUpdateManyInput), status: transition.to },
-    where: { id: current.id, status: current.status }
-  });
-  if (claimed.count !== 1) throw new ConflictException("The subscription changed meanwhile; reload and try again.");
-  const updated = await tx.tenantSubscription.findUniqueOrThrow({ include: { plan: true }, where: { id: current.id } });
-  await tx.tenantSubscriptionEvent.create({
-    data: {
-      actorUserId: transition.actorUserId ?? null,
-      changes: (transition.changes ?? {}) as Prisma.InputJsonValue,
-      fromPlanCode: current.plan.code,
-      fromStatus: current.status,
-      note: transition.note ?? null,
-      source: transition.source,
-      subscriptionId: current.id,
-      tenantId: transition.tenantId,
-      toPlanCode: updated.plan.code,
-      toStatus: updated.status
-    }
-  });
-  return updated;
-}
+// The status funnel and the row lock live in their own file, so platform.service
+// can use them without importing this service (which imports it).
+export { applySubscriptionTransition, lockTenantSubscription, type SubscriptionTransition } from "./subscription-transition";
+import { applySubscriptionTransition, lockTenantSubscription } from "./subscription-transition";
 
 /**
  * A payment extended the paid-up period (a manual payment the owner recorded,
@@ -351,7 +304,9 @@ export class PlatformSubscriptionsService {
           { graceEndsAt: { lte: now }, status: TenantSubscriptionStatus.GRACE },
           { currentPeriodEnd: { lte: now }, status: TenantSubscriptionStatus.CANCEL_SCHEDULED },
           { currentPeriodEnd: { lte: now }, pendingPlanId: { not: null } }
-        ]
+        ],
+        // A closed academy's subscription stays as it was (docs/ACADEMY_CLOSURE.md).
+        tenant: { status: { not: TenantStatus.DEACTIVATED } }
       }
     });
     let changed = 0;
@@ -366,9 +321,15 @@ export class PlatformSubscriptionsService {
     return changed;
   }
 
-  private async sweepOne(sub: Prisma.TenantSubscriptionGetPayload<{ include: { plan: true } }>, now: Date): Promise<boolean> {
+  private async sweepOne(found: Prisma.TenantSubscriptionGetPayload<{ include: { plan: true } }>, now: Date): Promise<boolean> {
     return this.prisma.$transaction(async (tx) => {
+      // Act on the row as it is now, not as the sweep read it: a payment that
+      // landed meanwhile must not be marked past due (review T4).
+      await lockTenantSubscription(tx, found.tenantId);
+      const sub = await tx.tenantSubscription.findUnique({ include: { plan: true }, where: { id: found.id } });
+      if (!sub) return false;
       const lapse = await this.lapseFor(tx, sub.tenantId);
+      const periodOver = Boolean(sub.currentPeriodEnd && sub.currentPeriodEnd <= now);
       const base = { source: TenantSubscriptionEventSource.SYSTEM, tenantId: sub.tenantId };
       // A scheduled plan change happens at the period end, whatever else is due.
       if (sub.pendingPlanId && sub.currentPeriodEnd && sub.currentPeriodEnd <= now) {
@@ -393,9 +354,11 @@ export class PlatformSubscriptionsService {
       }
       switch (sub.status) {
         case TenantSubscriptionStatus.TRIALING:
+          if (!sub.trialEndsAt || sub.trialEndsAt > now) return Boolean(sub.pendingPlanId);
           await applySubscriptionTransition(tx, { ...base, note: "Trial ended", to: TenantSubscriptionStatus.EXPIRED });
           return true;
         case TenantSubscriptionStatus.ACTIVE:
+          if (!periodOver) return Boolean(sub.pendingPlanId);
           await applySubscriptionTransition(tx, { ...base, note: "Payment due", to: TenantSubscriptionStatus.PAST_DUE });
           return true;
         case TenantSubscriptionStatus.PAST_DUE: {
@@ -414,6 +377,7 @@ export class PlatformSubscriptionsService {
           await applySubscriptionTransition(tx, { ...base, note: "Grace over", to: TenantSubscriptionStatus.EXPIRED });
           return true;
         case TenantSubscriptionStatus.CANCEL_SCHEDULED:
+          if (!periodOver) return Boolean(sub.pendingPlanId);
           await applySubscriptionTransition(tx, { ...base, note: "Cancelled at period end", to: TenantSubscriptionStatus.EXPIRED });
           return true;
         default:

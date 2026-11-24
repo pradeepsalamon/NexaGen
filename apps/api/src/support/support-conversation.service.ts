@@ -2,6 +2,8 @@ import { Injectable, Logger } from "@nestjs/common";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import {
   DEFAULT_SUPPORT_OUT_OF_HOURS_MESSAGE,
+  SUPPORT_DEMO_LEVELS,
+  SUPPORT_DEMO_MOVE_PREFIX,
   SUPPORT_FLOW_STATES,
   SUPPORT_FLOW_VERSION,
   SUPPORT_TICKET_REFERENCE_PLACEHOLDER,
@@ -10,6 +12,7 @@ import {
   supportReplyText,
   transitionSupport,
   type SupportBotAnswer,
+  type SupportDemoLevel,
   type SupportDraft,
   type SupportFlowState,
   type SupportInput
@@ -17,7 +20,9 @@ import {
 import { ClassStatus, MessageChannel, MessageDeliveryStatus, Prisma, type Lead, type SupportConversation, type SupportTicket, type WhatsAppContact, type WhatsAppWebhookEvent } from "@prisma/client";
 import { DEFAULT_TIME_ZONE } from "../common/time";
 import { DemoInviteService, demoInvitePath } from "../demo-class/demo-invite.service";
-import { FrappeCrmPushService } from "../lead/frappe-crm-push.service";
+import { DailyPuzzleAnswerService } from "../puzzle/daily-puzzle-answer.service";
+import { FrappeCrmPushService, phoneTail } from "../lead/frappe-crm-push.service";
+import { LeadStageService } from "../lead/lead-stage.service";
 import { LeadService } from "../lead/lead.service";
 import { SupportAccountService } from "./support-account.service";
 import { botOwnerChangeReason, recordOwnerChange } from "./support-ownership";
@@ -31,7 +36,14 @@ import { SupportTicketsService } from "./support-tickets.service";
 import { SupportUnansweredService } from "./support-unanswered.service";
 
 /** A slot the parent confirmed, booked after the bot's transaction commits. */
-type DemoSlotBooking = { classId: string; conversationId: string; leadId: string; ticketId: string };
+type DemoSlotBooking = { classId: string; conversationId: string; leadId: string; replacesRegistrationId?: string; ticketId: string };
+
+/** A demo booking a reminder button points at, once checked to be this number's (docs/LEAD_STAGES.md). */
+type OwnBooking = {
+  classId: string;
+  id: string;
+  lead: { experienceLevel: string; id: string; parentName: string; studentAge: number; studentName: string };
+};
 
 /** A bot conversation silent this long is closed; the next message starts a new one. */
 export const SUPPORT_CONVERSATION_EXPIRY_MS = 24 * 60 * 60 * 1000;
@@ -84,9 +96,11 @@ export class SupportConversationService {
     private readonly crmPush: FrappeCrmPushService,
     private readonly demoInvites: DemoInviteService,
     private readonly demoSlots: SupportDemoSlotsService,
+    private readonly leadStages: LeadStageService,
     private readonly leads: LeadService,
     private readonly outbox: SupportOutboxService,
     private readonly prisma: PrismaService,
+    private readonly dailyPuzzle: DailyPuzzleAnswerService,
     private readonly settings: SupportSettingsService,
     private readonly tickets: SupportTicketsService,
     private readonly unanswered: SupportUnansweredService
@@ -152,9 +166,49 @@ export class SupportConversationService {
             })
           : null;
 
+      // Puzzle of the Day (docs/PUZZLE_OF_THE_DAY.md step 3): a move, HINT or
+      // ANSWER from a number that got today's picture is answered here, and the
+      // bot's own flow stays where it was. Not while staff own the conversation.
+      const puzzleReply =
+        conversation.status === "BOT" && event.text && !event.replyId
+          ? await this.dailyPuzzle.reply(tx, contact.waId, event.text, `${origin ?? getFrontendUrl(this.env)}/student/daily-puzzle`)
+          : null;
+      if (puzzleReply) {
+        await tx.supportConversation.update({ data: { lastInboundAt: now }, where: { id: conversation.id } });
+        for (const [index, body] of puzzleReply.replies.entries()) {
+          await tx.supportMessage.create({
+            data: {
+              author: "BOT",
+              body,
+              clientKey: `bot:${event.providerMessageId}:${index}`,
+              conversationId: conversation.id,
+              direction: "OUTBOUND",
+              payload: Prisma.JsonNull,
+              status: "PENDING"
+            }
+          });
+        }
+        return {
+          afterCommit: puzzleReply.afterCommit,
+          announce: false,
+          attachmentId: attachment?.id ?? null,
+          booking: null,
+          confirmations: [],
+          conversationId: conversation.id,
+          newLead: null,
+          ticket: null,
+          unansweredTexts: []
+        };
+      }
+
+      // "Reschedule" on a demo reminder: only a booking of this number's that isn't over yet.
+      const moving = event.replyId?.startsWith(SUPPORT_DEMO_MOVE_PREFIX)
+        ? await this.ownBooking(tx, event.replyId.slice(SUPPORT_DEMO_MOVE_PREFIX.length), contact.waId, now, "MOVE")
+        : null;
       // Real demo times, read only while a booking is under way.
       const state = isFlowState(conversation.state) ? conversation.state : "MAIN_MENU";
-      const demoSlots = state.startsWith("DEMO_") || state === "RESUME_PROMPT" ? await this.demoSlots.upcoming(now) : [];
+      const demoSlots =
+        state.startsWith("DEMO_") || state === "RESUME_PROMPT" || moving ? (await this.demoSlots.upcoming(now)).filter((slot) => slot.id !== moving?.classId) : [];
       const next = transitionSupport(
         {
           draft: (conversation.draft ?? {}) as SupportDraft,
@@ -170,7 +224,18 @@ export class SupportConversationService {
           accountAnswers: settings.accountAnswers,
           menu: supportMenuEntries(settings.menu),
           privacyUrl: `${origin ?? getFrontendUrl(this.env)}/privacy`,
-          redacted: wasRedacted(event.text)
+          redacted: wasRedacted(event.text),
+          ...(moving
+            ? {
+                reschedule: {
+                  level: demoLevelOf(moving.lead.experienceLevel),
+                  parentName: moving.lead.parentName,
+                  registrationId: moving.id,
+                  studentAge: moving.lead.studentAge,
+                  studentName: moving.lead.studentName
+                }
+              }
+            : {})
         }
       );
 
@@ -179,6 +244,7 @@ export class SupportConversationService {
       let announce = false;
       let newLead: Lead | null = null;
       const unansweredTexts: string[] = [];
+      const confirmations: string[] = [];
       const accountReplies: string[] = [];
       for (const action of next.actions) {
         if (action.kind === "TICKET") {
@@ -200,7 +266,13 @@ export class SupportConversationService {
           ticket = opened.ticket;
           announce = opened.created;
           if (action.demo?.slotClassId && lead) {
-            booking = { classId: action.demo.slotClassId, conversationId: conversation.id, leadId: lead.lead.id, ticketId: opened.ticket.id };
+            booking = {
+              classId: action.demo.slotClassId,
+              conversationId: conversation.id,
+              leadId: lead.lead.id,
+              ...(action.demo.replacesRegistrationId ? { replacesRegistrationId: action.demo.replacesRegistrationId } : {}),
+              ticketId: opened.ticket.id
+            };
           }
           if (lead?.created) {
             newLead = lead.lead;
@@ -216,6 +288,8 @@ export class SupportConversationService {
           accountReplies.push(await this.account.linkFromWhatsApp(tx, contact.id, action.code, now));
         } else if (action.kind === "ACCOUNT_QUERY") {
           accountReplies.push(await this.account.nextClassReply(tx, contact.id, now));
+        } else if (action.kind === "DEMO_ATTEND") {
+          confirmations.push(action.registrationId);
         }
       }
 
@@ -264,13 +338,15 @@ export class SupportConversationService {
         });
       }
 
-      return { announce, attachmentId: attachment?.id ?? null, booking, conversationId: conversation.id, newLead, ticket, unansweredTexts };
+      return { afterCommit: [], announce, attachmentId: attachment?.id ?? null, booking, confirmations, conversationId: conversation.id, newLead, ticket, unansweredTexts };
     });
 
     if (!outcome) return;
+    for (const work of outcome.afterCommit) work();
     await this.outbox.sendPending(outcome.conversationId);
     if (outcome.attachmentId) await this.attachments.store(outcome.attachmentId);
     if (outcome.booking) await this.bookDemoSlot(outcome.booking, contact.id, origin);
+    for (const registrationId of outcome.confirmations) await this.confirmDemo(registrationId, contact.waId, now);
     // Best effort, outside the bot's transaction: a lost count never costs a reply.
     if (outcome.unansweredTexts.length > 0) await this.unanswered.record(outcome.unansweredTexts, now);
     // One alert per booking: a new lead is announced as a lead (NEW_LEAD_ADMIN,
@@ -298,6 +374,7 @@ export class SupportConversationService {
       }
       const lead = await this.prisma.lead.findUniqueOrThrow({ where: { id: booking.leadId } });
       const { inviteToken } = await this.demoInvites.bookLead(demoClass, lead, null);
+      if (booking.replacesRegistrationId) await this.dropReplacedBooking(booking.replacesRegistrationId, booking.leadId, demoClass.id);
       const schedule = demoClass.demoScheduleId
         ? await this.prisma.demoSchedule.findUnique({ select: { timezone: true }, where: { id: demoClass.demoScheduleId } })
         : null;
@@ -345,6 +422,62 @@ export class SupportConversationService {
       });
     });
     await this.outbox.sendPending(booking.conversationId);
+  }
+
+  /**
+   * The booking `registrationId` names, when it is a lead's demo booking made for this WhatsApp
+   * number (same last ten digits) and its class hasn't ended; to reschedule, also a demo the lead
+   * missed (ended within a week). Anything else is someone else's or stale: null.
+   */
+  private async ownBooking(
+    db: PrismaTransactionClient | PrismaService,
+    registrationId: string,
+    waId: string,
+    now: Date,
+    purpose: "ATTEND" | "MOVE"
+  ): Promise<OwnBooking | null> {
+    if (!registrationId) return null;
+    const registration = await db.demoClassRegistration.findUnique({
+      select: {
+        class: { select: { endsAt: true, isDemo: true, status: true } },
+        classId: true,
+        contactValue: true,
+        id: true,
+        lead: { select: { experienceLevel: true, id: true, parentName: true, status: true, studentAge: true, studentName: true } },
+        phoneNumber: true
+      },
+      where: { id: registrationId }
+    });
+    if (!registration?.lead || !registration.class.isDemo) return null;
+    const over = registration.class.endsAt.getTime() <= now.getTime() || !([ClassStatus.SCHEDULED, ClassStatus.LIVE] as ClassStatus[]).includes(registration.class.status);
+    const missedLately =
+      purpose === "MOVE" &&
+      registration.lead.status === "NO_SHOW" &&
+      registration.class.endsAt.getTime() > now.getTime() - 7 * 24 * 60 * 60_000;
+    const tail = phoneTail(waId);
+    const theirs = tail.length >= 7 && phoneTail(registration.phoneNumber ?? registration.contactValue) === tail;
+    return theirs && (!over || missedLately) ? { classId: registration.classId, id: registration.id, lead: registration.lead } : null;
+  }
+
+  /** "Yes, I'll attend": the lead moves to Demo confirmed. Never throws (the parent was already thanked). */
+  private async confirmDemo(registrationId: string, waId: string, now: Date): Promise<void> {
+    try {
+      const own = await this.ownBooking(this.prisma, registrationId, waId, now, "ATTEND");
+      if (!own) return;
+      await this.leadStages.apply(own.lead.id, "DEMO_CONFIRMED", { activity: { title: "Confirmed the demo on WhatsApp" } });
+    } catch (error) {
+      this.logger.warn(`Demo confirmation for booking ${registrationId} not recorded: ${(error as Error).message}`);
+    }
+  }
+
+  /** After a reschedule booked the new class: the old booking goes, if it is the same lead's and they never joined it. */
+  private async dropReplacedBooking(registrationId: string, leadId: string, newClassId: string): Promise<void> {
+    const dropped = await this.prisma.demoClassRegistration.deleteMany({
+      where: { classId: { not: newClassId }, id: registrationId, joinedAt: null, leadId }
+    });
+    if (dropped.count === 1) {
+      await this.prisma.leadActivity.create({ data: { activityType: "DEMO_RESCHEDULED", leadId, title: "Moved the demo to a new time on WhatsApp" } });
+    }
   }
 
   /**
@@ -439,4 +572,9 @@ export function replyWindowEndsAt(contact: Pick<WhatsAppContact, "lastInboundAt"
   if (!contact.lastInboundAt) return null;
   const ends = new Date(contact.lastInboundAt.getTime() + WHATSAPP_REPLY_WINDOW_MS);
   return ends > now ? ends : null;
+}
+
+/** A lead's stored level as the bot's (the website form uses the same three words). */
+function demoLevelOf(level: string): SupportDemoLevel {
+  return (SUPPORT_DEMO_LEVELS as readonly string[]).includes(level) ? (level as SupportDemoLevel) : "beginner";
 }

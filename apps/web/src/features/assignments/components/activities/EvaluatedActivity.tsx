@@ -6,10 +6,11 @@ import type {
   AssignmentEvaluationResult,
   AttemptMove,
   ChessColor,
+  RequestEngineMoveResponse,
   SolveLineHint,
   StartAttemptResponse
 } from "@nexa-chess/types";
-import { Flag, Lightbulb, Send, Undo2 } from "lucide-react";
+import { Bot, Flag, Lightbulb, Send, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -132,6 +133,19 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
           setFen(moveFeedback.opponentReply.fenAfter);
         }
       }
+
+      // PLAY_VS_ENGINE where the engine moves first: the server plays it.
+      if (
+        attempt.config.activityType === "PLAY_VS_ENGINE" &&
+        attempt.config.studentColor &&
+        turnOf(replay(attempt.startFen, nextMoves)) !== attempt.config.studentColor
+      ) {
+        const engine = await requestEngineMove(assignmentId, attempt.attempt.id, {
+          ply: nextMoves.length
+        });
+        setMoves(engine.moves);
+        setFen(replay(attempt.startFen, engine.moves));
+      }
     } catch {
       setPhase("error");
     }
@@ -159,9 +173,22 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
     [assignmentId, attemptId]
   );
 
+  // A pending progress save must not land after the submit, or after the
+  // page has gone (FE review S1).
+  useEffect(
+    () => () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    },
+    []
+  );
+
   const doSubmit = useCallback(
     async (finalMoves: AttemptMove[], resign = false) => {
       if (!attemptId) return;
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+        saveTimer.current = null;
+      }
       setBusy(true);
       try {
         const evaluation = await submitMutation.mutateAsync({
@@ -170,6 +197,9 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
         });
         setResult(evaluation);
         setPhase("result");
+      } catch {
+        // The mutation's onError already showed the toast; nothing else to
+        // report (FE review S2: no unhandled rejection).
       } finally {
         setBusy(false);
       }
@@ -241,65 +271,64 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
     [start, moves, assignmentId, attemptId, config, startFen, doSubmit]
   );
 
-  const handleEngineMove = useCallback(
-    async (mv: PracticeBoardMove) => {
-      const studentMove: AttemptMove = {
-        ply: moves.length + 1,
-        uci: mv.uci,
-        san: mv.san,
-        fenAfter: mv.fen
-      };
-      const withMove = [...moves, studentMove];
-      setMoves(withMove);
-      setFen(mv.fen);
-
-      const afterStudent = new Chess(mv.fen);
-      if (afterStudent.isGameOver()) {
-        await doSubmit(withMove);
+  /** Show the game the server stored after an engine turn (review S2/S3). */
+  const applyEngineTurn = useCallback(
+    async (engine: RequestEngineMoveResponse) => {
+      setMoves(engine.moves);
+      const nextFen = replay(startFen, engine.moves);
+      setFen(nextFen);
+      if (!engine.available) {
+        toast.warning({
+          title: "Engine offline",
+          message: "Your move is saved. Ask the engine to move again in a moment."
+        });
         return;
       }
+      if (engine.gameOver || new Chess(nextFen).isGameOver()) {
+        await doSubmit(engine.moves);
+      }
+    },
+    [startFen, toast, doSubmit]
+  );
 
+  const handleEngineMove = useCallback(
+    async (mv: PracticeBoardMove) => {
+      // Shown at once; the server's stored game replaces it when it answers.
+      setMoves([...moves, { ply: moves.length + 1, uci: mv.uci, san: mv.san, fenAfter: mv.fen }]);
+      setFen(mv.fen);
       setBusy(true);
       try {
-        const engine = await requestEngineMove(assignmentId, attemptId, { fen: mv.fen });
-        if (!engine.available) {
-          toast.warning({
-            title: "Engine offline",
-            message: "You can keep playing and submit when the game ends."
-          });
-          persist(withMove);
-          return;
-        }
-        if (engine.gameOver || !engine.uci || !engine.san || !engine.fenAfter) {
-          await doSubmit(withMove);
-          return;
-        }
-        const engineMove: AttemptMove = {
-          ply: withMove.length + 1,
-          uci: engine.uci,
-          san: engine.san,
-          fenAfter: engine.fenAfter
-        };
-        const next = [...withMove, engineMove];
-        setMoves(next);
-        setFen(engine.fenAfter);
-        persist(next);
-        if (new Chess(engine.fenAfter).isGameOver()) {
-          await doSubmit(next);
-        }
+        const engine = await requestEngineMove(assignmentId, attemptId, {
+          uci: mv.uci,
+          ply: moves.length
+        });
+        await applyEngineTurn(engine);
       } catch {
         setMoves(moves);
         setFen(replay(startFen, moves));
         toast.error({
-          title: "Engine error",
-          message: "Failed to get engine move. Please try again."
+          title: "Move not saved",
+          message: "Reload the page if the board looks out of date."
         });
       } finally {
         setBusy(false);
       }
     },
-    [moves, assignmentId, attemptId, doSubmit, persist, toast, startFen]
+    [moves, assignmentId, attemptId, applyEngineTurn, toast, startFen]
   );
+
+  /** The engine was offline after the student's move: ask it again. */
+  const retryEngine = useCallback(async () => {
+    if (!attemptId || busy) return;
+    setBusy(true);
+    try {
+      await applyEngineTurn(await requestEngineMove(assignmentId, attemptId, { ply: moves.length }));
+    } catch {
+      toast.error({ title: "Engine error", message: "Try again in a moment." });
+    } finally {
+      setBusy(false);
+    }
+  }, [attemptId, busy, applyEngineTurn, assignmentId, moves.length, toast]);
 
   const handleFreeMove = useCallback(
     (mv: PracticeBoardMove) => {
@@ -489,6 +518,12 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
                     Submit assignment
                   </Button>
                 </>
+              )}
+              {activityType === "PLAY_VS_ENGINE" && !yourTurn && !busy && (
+                <Button variant="outline" size="sm" onClick={() => void retryEngine()}>
+                  <Bot className="mr-1.5 size-4" strokeWidth={2.5} />
+                  Ask the engine to move
+                </Button>
               )}
               {activityType === "PLAY_VS_ENGINE" && (
                 <Button

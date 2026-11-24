@@ -28,7 +28,7 @@ import { Select } from "@/components/ui/Select";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Textarea } from "@/components/ui/Textarea";
-import { useBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
+import { useAllBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
 import {
   useAdminPlans,
   useArchivePlan,
@@ -151,7 +151,7 @@ function PlanFormDialog({
 }) {
   const create = useCreatePlan();
   const update = useUpdatePlan();
-  const { data: batches } = useBatchesQuery();
+  const { data: batches } = useAllBatchesQuery();
 
   const currency = plan?.currency ?? "INR";
 

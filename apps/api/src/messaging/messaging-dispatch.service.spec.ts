@@ -34,12 +34,14 @@ function makeRule(overrides: Record<string, unknown> = {}) {
     scheduleHour: null,
     scheduleMinute: null,
     scheduleDayOfWeek: null,
+    scheduleDays: [],
     weekdaysOnly: false,
     title: "New class",
     body: "Hi {{recipient.firstName}}, {{class.title}} on {{class.dateTime}}.",
     whatsappTemplateName: null,
     whatsappTemplateLanguage: null,
     whatsappTemplateParams: [],
+    whatsappTemplateImageHeader: false,
     updatedById: null,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -147,6 +149,19 @@ describe("MessagingDispatchService", () => {
 
   afterEach(() => jest.clearAllMocks());
 
+  it("keys a cancellation by when it was cancelled, so a second cancellation sends again (review M2)", async () => {
+    await setup();
+    prisma.coachClass.findUnique.mockResolvedValue({
+      ...(await prisma.coachClass.findUnique()),
+      cancelledAt: new Date("2026-09-13T08:00:00.000Z")
+    });
+
+    await service.dispatch({ event: "CLASS_CANCELLED", classId: CLASS_ID });
+
+    const [row] = queuedRows(prisma.messageDelivery.create);
+    expect(row.dedupeKey).toBe(`CLASS_CANCELLED:${CLASS_ID}:2026-09-13T08:00:00.000Z:student_1`);
+  });
+
   it("queues nothing while the rule is disabled", async () => {
     await setup(makeRule({ enabled: false }));
 
@@ -191,7 +206,8 @@ describe("MessagingDispatchService", () => {
       status: "PENDING",
       channel: "WHATSAPP",
       recipientPhone: "919876543210",
-      dedupeKey: `CLASS_SCHEDULED:${CLASS_ID}:student_1`
+      // The class's start time is in the key: a moved class is a new message (review M2).
+      dedupeKey: `CLASS_SCHEDULED:${CLASS_ID}:2026-09-14T12:30:00.000Z:student_1`
     });
     expect(row.body).toContain("Hi Asha");
     expect(row.body).toContain("Rook Endgames");
@@ -336,6 +352,99 @@ describe("MessagingDispatchService", () => {
     expect(rows[0]).toMatchObject({ recipientId: "near", linkPath: "/student/revision" });
     expect(rows[0].dedupeKey).toMatch(/^REVISION_DUE:near:\d+-\d+-\d+$/);
     expect(rows[0].body).toContain("/student/revision");
+  });
+
+  it("DAILY_PUZZLE sends WhatsApp once per student account number, with no student data, even with in-app on", async () => {
+    await setup(
+      makeRule({
+        event: "DAILY_PUZZLE",
+        inAppEnabled: true,
+        emailEnabled: true,
+        scheduleMode: "DAILY",
+        scheduleHour: 7,
+        scheduleMinute: 0,
+        body: "{{recipient.firstName}}Puzzle of the Day for {{dailyPuzzle.date}}: {{links.dailyPuzzle}}"
+      })
+    );
+    const on = { dailyPuzzleWhatsAppOffAt: null };
+    const findMany = jest
+      .fn()
+      // Students whose Puzzle of the Day is on.
+      .mockResolvedValueOnce([
+        { id: "s1", phoneNumber: "+91 98765 43210", studentProfile: on },
+        { id: "s2", phoneNumber: null, studentProfile: on },
+        { id: "s3", phoneNumber: "919111111111", studentProfile: { dailyPuzzleWhatsAppOffAt: new Date() } },
+        { id: "s4", phoneNumber: "919122222222", studentProfile: null },
+        { id: "s5", phoneNumber: "+91 91222 22222", studentProfile: on }
+      ])
+      // Every active student account with a phone (who shares a number).
+      .mockResolvedValueOnce([
+        { phoneNumber: "+91 98765 43210" },
+        { phoneNumber: "919111111111" },
+        { phoneNumber: "919122222222" },
+        { phoneNumber: "+91 91222 22222" }
+      ]);
+    Object.assign(prisma, { user: { findMany } });
+
+    await service.dispatch({
+      day: "2026-11-21",
+      event: "DAILY_PUZZLE",
+      picturePath: "/daily-puzzle-picture/abc.def.png",
+      timeZone: "Asia/Kolkata"
+    });
+
+    const rows = queuedRows(prisma.messageDelivery.create);
+    // s2 (no phone) is skipped quietly, s3 switched it off, s4 + s5 share one number.
+    expect(rows).toHaveLength(2);
+    expect(rows.every((row) => row.channel === "WHATSAPP" && row.status === "PENDING")).toBe(true);
+    const own = rows.find((row) => row.recipientId === "s1");
+    expect(own).toMatchObject({ dedupeKey: "DAILY_PUZZLE:919876543210:2026-11-21", recipientPhone: "919876543210" });
+    expect(rows.find((row) => row.recipientPhone === "919122222222")).toMatchObject({
+      dedupeKey: "DAILY_PUZZLE:919122222222:2026-11-21",
+      recipientId: "s4"
+    });
+    // Free text: the student's own number gets the board picture with the text as caption;
+    // a shared number gets the text only (it can't answer).
+    expect(own.imageLink).toMatch(/\/daily-puzzle-picture\/abc\.def\.png$/);
+    expect(rows.find((row) => row.recipientPhone === "919122222222").imageLink).toBeNull();
+    // No name (recipient.* is not bound), the academy's date, a link to the page.
+    expect(own.body).toMatch(/^Puzzle of the Day for Sat, 21 Nov 2026: \S+\/student\/daily-puzzle$/);
+    expect(findMany.mock.calls[0][0].where).toMatchObject({ role: "STUDENT", status: "ACTIVE" });
+  });
+
+  it("DAILY_PUZZLE with an image-header template puts the picture there for every number, and skips without one", async () => {
+    await setup(
+      makeRule({
+        event: "DAILY_PUZZLE",
+        scheduleMode: "DAILY",
+        scheduleHour: 7,
+        scheduleMinute: 0,
+        whatsappTemplateImageHeader: true,
+        whatsappTemplateName: "daily_puzzle",
+        whatsappTemplateParams: ["{{academy.name}}"]
+      })
+    );
+    const on = { dailyPuzzleWhatsAppOffAt: null };
+    const students = [
+      { id: "s1", phoneNumber: "919876543210", studentProfile: on },
+      { id: "s4", phoneNumber: "919122222222", studentProfile: on }
+    ];
+    const accounts = [{ phoneNumber: "919876543210" }, { phoneNumber: "919122222222" }, { phoneNumber: "919122222222" }];
+    const findMany = jest.fn().mockResolvedValueOnce(students).mockResolvedValueOnce(accounts);
+    Object.assign(prisma, { user: { findMany } });
+
+    await service.dispatch({ day: "2026-11-21", event: "DAILY_PUZZLE", picturePath: "/daily-puzzle-picture/t.s.png", timeZone: "Asia/Kolkata" });
+    const rows = queuedRows(prisma.messageDelivery.create);
+    expect(rows.map((row) => [row.recipientPhone, row.templateName, Boolean(row.imageLink)])).toEqual([
+      ["919876543210", "daily_puzzle", true],
+      // Shared, but the template can't go without its picture.
+      ["919122222222", "daily_puzzle", true]
+    ]);
+
+    prisma.messageDelivery.create.mockClear();
+    findMany.mockResolvedValueOnce(students).mockResolvedValueOnce(accounts);
+    await service.dispatch({ day: "2026-11-22", event: "DAILY_PUZZLE", picturePath: null, timeZone: "Asia/Kolkata" });
+    expect(queuedRows(prisma.messageDelivery.create).every((row) => row.status === "SKIPPED")).toBe(true);
   });
 
   describe("ASSIGNMENT_OVERDUE_COACH", () => {
@@ -662,6 +771,7 @@ describe("messaging templates", () => {
       scheduleHour: 9,
       scheduleMinute: 0,
       scheduleDayOfWeek: 1,
+      scheduleDays: [],
       weekdaysOnly: false,
       leadTimeMinutes: null
     };
@@ -680,6 +790,12 @@ describe("messaging templates", () => {
         weekdaysOnly: true
       })
     ).toBe("Weekdays at 9:00 am");
+    expect(
+      describeSchedule({ ...base, event: "CLASS_SCHEDULED", scheduleMode: "DAILY", scheduleDays: [1, 3, 5] })
+    ).toBe("Mon, Wed, Fri at 9:00 am");
+    expect(
+      describeSchedule({ ...base, event: "CLASS_SCHEDULED", scheduleMode: "DAILY", scheduleDays: [6, 0] })
+    ).toBe("Weekends at 9:00 am");
     expect(
       describeSchedule({ ...base, event: "CLASS_SCHEDULED", scheduleMode: "WEEKLY" })
     ).toBe("Mondays at 9:00 am");

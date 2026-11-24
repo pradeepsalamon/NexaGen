@@ -1,8 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
-  HttpException,
-  HttpStatus,
+  ForbiddenException,
   Injectable,
   Logger,
   UnauthorizedException
@@ -13,7 +12,6 @@ import {
   AcquisitionSource,
   CoachProfile,
   CoachTitle,
-  ExperienceLevel,
   ReferralSource,
   StudentProfile,
   User,
@@ -59,13 +57,20 @@ import {
   splitStudentName,
   verifySecret
 } from "./auth.utils";
-import { authenticateUser, verifyAccessToken as verifySharedAccessToken } from "./authenticate";
+import {
+  applyActiveRole,
+  authenticateUser,
+  primaryRoleOf,
+  verifyAccessToken as verifySharedAccessToken
+} from "./authenticate";
 import { MfaService } from "./mfa/mfa.service";
 import { isPlatformOperator } from "../platform/platform-operator";
 import { ReferralTrackerService } from "../referral/referral-tracker.service";
 import { bindAuthenticatedUser } from "../tenancy/bind-authenticated-user";
 import { asPlatform } from "../tenancy/tenant-context";
 import { requireTenantId } from "../tenancy/tenant-sql";
+import { assertNotLockedOut, lockedOutError, recordPasswordFailure, UnknownEmailLockout } from "./password-lockout";
+import { isUniqueViolationOn } from "../payments/payments.util";
 
 type SessionContext = {
   ipAddress?: string;
@@ -86,9 +91,7 @@ type UserWithProfiles = User & {
   studentProfile?: StudentProfile | null;
 };
 
-/** Wrong passwords per account before sign-in locks; per IP limits miss spread-out guessing. */
-export const LOGIN_MAX_FAILED_ATTEMPTS = 10;
-export const LOGIN_LOCKOUT_MS = 15 * 60_000;
+export { LOGIN_LOCKOUT_MS, LOGIN_MAX_FAILED_ATTEMPTS } from "./password-lockout";
 
 const UNVERIFIED_SIGN_IN_MESSAGE = {
   failed: "Verify your email address to sign in. We could not send you a new link, so please contact the academy.",
@@ -96,12 +99,25 @@ const UNVERIFIED_SIGN_IN_MESSAGE = {
   sent: "Verify your email address to sign in. We have just sent you a new link."
 } as const;
 
+/**
+ * The email index that still spans academies (until D5 drops it) answers a
+ * P2002 for an address another academy uses. That is a 409 like any taken
+ * email, never a 500 (review A6).
+ */
+function rethrowEmailTaken(error: unknown): never {
+  if (isUniqueViolationOn(error, "email")) {
+    throw new ConflictException("An account already exists for this email.");
+  }
+  throw error;
+}
+
 const dummyPasswordHash =
   "$2b$12$7Hb149Y.levymTZlxpT3M.52k1w61HGHtm49NErn1svp4nVrPi9nO";
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private readonly unknownEmailLockout = new UnknownEmailLockout();
   private readonly env = getApiEnv();
   private readonly accessSecret = this.env.JWT_ACCESS_SECRET;
   private readonly refreshSecret = this.env.JWT_REFRESH_SECRET;
@@ -223,7 +239,7 @@ export class AuthService {
           }
         }
       }
-    });
+    }).catch(rethrowEmailTaken);
 
     if (verifyEmail) await this.emailVerification.sendLinkBestEffort(user);
     // Joined through a referral link (or booked a demo with this email)?
@@ -273,7 +289,7 @@ export class AuthService {
         firstName,
         lastName,
         phoneNumber: payload.contactNumber,
-        role: UserRole.COACH,
+        role: UserRole.COACH, // coach-role-ok: a new applicant's account
         status: UserStatus.PENDING,
         timezone: "Asia/Kolkata",
         isEmailVerified: !verifyEmail,
@@ -293,7 +309,7 @@ export class AuthService {
           }
         }
       }
-    });
+    }).catch(rethrowEmailTaken);
 
     if (verifyEmail) await this.emailVerification.sendLinkBestEffort(user);
     // Joined through a referral link (or booked a demo with this email)?
@@ -317,18 +333,24 @@ export class AuthService {
     context: SessionContext
   ): Promise<LoginOutcome> {
     const startedAt = Date.now();
-    const user = await this.prisma.user.findUnique({
+    const found = await this.prisma.user.findUnique({
       include: { coachProfile: true, studentProfile: true },
       where: { tenantId_email: { email: payload.email.toLowerCase(), tenantId: requireTenantId("user") } }
     });
+    // A platform-support account is entered only through a support visit,
+    // never by password (review A2): it answers like an unknown email.
+    const user = found?.isPlatformSupport ? null : found;
     // Locked even for the right password, or the guessing would simply go on.
-    if (user?.loginLockedUntil && user.loginLockedUntil.getTime() > Date.now()) {
+    // An unknown email locks the same way, so a 429 doesn't reveal an account (review A8).
+    const unknownKey = `${requireTenantId("user")}:${payload.email.toLowerCase()}`;
+    const lockedUntil = user
+      ? user.loginLockedUntil && user.loginLockedUntil.getTime() > Date.now()
+        ? user.loginLockedUntil
+        : null
+      : this.unknownEmailLockout.lockedUntil(unknownKey);
+    if (lockedUntil) {
       await this.waitForLoginResponseDelay(startedAt);
-      const minutes = Math.ceil((user.loginLockedUntil.getTime() - Date.now()) / 60_000);
-      throw new HttpException(
-        `Too many failed sign-in attempts. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}, or reset your password.`,
-        HttpStatus.TOO_MANY_REQUESTS
-      );
+      throw lockedOutError(lockedUntil);
     }
 
     const passwordMatches = await verifySecret(
@@ -337,7 +359,8 @@ export class AuthService {
     );
 
     if (!user || !passwordMatches) {
-      if (user) await this.recordLoginFailure(user.id);
+      if (user) await recordPasswordFailure(this.prisma, user.id);
+      else this.unknownEmailLockout.recordFailure(unknownKey);
       await this.waitForLoginResponseDelay(startedAt);
       throw new UnauthorizedException("Invalid email or password.");
     }
@@ -438,7 +461,7 @@ export class AuthService {
       ...tokenPair,
       accessTokenMaxAge: this.accessTokenMaxAge,
       refreshTokenMaxAge,
-      user: this.toAuthUser(user)
+      user: this.toAuthUser(applyActiveRole(user, null))
     };
   }
 
@@ -497,7 +520,17 @@ export class AuthService {
         ).count;
 
     if (claimed === 0) {
-      const rotatedAt = session.rotatedAt ?? new Date();
+      // The claim can lose to a logout or reset that revoked this row after it
+      // was read: re-read it, so the grace path never mints a session into a
+      // family that was just ended (review A5).
+      const current = await this.prisma.authSession.findUnique({
+        select: { revokedAt: true, rotatedAt: true },
+        where: { id: session.id }
+      });
+      if (!current || current.revokedAt) {
+        throw new UnauthorizedException("Session expired.");
+      }
+      const rotatedAt = current.rotatedAt ?? session.rotatedAt ?? new Date();
       // A token that was already rotated, presented after the grace window, is a
       // replay of a stolen copy: end the whole device chain.
       if (Date.now() - rotatedAt.getTime() > this.refreshRotationGraceMs) {
@@ -514,8 +547,14 @@ export class AuthService {
       1,
       Math.floor(refreshTokenMaxAge / 1_000)
     )}s` as JwtDuration;
+    // The successor keeps the device's active role while the account still
+    // holds it (docs/MULTI_ROLE_ACCOUNTS.md); a removed role falls back here.
+    // Read after the rotation claim: a switch that landed between the first
+    // read and the claim is kept, and none can land later (it needs rotatedAt null).
+    const latest = await this.prisma.authSession.findUnique({ select: { activeRole: true }, where: { id: session.id } });
+    const acting = applyActiveRole(session.user, latest ? latest.activeRole : session.activeRole);
     const tokenPair = await this.createSession(
-      session.user,
+      acting,
       context,
       refreshTokenMaxAge,
       refreshTokenTtl,
@@ -527,7 +566,7 @@ export class AuthService {
       ...tokenPair,
       accessTokenMaxAge: this.accessTokenMaxAge,
       refreshTokenMaxAge,
-      user: this.toAuthUser(session.user)
+      user: this.toAuthUser(acting)
     };
   }
 
@@ -664,6 +703,10 @@ export class AuthService {
     const email = payload.email.toLowerCase().trim();
     const username = this.toNullableString(payload.username);
     const emailChanged = email !== user.email.toLowerCase();
+    // With WhatsApp on for password resets the phone is a reset channel too
+    // (review A2), so it takes the same proof as the email.
+    const phoneNumber = this.toNullableString(payload.phoneNumber);
+    const phoneChanged = phoneNumber !== (user.phoneNumber ?? null);
 
     // The parent contact receives invoices and academy notices (it is the
     // billing-profile default), so moving it needs the same proof as an email
@@ -674,17 +717,23 @@ export class AuthService {
         isParentContactChange(user.studentProfile, payload.studentProfile)
     );
 
-    // The email is what password reset trusts, so a stolen session alone must
-    // not be enough to move it. 400, not 401, so the client doesn't refresh-retry.
-    if (emailChanged || parentContactChanged) {
+    // The email and phone are what password reset trusts, so a stolen session
+    // alone must not be enough to move them. 400, not 401, so the client
+    // doesn't refresh-retry.
+    if (emailChanged || phoneChanged || parentContactChanged) {
       if (!payload.currentPassword) {
         throw new BadRequestException(
           emailChanged
             ? "Enter your current password to change your email."
-            : "Enter your current password to change the parent contact."
+            : phoneChanged
+              ? "Enter your current password to change your phone number."
+              : "Enter your current password to change the parent contact."
         );
       }
+      // Wrong confirmations count toward the sign-in lockout (review A7).
+      assertNotLockedOut(user);
       if (!(await verifySecret(payload.currentPassword, user.password))) {
+        await recordPasswordFailure(this.prisma, user.id);
         throw new BadRequestException("Current password is incorrect.");
       }
     }
@@ -699,7 +748,7 @@ export class AuthService {
           email,
           firstName: payload.firstName.trim(),
           lastName: this.toNullableString(payload.lastName),
-          phoneNumber: this.toNullableString(payload.phoneNumber),
+          phoneNumber,
           timezone: payload.timezone?.trim() || user.timezone,
           username,
           ...(reverifyEmail ? { emailVerifiedAt: null, isEmailVerified: false } : {})
@@ -707,9 +756,14 @@ export class AuthService {
         where: { id: user.id }
       });
 
-      // A link sent to the old address must not vouch for the new one.
+      // A link sent to the old address must not vouch for the new one, and a
+      // reset or invite link mailed there must not take the account (review A1).
       if (emailChanged) {
         await transaction.emailVerificationToken.updateMany({
+          data: { usedAt: new Date() },
+          where: { usedAt: null, userId: user.id }
+        });
+        await transaction.passwordResetToken.updateMany({
           data: { usedAt: new Date() },
           where: { usedAt: null, userId: user.id }
         });
@@ -717,12 +771,10 @@ export class AuthService {
 
       if (user.studentProfile && payload.studentProfile) {
         await transaction.studentProfile.update({
+          // Rating, date of birth and level decide tournament entry, age groups
+          // and seeding, so staff set them (review F1): a student's own save
+          // leaves them as they are (`progress/students/:id/playing-profile`).
           data: {
-            chessRating: payload.studentProfile.chessRating ?? null,
-            dateOfBirth: this.toNullableDate(payload.studentProfile.dateOfBirth),
-            experienceLevel: payload.studentProfile.experienceLevel
-              ? this.toPrismaExperienceLevel(payload.studentProfile.experienceLevel)
-              : user.studentProfile.experienceLevel,
             referralSource: payload.studentProfile.referralSource
               ? this.toPrismaReferralSource(payload.studentProfile.referralSource)
               : user.studentProfile.referralSource,
@@ -785,7 +837,7 @@ export class AuthService {
         include: { coachProfile: true, studentProfile: true },
         where: { id: user.id }
       });
-    });
+    }).catch(rethrowEmailTaken);
 
     if (parentContactChanged && user.studentProfile) {
       // To the previous parent contact (email and phone), and in-app to the student's own inbox.
@@ -794,6 +846,15 @@ export class AuthService {
         "PARENT_CONTACT_CHANGED",
         { email: previous.parentEmail, phone: previous.parentPhone, userId: user.id },
         { "student.fullName": `${user.firstName} ${user.lastName ?? ""}`.trim() }
+      );
+    }
+
+    if (phoneChanged && user.phoneNumber) {
+      // Best effort: to the OLD number, the account's email and its inbox.
+      void this.notifier.send(
+        "PHONE_CHANGED",
+        { email: user.email, phone: user.phoneNumber, userId: user.id },
+        {}
       );
     }
 
@@ -808,23 +869,8 @@ export class AuthService {
       if (reverifyEmail) void this.emailVerification.sendLinkBestEffort(updatedUser);
     }
 
-    return { user: this.toAuthUser(updatedUser) };
-  }
-
-  /** Counts a wrong password against the account; the Nth one locks sign-in. */
-  private async recordLoginFailure(userId: string) {
-    const { failedLoginAttempts } = await this.prisma.user.update({
-      data: { failedLoginAttempts: { increment: 1 } },
-      select: { failedLoginAttempts: true },
-      where: { id: userId }
-    });
-    if (failedLoginAttempts < LOGIN_MAX_FAILED_ATTEMPTS) return;
-
-    await this.prisma.user.update({
-      data: { failedLoginAttempts: 0, loginLockedUntil: new Date(Date.now() + LOGIN_LOCKOUT_MS) },
-      where: { id: userId }
-    });
-    this.logger.warn(`Sign-in locked for user ${userId} after ${failedLoginAttempts} failed attempts.`);
+    // Shown in the role this session acts in, not the stored one.
+    return { user: this.toAuthUser(applyActiveRole(updatedUser, user.role)) };
   }
 
   /** Signs every other device out, keeping the session the request came from. */
@@ -853,7 +899,8 @@ export class AuthService {
       where: { tenantId_email: { email: email.toLowerCase(), tenantId: requireTenantId("user") } }
     });
 
-    if (!user) {
+    // Platform-support accounts never get a reset link (review A2).
+    if (!user || user.isPlatformSupport) {
       await this.waitForPasswordResetResponseDelay(startedAt);
       return { ok: true };
     }
@@ -970,6 +1017,11 @@ export class AuthService {
       if (claimed.count === 0) {
         throw new BadRequestException("Reset token is invalid or expired.");
       }
+      // Every other reset or invite link dies with this one (review A1).
+      await tx.passwordResetToken.updateMany({
+        data: { usedAt: new Date() },
+        where: { usedAt: null, userId: token.userId }
+      });
 
       await tx.user.update({
         // Proving control of the email is the way out of a login lock.
@@ -1001,24 +1053,13 @@ export class AuthService {
         ipAddress: context.ipAddress,
         supportSessionId: supportSessionId ?? null,
         userAgent: context.userAgent,
-        userId: user.id
+        userId: user.id,
+        // `user.role` is the acting role (applyActiveRole); null = the primary role.
+        activeRole: user.role === primaryRoleOf(user) ? null : user.role
       }
     });
 
-    const accessToken = await this.jwtService.signAsync(
-      {
-        email: user.email,
-        role: user.role,
-        sessionId: session.id,
-        sub: user.id,
-        type: "access",
-        ...(supportSessionId ? { support: supportSessionId } : {})
-      } satisfies AccessTokenPayload,
-      {
-        expiresIn: this.accessTokenTtl,
-        secret: this.accessSecret
-      }
-    );
+    const accessToken = await this.signAccessToken(user, session.id, supportSessionId);
     const refreshToken = await this.jwtService.signAsync(
       {
         sessionId: session.id,
@@ -1037,6 +1078,70 @@ export class AuthService {
     });
 
     return { accessToken, refreshToken };
+  }
+
+  /** The access token carries the acting role, so web routing follows a role switch. */
+  private signAccessToken(user: Pick<User, "email" | "id" | "role">, sessionId: string, supportSessionId?: string | null) {
+    return this.jwtService.signAsync(
+      {
+        email: user.email,
+        role: user.role,
+        sessionId,
+        sub: user.id,
+        type: "access",
+        ...(supportSessionId ? { support: supportSessionId } : {})
+      } satisfies AccessTokenPayload,
+      {
+        expiresIn: this.accessTokenTtl,
+        secret: this.accessSecret
+      }
+    );
+  }
+
+  /**
+   * Switches this login session to another role the account holds
+   * (docs/MULTI_ROLE_ACCOUNTS.md §5.2). Same session and refresh token; only
+   * `AuthSession.activeRole` and a fresh access token change. Other devices
+   * keep their own role.
+   */
+  async switchRole(
+    accessToken: string | undefined,
+    role: UserRole
+  ): Promise<AuthResponse & { accessToken: string; accessTokenMaxAge: number }> {
+    const user = await authenticateUser(this.jwtService, this.prisma, accessToken, {
+      allowSales: true,
+      include: { coachProfile: true, studentProfile: true }
+    });
+    const payload = this.jwtService.decode<Partial<AccessTokenPayload> | null>(accessToken ?? "");
+    if (!payload?.sessionId) {
+      throw new UnauthorizedException("Sign in again to switch roles.");
+    }
+    if (payload.support) {
+      throw new ForbiddenException("A support visit cannot switch roles.");
+    }
+    if (!user.roles.includes(role)) {
+      throw new ForbiddenException("This account cannot act in that role.");
+    }
+
+    const from = user.role;
+    const claimed = await this.prisma.authSession.updateMany({
+      data: { activeRole: role === user.primaryRole ? null : role },
+      // Only a live, current session: an expired or already-rotated one must
+      // not mint fresh access tokens (the web refreshes on the 401 and retries).
+      where: { expiresAt: { gt: new Date() }, id: payload.sessionId, revokedAt: null, rotatedAt: null, userId: user.id }
+    });
+    if (claimed.count === 0) {
+      throw new UnauthorizedException("Invalid session.");
+    }
+    user.role = role;
+    this.logger.log(JSON.stringify({ event: "role-switch", from, sessionId: payload.sessionId, to: role, userId: user.id }));
+
+    return {
+      accessToken: await this.signAccessToken(user, payload.sessionId),
+      accessTokenMaxAge: this.accessTokenMaxAge,
+      support: null,
+      user: this.toAuthUser(user)
+    };
   }
 
   private verifyAccessToken(token: string) {
@@ -1080,10 +1185,13 @@ export class AuthService {
       firstName: user.firstName,
       id: user.id,
       isEmailVerified: user.isEmailVerified,
+      extraRoles: [...(user.extraRoles ?? [])],
       isPlatformOperator: isPlatformOperator(user),
       lastName: user.lastName,
       phoneNumber: user.phoneNumber,
+      primaryRole: primaryRoleOf(user),
       role: user.role,
+      roles: (user as Partial<{ roles: UserRole[] }>).roles ?? [user.role],
       status: user.status,
       studentProfile: user.studentProfile && !user.studentProfile.isDeleted
         ? {
@@ -1131,22 +1239,6 @@ export class AuthService {
     return trimmed ? trimmed : null;
   }
 
-  private toNullableDate(value: string | undefined) {
-    const trimmed = value?.trim();
-
-    if (!trimmed) {
-      return null;
-    }
-
-    const date = new Date(trimmed);
-
-    if (Number.isNaN(date.getTime())) {
-      throw new BadRequestException("Date of birth is invalid.");
-    }
-
-    return date;
-  }
-
   private toCoachTitle(title: UpdateProfileRequest["coachProfile"] extends infer T
     ? T extends { title?: infer U }
       ? U
@@ -1178,22 +1270,6 @@ export class AuthService {
     };
 
     return sources[source as string] ?? ReferralSource.OTHER;
-  }
-
-  private toPrismaExperienceLevel(
-    level: UpdateProfileRequest["studentProfile"] extends infer T
-      ? T extends { experienceLevel?: infer U }
-        ? NonNullable<U>
-        : never
-      : never
-  ) {
-    const levels: Record<string, ExperienceLevel> = {
-      BEGINNER: ExperienceLevel.BEGINNER,
-      INTERMEDIATE: ExperienceLevel.INTERMEDIATE,
-      ADVANCED: ExperienceLevel.ADVANCED
-    };
-
-    return levels[level as string] ?? ExperienceLevel.BEGINNER;
   }
 
   private toReferralSource(

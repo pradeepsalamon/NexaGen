@@ -63,6 +63,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.authSession;
   }
 
+  get userRoleChange() {
+    return this.client.userRoleChange;
+  }
+
   get userMfa() {
     return this.client.userMfa;
   }
@@ -105,6 +109,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
   get tenantIntegrityRun() {
     return this.client.tenantIntegrityRun;
+  }
+
+  get tenantClosure() {
+    return this.client.tenantClosure;
   }
 
   get platformCheckout() {
@@ -185,6 +193,14 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
   get supportLinkCode() {
     return this.client.supportLinkCode;
+  }
+
+  get metaCapiEvent() {
+    return this.client.metaCapiEvent;
+  }
+
+  get leadAdClick() {
+    return this.client.leadAdClick;
   }
 
   get crmLeadPush() {
@@ -485,6 +501,18 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
   get soloPuzzleRushRun() {
     return this.client.soloPuzzleRushRun;
+  }
+
+  get dailyPuzzle() {
+    return this.client.dailyPuzzle;
+  }
+
+  get dailyPuzzleEntry() {
+    return this.client.dailyPuzzleEntry;
+  }
+
+  get dailyPuzzleSettings() {
+    return this.client.dailyPuzzleSettings;
   }
 
   get liveClassPuzzleRushEntry() {

@@ -6,11 +6,13 @@ import { UserController } from "./user.controller";
 import { UserService } from "./user.service";
 import { MessagingModule } from "../messaging/messaging.module";
 import { ReferralModule } from "../referral/referral.module";
+import { MailModule } from "../mail/mail.module";
+import { RosterImportService } from "./roster-import.service";
 
 @Module({
   controllers: [UserController],
-  imports: [JwtModule.register({}), MessagingModule, PrismaModule, ReferralModule, TrashModule],
-  providers: [UserService],
+  imports: [JwtModule.register({}), MailModule, MessagingModule, PrismaModule, ReferralModule, TrashModule],
+  providers: [RosterImportService, UserService],
   exports: [UserService]
 })
 export class UserModule { }

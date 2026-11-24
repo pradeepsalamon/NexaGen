@@ -22,6 +22,7 @@ type RouteRule = {
 
 // Most specific prefix first; the first match wins.
 const ROUTE_RULES: readonly RouteRule[] = [
+  // Whole-database dumps: Nexa's super admins only (the API refuses any other academy's).
   { prefix: "/admin/backups", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin/classes", roles: ["SUPER_ADMIN"] },
   { prefix: "/admin/data-retention", roles: ["SUPER_ADMIN"] },
@@ -44,6 +45,9 @@ const ROUTE_RULES: readonly RouteRule[] = [
   { prefix: "/games", roles: null },
   // Help centre: every role; the API decides which articles each one sees.
   { prefix: "/help", roles: null },
+  // The live-class room (demo guests use the public /demo/[classId]); a
+  // referral-only SALES account has no class to join (FE review AU5).
+  { prefix: "/live-class", roles: [...STAFF_ROLES, "COACH", "STUDENT"] },
   { prefix: "/messages", roles: null },
   { prefix: "/plans", roles: null },
   { prefix: "/profile", roles: null },
@@ -130,4 +134,23 @@ export function readRoleFromJwt(token: string | undefined): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Where to send a user after sign-in when the login link carries `?next=`
+ * (FE review AU3): only a same-site path (starts with one `/`, never `//` or
+ * `/\\`) that this role may open. Anything else falls back to the dashboard,
+ * so the link can't be an open redirect.
+ */
+export function safeNextPath(next: string | null | undefined, role: string): string | null {
+  if (!next || !next.startsWith("/") || next.startsWith("//")) return null;
+  // Browsers drop tabs/newlines and read "\\" as "/" in a URL, so "/\t/x" or
+  // "/\\x" would become "//x" (another site).
+  // One character class, no repetition: it cannot backtrack (not a ReDoS).
+  // nosemgrep: ajinabraham.njsscan.dos.regex_dos.regex_dos
+  if (/[\u0000-\u001f\\]/.test(next)) return null;
+  const pathname = next.split(/[?#]/)[0];
+  if (pathname === "/login" || pathname === "/signup") return null;
+  if (!isProtectedPath(pathname) || !canAccessPath(pathname, role)) return null;
+  return next;
 }

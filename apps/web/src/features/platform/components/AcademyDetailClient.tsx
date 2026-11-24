@@ -22,6 +22,7 @@ import {
   useUpdatePlatformTenant
 } from "../hooks/usePlatformApi";
 import { AcademyBillingCard } from "./AcademyBillingCard";
+import { AcademyClosureCard } from "./AcademyClosureCard";
 import { AcademyDomainsCard } from "./AcademyDomainsCard";
 import { AcademySubscriptionCard } from "./AcademySubscriptionCard";
 import { AcademyUsageCard } from "./AcademyUsageCard";
@@ -40,7 +41,7 @@ function DetailsCard({ tenant }: { tenant: PlatformTenantDetail }) {
 
   return (
     <SectionCard title="Academy">
-      <form
+      <form noValidate
         className="grid gap-4"
         onSubmit={(event) => {
           event.preventDefault();
@@ -127,7 +128,7 @@ export function AcademyDetailClient({ tenantId }: { tenantId: string }) {
               <LifeBuoy aria-hidden="true" className="size-4" strokeWidth={2.5} />
               Open as support
             </Button>
-            {tenant.status === "ACTIVE" ? (
+            {tenant.status === "DEACTIVATED" ? null : tenant.status === "ACTIVE" ? (
               <Button disabled={isNexa} onClick={() => setDialog("suspend")} type="button" variant="destructive">
                 <Pause aria-hidden="true" className="size-4" strokeWidth={2.5} />
                 Suspend
@@ -174,6 +175,11 @@ export function AcademyDetailClient({ tenantId }: { tenantId: string }) {
       <div className="mt-6">
         <AcademyUsageCard tenantId={tenantId} />
       </div>
+      {isNexa ? null : (
+        <div className="mt-6">
+          <AcademyClosureCard tenant={tenant} />
+        </div>
+      )}
       <section className="mt-6 grid gap-3">
         <h2 className="text-lg font-bold text-app-text">Audit log</h2>
         <AuditList tenantId={tenantId} />

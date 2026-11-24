@@ -15,6 +15,20 @@ import type { ApprovalActor, ApprovalHandler, PreparedApproval } from "../approv
 
 const payloadSchema = z.object({ tournamentId: z.string().trim().min(1).max(64) }).strict();
 type Payload = z.infer<typeof payloadSchema>;
+const snapshotSchema = z.object({ version: z.number() });
+
+/**
+ * The stored request as this handler wrote it. A row that doesn't read back is a
+ * 409 the approval flow records as REVALIDATION_FAILED, never a 500 (review R10).
+ */
+function readStored(request: ApprovalRequest): { tournamentId: string; version: number } {
+  const payload = payloadSchema.safeParse(request.requestedValue);
+  const snapshot = snapshotSchema.safeParse(request.currentValue);
+  if (!payload.success || !snapshot.success) {
+    throw new ConflictException("This request can no longer be read. Reject it; the host can ask again.");
+  }
+  return { tournamentId: payload.data.tournamentId, version: snapshot.data.version };
+}
 
 /**
  * A coach HOST asks to publish a PUBLIC tournament when the academy doesn't let
@@ -54,8 +68,8 @@ export class TournamentPublishHandler implements ApprovalHandler<Payload> {
   }
 
   async revalidate(tx: PrismaTransactionClient, request: ApprovalRequest): Promise<void> {
-    const { tournamentId } = payloadSchema.parse(request.requestedValue);
-    const snapshot = z.object({ version: z.number() }).parse(request.currentValue);
+    const { tournamentId, version } = readStored(request);
+    const snapshot = { version };
     await tx.$queryRaw`SELECT "id" FROM "tournaments" WHERE "id" = ${tournamentId} FOR UPDATE`;
     const tournament = await tx.tournament.findUnique({
       select: { startsAt: true, status: true, version: true },
@@ -84,8 +98,7 @@ export class TournamentPublishHandler implements ApprovalHandler<Payload> {
   }
 
   async execute(tx: PrismaTransactionClient, request: ApprovalRequest, reviewer: { id: string }) {
-    const { tournamentId } = payloadSchema.parse(request.requestedValue);
-    const { version } = z.object({ version: z.number() }).parse(request.currentValue);
+    const { tournamentId, version } = readStored(request);
     await publishInTx(tx, tournamentId, version);
     await tx.tournamentAuditLog.create({
       data: {

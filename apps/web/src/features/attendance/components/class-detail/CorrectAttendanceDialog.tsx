@@ -1,5 +1,7 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
+import { getErrorMessage } from "@/lib/errors";
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { attendanceCorrectionStatusSchema, type AttendanceCorrectionStatus } from "@nexa-chess/types";
@@ -91,6 +93,7 @@ export function CorrectAttendanceDialog({
   const [status, setStatus] = useState<AttendanceCorrectionStatus | "">("");
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
+  useRevealFormErrors(error);
 
   useEffect(() => {
     setStatus("");
@@ -104,7 +107,7 @@ export function CorrectAttendanceDialog({
         reason: reason.trim(),
         status: status as AttendanceCorrectionStatus
       }),
-    onError: (err) => setError(err instanceof Error ? err.message : "Couldn't correct the attendance."),
+    onError: (err) => setError(getErrorMessage(err, "Couldn't correct the attendance.")),
     onSuccess: () => {
       toast.success({ title: "Attendance corrected", message: `${student?.name ?? "The student"} is updated.` });
       onCorrected?.();

@@ -8,6 +8,8 @@ import { useShallow } from "zustand/react/shallow";
 import { controlSideForIdentity } from "../../lib/boardSyncRules";
 import type { BoardControlSide } from "../../types/sync";
 import { preloadSounds } from "../../audio/sounds";
+import { boardGlyph, glyphBadgeSvg } from "../../lib/moveGlyphs";
+import { getMoveTreeNode } from "@nexa-chess/types";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useChessAppearance } from "@/features/chess-appearance/context/ChessAppearanceProvider";
 import {
@@ -74,6 +76,14 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       makeFreeMove: s.makeFreeMove,
     })),
   );
+  // The annotation glyph of the move on the board ("!!", "±", …), as "<nag>:<square>":
+  // a badge on the square the move landed on, like an analysis board.
+  const glyphMark = useBoardStore((s) => {
+    if (s.historyIndex < 0) return null;
+    const node = getMoveTreeNode(s.tree, s.treeLinePath.slice(0, s.historyIndex + 1));
+    const glyph = boardGlyph(node?.nags);
+    return glyph && node ? `${glyph.nag}:${node.uci.slice(2, 4)}` : null;
+  });
   // Everyone may draw arrows on an interactive board. A student's marks stay on
   // their own screen: `useBoardSync` only broadcasts the coach's annotations,
   // and receivers reject a non-coach UPDATE_ANNOTATIONS anyway.
@@ -382,15 +392,18 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
 
   useEffect(() => {
     if (!cg) return;
-    cg.setAutoShapes(
-      overlayArrows.map((a) => ({
+    const [nag, square] = glyphMark?.split(":") ?? [];
+    const badge = nag ? glyphBadgeSvg(Number(nag)) : undefined;
+    cg.setAutoShapes([
+      ...overlayArrows.map((a) => ({
         orig: a.orig as any,
         dest: a.dest as any,
         brush: a.brush,
         modifiers: { lineWidth: Math.round(4 + a.weight * 10) }
-      }))
-    );
-  }, [cg, overlayArrows]);
+      })),
+      ...(badge && square ? [{ orig: square as any, customSvg: { html: badge } }] : []),
+    ]);
+  }, [cg, overlayArrows, glyphMark]);
 
   return (
     <div

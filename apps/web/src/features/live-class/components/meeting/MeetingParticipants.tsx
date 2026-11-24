@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useCallback, useState, useMemo, memo, useRef } from "react";
 import {
   MessageSquareLock,
@@ -505,7 +506,7 @@ export function MeetingParticipants({
         meetingToast({
           tone: "warning",
           title: `Couldn't turn off ${name}'s ${label}`,
-          description: error instanceof Error ? error.message : undefined,
+          description: getErrorMessage(error),
         });
       }
     },
@@ -532,7 +533,7 @@ export function MeetingParticipants({
         meetingToast({
           tone: "warning",
           title: `Couldn't remove ${name}`,
-          description: error instanceof Error ? error.message : undefined,
+          description: getErrorMessage(error),
         });
         return false;
       } finally {
@@ -556,7 +557,7 @@ export function MeetingParticipants({
         meetingToast({
           tone: "warning",
           title: `Couldn't ${action === "ADMIT" ? "admit" : "deny"} ${name}`,
-          description: error instanceof Error ? error.message : undefined,
+          description: getErrorMessage(error),
         });
       }
     },
@@ -575,7 +576,7 @@ export function MeetingParticipants({
         meetingToast({
           tone: "warning",
           title: `Couldn't ${action.toLowerCase()} ${name}'s screen-share request`,
-          description: error instanceof Error ? error.message : undefined,
+          description: getErrorMessage(error),
         });
       }
     },
@@ -591,7 +592,7 @@ export function MeetingParticipants({
         meetingToast({
           tone: "warning",
           title: `Couldn't lower ${name}'s hand`,
-          description: error instanceof Error ? error.message : undefined,
+          description: getErrorMessage(error),
         });
       }
     },
@@ -613,7 +614,7 @@ export function MeetingParticipants({
         meetingToast({
           tone: "warning",
           title: `Couldn't let ${name} share their screen`,
-          description: error instanceof Error ? error.message : undefined,
+          description: getErrorMessage(error),
         });
       }
     },

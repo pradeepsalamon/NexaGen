@@ -7,6 +7,7 @@ import type {
 } from "@nexa-chess/types";
 import Redis from "ioredis";
 import { PrismaService } from "../prisma/prisma.service";
+import { asPlatform } from "../tenancy/tenant-context";
 import {
   buildRequestPathConnection,
   isRedisConfigured
@@ -27,7 +28,7 @@ export class HealthService implements OnModuleDestroy {
 
   async ready(): Promise<ReadinessResponse> {
     const [database, redis] = await Promise.all([
-      this.check("database", () => this.prisma.$queryRaw`SELECT 1`),
+      this.check("database", () => this.probeDatabase()),
       this.checkRedis()
     ]);
 
@@ -46,6 +47,17 @@ export class HealthService implements OnModuleDestroy {
       this.redis.disconnect();
       this.redis = null;
     }
+  }
+
+  /**
+   * A real read through the Prisma client, not `SELECT 1`: it selects every
+   * `users` column this build knows and parses its enums, so code running on a
+   * schema it doesn't match (a missing migration, a rollback past a contract
+   * change) fails the deploy gate (docs/DEPLOY_ROLLBACK_HARDENING.md). Any
+   * academy's row will do and nothing is returned, hence platform scope.
+   */
+  private probeDatabase(): Promise<unknown> {
+    return asPlatform("health:readiness-probe", () => this.prisma.user.findFirst());
   }
 
   private checkRedis(): Promise<HealthCheckResult> {

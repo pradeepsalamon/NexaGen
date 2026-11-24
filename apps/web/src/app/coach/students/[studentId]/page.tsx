@@ -1,4 +1,5 @@
 import { StaffStudentProgressClient } from "@/features/progress/components/StaffStudentProgressClient";
+import { StudentPlayingProfileButton } from "@/features/progress/components/StudentPlayingProfileButton";
 import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata = {
@@ -7,5 +8,12 @@ export const metadata = {
 
 export default async function CoachStudentProgressPage(props: { params: Promise<{ studentId: string }> }) {
   const { studentId } = await props.params;
-  return <StaffStudentProgressClient backHref="/coach/students" backLabel="Students" studentId={studentId} />;
+  return (
+    <StaffStudentProgressClient
+      actions={<StudentPlayingProfileButton studentId={studentId} />}
+      backHref="/coach/students"
+      backLabel="Students"
+      studentId={studentId}
+    />
+  );
 }

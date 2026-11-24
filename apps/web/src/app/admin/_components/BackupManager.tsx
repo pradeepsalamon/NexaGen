@@ -1,10 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { AlertTriangle, CheckCircle2, Download, HardDriveDownload } from "lucide-react";
-import { toast } from "sonner";
-import { apiFetch } from "@/lib/api";
+import {
+  useBackupDownloadLinkMutation,
+  useBackupsQuery,
+  useTriggerBackupMutation
+} from "@/features/backups/hooks/useBackupsApi";
 import { formatDateTime } from "@/lib/datetime";
+import { getErrorMessage } from "@/lib/errors";
+import { useToast } from "@/providers/ToastProvider";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
@@ -23,19 +27,14 @@ import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { Spinner } from "@/components/ui/Spinner";
 import { TableSkeletonRows } from "@/components/ui/TableSkeletonRows";
 
-export interface BackupItem {
-  key: string;
-  filename: string;
-  type: "Automatic" | "Manual";
-  size: number;
-  date: string;
-}
-
 export function BackupManager() {
   const tz = useUserTimeZone();
-  const [backupItems, setBackups] = useState<BackupItem[]>([]);
+  const toast = useToast();
+  const backupsQuery = useBackupsQuery();
+  const createBackup = useTriggerBackupMutation();
+  const downloadLink = useBackupDownloadLinkMutation();
   const { rows: backups, sortProps } = useTableSort({
-    rows: backupItems,
+    rows: backupsQuery.data ?? [],
     accessors: {
       date: (b) => b.date,
       filename: (b) => b.filename,
@@ -43,44 +42,21 @@ export function BackupManager() {
       type: (b) => b.type
     }
   });
-  const [isLoading, setIsLoading] = useState(true);
-  const [isCreating, setIsCreating] = useState(false);
-
-  const fetchBackups = async () => {
-    setIsLoading(true);
-    try {
-      const data = await apiFetch<BackupItem[]>("/admin/backups");
-      setBackups(data);
-    } catch (error) {
-      toast.error("Failed to load backups");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchBackups();
-  }, []);
+  const isLoading = backupsQuery.isLoading;
+  const isCreating = createBackup.isPending;
 
   const handleCreateBackup = async () => {
-    setIsCreating(true);
     try {
-      const data = await apiFetch<{ message: string; key?: string }>("/admin/backups/trigger", {
-        method: "POST",
-      });
-      toast.success(data.message || "Backup created successfully!");
-      fetchBackups();
+      const data = await createBackup.mutateAsync();
+      toast.success({ message: data.message || "The backup is stored.", title: "Backup created" });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to create backup.");
-    } finally {
-      setIsCreating(false);
+      toast.error({ message: getErrorMessage(error), title: "Couldn't create the backup" });
     }
   };
 
   const handleDownload = async (key: string) => {
     try {
-      const { url } = await apiFetch<{ url: string }>(`/admin/backups/download?key=${encodeURIComponent(key)}`);
-      // Trigger download
+      const { url } = await downloadLink.mutateAsync(key);
       const a = document.createElement("a");
       a.href = url;
       a.download = key.split("/").pop() || "backup.sql.gz";
@@ -88,10 +64,9 @@ export function BackupManager() {
       a.click();
       document.body.removeChild(a);
     } catch (error) {
-      toast.error("Failed to generate download link.");
+      toast.error({ message: getErrorMessage(error), title: "Couldn't get the download link" });
     }
   };
-
 
   const formatSize = (bytes: number) => {
     const mb = bytes / (1024 * 1024);
@@ -124,6 +99,13 @@ export function BackupManager() {
           <p className="mb-1 text-xs font-semibold text-app-muted">Latest backup</p>
           {isLoading ? (
             <Skeleton className="h-6 w-48" />
+          ) : backupsQuery.isError ? (
+            <div className="flex flex-wrap items-center gap-3 text-sm text-app-muted">
+              {getErrorMessage(backupsQuery.error)}
+              <Button size="sm" variant="outline" onClick={() => void backupsQuery.refetch()}>
+                Try again
+              </Button>
+            </div>
           ) : latestBackup ? (
             <div className="flex flex-wrap items-center gap-3">
               <Badge variant="success">
@@ -163,7 +145,7 @@ export function BackupManager() {
             ) : backups.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center text-app-muted">
-                  No database backups found.
+                  {backupsQuery.isError ? "The backup list couldn't be loaded." : "No database backups found."}
                 </TableCell>
               </TableRow>
             ) : (

@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useState } from "react";
 import Link from "next/link";
 import { Lightbulb, Pencil, Trash2, TrendingUp } from "lucide-react";
@@ -181,7 +182,7 @@ export function SuggestionDialog({
       toast.success({ title: suggestion ? "Suggestion updated." : "Suggestion sent to the admins." });
       onOpenChange(false);
     } catch (err) {
-      toast.error({ message: err instanceof Error ? err.message : undefined, title: "Could not send the suggestion" });
+      toast.error({ message: getErrorMessage(err), title: "Could not send the suggestion" });
     } finally {
       setSaving(false);
     }

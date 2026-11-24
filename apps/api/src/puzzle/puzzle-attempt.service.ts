@@ -40,9 +40,10 @@ import {
   MAX_PAGE_SIZE,
   paginationMeta
 } from "../common/pagination";
-import { PrismaService } from "../prisma/prisma.service";
+import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { puzzleTopicWhere } from "./puzzle-topic-filter";
 import { ProgressRecorderService } from "../progress/progress-recorder.service";
+import { DailyPuzzleService } from "./daily-puzzle.service";
 import { assertStudent, authenticateUser, puzzleAuthorName } from "./puzzle-auth.helper";
 
 const MAX_STORED_MISTAKES = 50;
@@ -63,7 +64,8 @@ export class PuzzleAttemptService {
     private readonly evaluation: AssignmentEvaluationService,
     private readonly analyticsEvents: AnalyticsEventService,
     private readonly progress: ProgressRecorderService,
-    private readonly puzzleSets: AssignmentPuzzleSetService
+    private readonly puzzleSets: AssignmentPuzzleSetService,
+    private readonly daily: DailyPuzzleService
   ) {}
 
   async listForStudent(
@@ -433,6 +435,11 @@ export class PuzzleAttemptService {
         (await this.puzzleSets.triesLeft(attempt.studentAssignmentId, puzzle.id)) === 0;
     }
 
+    // Puzzle of the Day: the finished attempt keeps the student's daily streak.
+    if (attempt.context === PuzzleAttemptContext.DAILY) {
+      await this.daily.recordFinish(attempt.id, evalResult.solved);
+    }
+
     void this.analyticsEvents.record(
       student.id,
       ANALYTICS_EVENT_TYPES.PUZZLE_ATTEMPT,
@@ -503,6 +510,76 @@ export class PuzzleAttemptService {
       });
     }
     return { ...hint, hintsUsed };
+  }
+
+  // ── Puzzle of the Day answered by WhatsApp reply (docs/PUZZLE_OF_THE_DAY.md step 3) ──
+
+  /**
+   * Opens (or finds) the student's DAILY attempt for a puzzle inside the
+   * caller's transaction; the WhatsApp reply handler owns the entry row.
+   */
+  async openDailyAttempt(tx: PrismaTransactionClient, studentId: string, puzzleId: string): Promise<string> {
+    const count = await tx.puzzleAttempt.count({ where: { puzzleId, studentId } });
+    const attempt = await tx.puzzleAttempt.create({
+      data: { attemptNumber: count + 1, context: PuzzleAttemptContext.DAILY, puzzleId, studentId }
+    });
+    return attempt.id;
+  }
+
+  /** A wrong move or a hint by WhatsApp: counted like the app counts them. */
+  async countDailyTry(tx: PrismaTransactionClient, attemptId: string, change: { wrongMove?: true; hint?: true }): Promise<void> {
+    await tx.puzzleAttempt.updateMany({
+      data: {
+        ...(change.wrongMove ? { wrongMoves: { increment: 1 } } : {}),
+        ...(change.hint ? { hintsUsed: { increment: 1 } } : {})
+      },
+      where: { id: attemptId, status: "IN_PROGRESS" }
+    });
+  }
+
+  /**
+   * Finishes a DAILY attempt answered by WhatsApp, in the caller's
+   * transaction: only the first move is asked there, so a right one solves it
+   * (100%) and running out of tries or asking for the answer fails it (0%).
+   * The daily entry is stamped (the streak) like `submit` does. Returns the
+   * rating/analytics work to run after commit; null = it was already finished.
+   */
+  async finishDailyAttempt(
+    tx: PrismaTransactionClient,
+    attemptId: string,
+    outcome: { solved: boolean; moves: AttemptMove[] }
+  ): Promise<(() => void) | null> {
+    const now = new Date();
+    const claimed = await tx.puzzleAttempt.updateMany({
+      data: {
+        accuracyPercent: outcome.solved ? 100 : 0,
+        completedAt: now,
+        movesJson: outcome.moves as unknown as Prisma.InputJsonValue,
+        result: outcome.solved ? "SOLVED" : "FAILED",
+        scorePercent: outcome.solved ? 100 : 0,
+        status: outcome.solved ? "SOLVED" : "FAILED"
+      },
+      where: { context: PuzzleAttemptContext.DAILY, id: attemptId, status: "IN_PROGRESS" }
+    });
+    if (claimed.count === 0) return null;
+    await tx.dailyPuzzleEntry.updateMany({ data: { finishedAt: now, solved: outcome.solved }, where: { attemptId, finishedAt: null } });
+    const attempt = await tx.puzzleAttempt.findUniqueOrThrow({
+      include: { puzzle: { select: { difficulty: true, id: true, rating: true } } },
+      where: { id: attemptId }
+    });
+    return () => {
+      void this.analyticsEvents.record(attempt.studentId, ANALYTICS_EVENT_TYPES.PUZZLE_ATTEMPT, attempt.puzzleId);
+      void this.progress.recordPuzzleResult({
+        attemptId: attempt.id,
+        difficulty: attempt.puzzle.difficulty,
+        hintsUsed: attempt.hintsUsed,
+        puzzleId: attempt.puzzle.id,
+        rating: attempt.puzzle.rating,
+        solved: outcome.solved,
+        studentId: attempt.studentId,
+        wrongMoves: attempt.wrongMoves
+      });
+    };
   }
 
   // ── internals ──

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { LoginForm } from "@/features/auth/components/LoginForm";
+import { AuthCard } from "@/features/auth/frame/AuthFrame";
+import { LoginCard } from "@/features/auth/frame/LoginCard";
 import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata: Metadata = {
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function LoginPage() {
-  return <LoginForm />;
+  return (
+    <AuthCard>
+      <LoginCard />
+    </AuthCard>
+  );
 }

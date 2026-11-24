@@ -128,7 +128,11 @@ export function usePaymentStatus(
     refetchInterval: (query) => {
       if (!options.poll) return false;
       const data = query.state.data;
-      if (!data?.pending) return false;
+      // No answer yet (the first request failed, e.g. a blip right after the
+      // gateway closed): keep asking, backing off after errors, instead of
+      // stopping until a reload (FE review D2).
+      if (!data) return Math.min(30_000, 4_000 * 2 ** Math.min(query.state.errorUpdateCount, 3));
+      if (!data.pending) return false;
       return query.state.dataUpdateCount > 12 ? 10_000 : 4_000;
     }
   });

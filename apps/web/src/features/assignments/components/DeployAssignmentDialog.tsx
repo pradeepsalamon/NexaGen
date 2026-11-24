@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { useEffect, useState } from "react";
 import type { AssignmentLibraryItem, CoachBatch } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
@@ -29,6 +30,7 @@ export function DeployAssignmentDialog({ open, onOpenChange, assignment, coachBa
   const [batchIds, setBatchIds] = useState<string[]>([]);
   const [dueDate, setDueDate] = useState<string>("");
   const [errors, setErrors] = useState<{ batches?: string; dueDate?: string }>({});
+  useRevealFormErrors(errors);
 
   useEffect(() => {
     if (open) {
@@ -90,6 +92,7 @@ export function DeployAssignmentDialog({ open, onOpenChange, assignment, coachBa
 
           <FormField error={errors.dueDate} id="deploy-dueDate" label="Due date">
             <DatePicker
+              id="deploy-dueDate"
               withTime
               value={dueDate ? new Date(dueDate) : undefined}
               onChange={(date) => {

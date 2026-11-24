@@ -11,6 +11,7 @@ import { JwtService } from "@nestjs/jwt";
 import type { RegisterCoachRequest, RegisterRequest } from "@nexa-chess/types";
 import { LEGAL_TERMS_VERSION } from "@nexa-chess/types";
 import {
+  Prisma,
   ReferralSource,
   UserRole,
   UserStatus
@@ -235,6 +236,19 @@ describe("AuthService", () => {
   });
 
   describe("register", () => {
+    // Review A6: the email index that still spans academies answers a 409, not a 500.
+    it("turns an email taken in another academy into a 409", async () => {
+      prismaService.user.findUnique.mockResolvedValueOnce(null);
+      prismaService.user.create.mockRejectedValueOnce(
+        new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+          clientVersion: "6",
+          code: "P2002",
+          meta: { target: ["email"] }
+        })
+      );
+      await expect(service.register(registerPayload, {})).rejects.toBeInstanceOf(ConflictException);
+    });
+
     it("creates a PENDING student and issues no session", async () => {
       prismaService.user.findUnique.mockResolvedValueOnce(null);
       prismaService.user.create.mockResolvedValueOnce({
@@ -359,6 +373,21 @@ describe("AuthService", () => {
   });
 
   describe("login", () => {
+    // Review A2: a support account is entered only through a support visit.
+    it("refuses a platform-support account's password like an unknown email", async () => {
+      const password = "password123";
+      prismaService.user.findUnique.mockResolvedValueOnce({
+        ...activeUser,
+        isPlatformSupport: true,
+        password: await hashSecret(password)
+      });
+
+      await expect(service.login({ email: activeUser.email, password }, {})).rejects.toThrow(
+        "Invalid email or password."
+      );
+      expect(prismaService.authSession.create).not.toHaveBeenCalled();
+    });
+
     it("throws UnauthorizedException for invalid credentials", async () => {
       prismaService.user.findUnique.mockResolvedValueOnce(null);
 
@@ -456,6 +485,19 @@ describe("AuthService", () => {
         expect(prismaService.authSession.create).not.toHaveBeenCalled();
       });
 
+      // Review A8: an unknown email locks the same way, so a 429 doesn't reveal an account.
+      it("locks an unknown email after the same number of tries, with the same answer", async () => {
+        const lockout = (service as unknown as { unknownEmailLockout: { recordFailure: (key: string) => void } }).unknownEmailLockout;
+        for (let i = 0; i < LOGIN_MAX_FAILED_ATTEMPTS; i += 1) lockout.recordFailure("tenant_nexa:nobody@example.com");
+        prismaService.user.findUnique.mockResolvedValueOnce(null);
+
+        const error = (await service
+          .login({ email: "Nobody@example.com", password }, {})
+          .catch((caught: unknown) => caught)) as HttpException;
+
+        expect(error.getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
+      });
+
       it("clears the count once the right password is given", async () => {
         prismaService.user.findUnique.mockResolvedValueOnce({
           ...activeUser,
@@ -515,6 +557,17 @@ describe("AuthService", () => {
       prismaService.authSession.create.mockResolvedValue({ id: "sess-2" });
       prismaService.authSession.update.mockResolvedValue({ id: "sess-2" });
       prismaService.authSession.updateMany.mockResolvedValue({ count: 1 });
+      prismaService.authSession.findUnique.mockResolvedValue({ activeRole: null, revokedAt: null, rotatedAt: null });
+    });
+
+    // Review A5: a refresh that loses the claim to a logout or reset is refused.
+    it("refuses a refresh that lost the rotation claim to a logout", async () => {
+      prismaService.authSession.findFirst.mockResolvedValueOnce(liveSession());
+      prismaService.authSession.updateMany.mockResolvedValueOnce({ count: 0 });
+      prismaService.authSession.findUnique.mockResolvedValueOnce({ revokedAt: new Date(), rotatedAt: null });
+
+      await expect(service.refresh(REFRESH_TOKEN, {})).rejects.toThrow(UnauthorizedException);
+      expect(prismaService.authSession.create).not.toHaveBeenCalled();
     });
 
     it("rotates a live session into a successor in the same family", async () => {
@@ -758,7 +811,7 @@ describe("AuthService", () => {
   });
 
   describe("updateProfile", () => {
-    const profile = { email: "test@example.com", firstName: "John" };
+    const profile = { email: "test@example.com", firstName: "John", phoneNumber: "1234567890" };
 
     beforeEach(async () => {
       jwtService.verifyAsync.mockResolvedValue({ sessionId: "sess-1", sub: "usr-123", type: "access" });
@@ -793,6 +846,11 @@ describe("AuthService", () => {
         data: { usedAt: expect.any(Date) },
         where: { usedAt: null, userId: "usr-123" }
       });
+      // Review A1: a reset or invite link mailed to the old address dies too.
+      expect(prismaService.passwordResetToken.updateMany).toHaveBeenCalledWith({
+        data: { usedAt: expect.any(Date) },
+        where: { usedAt: null, userId: "usr-123" }
+      });
       expect(emailVerification.sendLinkBestEffort).toHaveBeenCalledTimes(1);
     });
 
@@ -811,7 +869,8 @@ describe("AuthService", () => {
       expect(prismaService.user.update).not.toHaveBeenCalled();
     });
 
-    it("refuses an email change with the wrong password", async () => {
+    it("refuses an email change with the wrong password, and counts it toward the lockout", async () => {
+      prismaService.user.update.mockResolvedValueOnce({ failedLoginAttempts: 1 });
       await expect(
         service.updateProfile("access-token", {
           ...profile,
@@ -819,7 +878,25 @@ describe("AuthService", () => {
           email: "new@example.com"
         })
       ).rejects.toThrow("Current password is incorrect.");
-      expect(prismaService.user.update).not.toHaveBeenCalled();
+      // Review A7: only the failure counter moved; nothing on the profile changed.
+      expect(prismaService.user.update).toHaveBeenCalledTimes(1);
+      expect(prismaService.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { failedLoginAttempts: { increment: 1 } } })
+      );
+    });
+
+    it("refuses a password confirmation while sign-in is locked", async () => {
+      prismaService.user.findUnique
+        .mockReset()
+        .mockResolvedValueOnce({
+          ...activeUser,
+          loginLockedUntil: new Date(Date.now() + 60_000),
+          password: await hashSecret("password123")
+        })
+        .mockResolvedValue(null);
+      await expect(
+        service.updateProfile("access-token", { ...profile, currentPassword: "password123", email: "new@example.com" })
+      ).rejects.toMatchObject({ status: 429 });
     });
 
     it("changes the email, signs other devices out and tells the old address", async () => {
@@ -845,6 +922,32 @@ describe("AuthService", () => {
         "EMAIL_CHANGED",
         expect.objectContaining({ email: "test@example.com" }),
         { "email.new": "new@example.com" }
+      );
+    });
+
+    // Review A2: with WhatsApp on for resets the phone is a reset channel, so
+    // moving it takes the password and the account is told.
+    it("asks for the current password to change the phone number", async () => {
+      await expect(
+        service.updateProfile("access-token", { ...profile, phoneNumber: "9999999999" })
+      ).rejects.toThrow("Enter your current password to change your phone number.");
+      expect(prismaService.user.update).not.toHaveBeenCalled();
+    });
+
+    it("changes the phone with the password and tells the account", async () => {
+      await service.updateProfile("access-token", {
+        ...profile,
+        currentPassword: "password123",
+        phoneNumber: "9999999999"
+      });
+
+      expect(prismaService.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ phoneNumber: "9999999999" }) })
+      );
+      expect(notifierSend).toHaveBeenCalledWith(
+        "PHONE_CHANGED",
+        { email: "test@example.com", phone: "1234567890", userId: "usr-123" },
+        {}
       );
     });
 
@@ -882,6 +985,7 @@ describe("AuthService", () => {
       });
 
       it("refuses a phone-only change with the wrong password", async () => {
+        prismaService.user.update.mockResolvedValueOnce({ failedLoginAttempts: 1 });
         await expect(
           service.updateProfile("access-token", {
             ...profile,
@@ -889,7 +993,7 @@ describe("AuthService", () => {
             studentProfile: { ...keepRest, parentEmail: "mum@example.com", parentPhone: "999" }
           })
         ).rejects.toThrow("Current password is incorrect.");
-        expect(prismaService.user.update).not.toHaveBeenCalled();
+        expect(prismaService.user.update).toHaveBeenCalledTimes(1);
       });
 
       it("saves with the password, tells the previous contact and audits it", async () => {
@@ -996,6 +1100,112 @@ describe("AuthService", () => {
     });
   });
 
+  // docs/MULTI_ROLE_ACCOUNTS.md: one login, one active role per session.
+  describe("multi-role accounts", () => {
+    const teachingAdmin = { ...activeUser, extraRoles: [UserRole.COACH], role: UserRole.ADMIN, studentProfile: null };
+
+    describe("switchRole", () => {
+      beforeEach(() => {
+        jwtService.verifyAsync.mockResolvedValue({ sessionId: "sess-1", sub: "usr-123", type: "access" });
+        jwtService.decode.mockReturnValue({ sessionId: "sess-1", sub: "usr-123", type: "access" });
+        jwtService.signAsync.mockResolvedValue("new-access-token");
+        prismaService.authSession.findUnique.mockResolvedValue({ activeRole: null, revokedAt: null, userId: "usr-123" });
+        prismaService.authSession.updateMany.mockResolvedValue({ count: 1 });
+        prismaService.user.findUnique.mockResolvedValue({ ...teachingAdmin });
+      });
+
+      it("moves this session to coach view and mints a token in that role", async () => {
+        const result = await service.switchRole("access-token", UserRole.COACH);
+
+        expect(prismaService.authSession.updateMany).toHaveBeenCalledWith({
+          data: { activeRole: UserRole.COACH },
+          where: {
+            expiresAt: { gt: expect.any(Date) },
+            id: "sess-1",
+            revokedAt: null,
+            rotatedAt: null,
+            userId: "usr-123"
+          }
+        });
+        expect(jwtService.signAsync.mock.calls[0][0]).toMatchObject({ role: UserRole.COACH, sessionId: "sess-1" });
+        expect(result.accessToken).toBe("new-access-token");
+        expect(result.user).toMatchObject({ primaryRole: UserRole.ADMIN, role: UserRole.COACH, roles: [UserRole.ADMIN, UserRole.COACH] });
+      });
+
+      it("stores null when switching back to the primary role", async () => {
+        prismaService.authSession.findUnique.mockResolvedValue({ activeRole: UserRole.COACH, revokedAt: null, userId: "usr-123" });
+        await service.switchRole("access-token", UserRole.ADMIN);
+        expect(prismaService.authSession.updateMany.mock.calls[0][0].data).toEqual({ activeRole: null });
+      });
+
+      it("refuses a role the account does not hold", async () => {
+        await expect(service.switchRole("access-token", UserRole.SUPER_ADMIN)).rejects.toThrow("cannot act in that role");
+        prismaService.user.findUnique.mockResolvedValue({ ...activeUser });
+        await expect(service.switchRole("access-token", UserRole.COACH)).rejects.toThrow("cannot act in that role");
+        expect(prismaService.authSession.updateMany).not.toHaveBeenCalled();
+      });
+
+      it("refuses during a platform support visit", async () => {
+        jwtService.decode.mockReturnValue({ sessionId: "sess-1", sub: "usr-123", support: "visit-1", type: "access" });
+        await expect(service.switchRole("access-token", UserRole.COACH)).rejects.toThrow("support visit");
+      });
+
+      it("refuses when the session was revoked meanwhile", async () => {
+        prismaService.authSession.updateMany.mockResolvedValue({ count: 0 });
+        await expect(service.switchRole("access-token", UserRole.COACH)).rejects.toBeInstanceOf(UnauthorizedException);
+      });
+    });
+
+    describe("refresh", () => {
+      const REFRESH_TOKEN = "refresh-token";
+      const session = (activeRole: UserRole | null, user = teachingAdmin) => ({
+        activeRole,
+        expiresAt: new Date(Date.now() + 86_400_000),
+        familyId: "fam-1",
+        id: "sess-1",
+        refreshTokenHash: hashRefreshToken(REFRESH_TOKEN),
+        revokedAt: null,
+        rotatedAt: null,
+        user: { ...user }
+      });
+
+      beforeEach(() => {
+        jwtService.verifyAsync.mockResolvedValue({ sessionId: "sess-1", sub: "usr-123", type: "refresh" });
+        jwtService.signAsync.mockResolvedValue("mocked-token");
+        prismaService.authSession.create.mockResolvedValue({ id: "sess-2" });
+        prismaService.authSession.update.mockResolvedValue({ id: "sess-2" });
+        prismaService.authSession.updateMany.mockResolvedValue({ count: 1 });
+      });
+
+      it("carries the active role into the successor session and token", async () => {
+        prismaService.authSession.findFirst.mockResolvedValueOnce(session(UserRole.COACH));
+        const result = await service.refresh(REFRESH_TOKEN, {});
+
+        expect(prismaService.authSession.create.mock.calls[0][0].data.activeRole).toBe(UserRole.COACH);
+        expect(jwtService.signAsync.mock.calls[0][0]).toMatchObject({ role: UserRole.COACH, type: "access" });
+        expect(result.user.role).toBe(UserRole.COACH);
+      });
+
+      it("keeps a switch that landed between the first read and the rotation claim", async () => {
+        prismaService.authSession.findFirst.mockResolvedValueOnce(session(null));
+        prismaService.authSession.findUnique.mockResolvedValueOnce({ activeRole: UserRole.COACH });
+        const result = await service.refresh(REFRESH_TOKEN, {});
+
+        expect(prismaService.authSession.create.mock.calls[0][0].data.activeRole).toBe(UserRole.COACH);
+        expect(result.user.role).toBe(UserRole.COACH);
+      });
+
+      it("falls back to the primary role once the extra role was removed", async () => {
+        prismaService.authSession.findFirst.mockResolvedValueOnce(session(UserRole.COACH, { ...teachingAdmin, extraRoles: [] }));
+        const result = await service.refresh(REFRESH_TOKEN, {});
+
+        expect(prismaService.authSession.create.mock.calls[0][0].data.activeRole).toBeNull();
+        expect(jwtService.signAsync.mock.calls[0][0]).toMatchObject({ role: UserRole.ADMIN });
+        expect(result.user.role).toBe(UserRole.ADMIN);
+      });
+    });
+  });
+
   describe("me", () => {
     it("returns the authenticated user", async () => {
       jwtService.verifyAsync.mockResolvedValueOnce({
@@ -1022,6 +1232,19 @@ describe("AuthService", () => {
     });
   });
 
+  describe("forgotPassword", () => {
+    // Review A2: platform-support accounts never get a reset link.
+    it("creates no reset link for a platform-support account", async () => {
+      prismaService.user.findUnique.mockResolvedValueOnce({ ...activeUser, isPlatformSupport: true });
+      // The constant-time response delay isn't what this test is about.
+      Object.defineProperty(service, "passwordResetResponseDelayMs", { value: 0 });
+
+      await expect(service.forgotPassword(activeUser.email)).resolves.toEqual({ ok: true });
+      expect(prismaService.passwordResetToken.create).not.toHaveBeenCalled();
+      expect(notifierSend).not.toHaveBeenCalled();
+    });
+  });
+
   describe("resetPassword", () => {
     const payload = { confirmPassword: "New@12345", password: "New@12345", token: "reset-token" };
 
@@ -1040,6 +1263,11 @@ describe("AuthService", () => {
       expect(prismaService.passwordResetToken.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: "prt-1", usedAt: null } })
       );
+      // Review A1: every other unused reset or invite link dies with it.
+      expect(prismaService.passwordResetToken.updateMany).toHaveBeenCalledWith({
+        data: { usedAt: expect.any(Date) },
+        where: { usedAt: null, userId: "usr-123" }
+      });
       expect(prismaService.user.update).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: "usr-123" } })
       );

@@ -5,12 +5,13 @@ type RegistrationFieldsetProps = {
   children: ReactNode;
 };
 
-/** One titled group of a registration form; fields sit two to a row from `sm`. */
+/** One titled group of a registration form; fields sit two to a row from `sm`, packed
+ * tighter from `lg` so the whole form fits a laptop screen without scrolling. */
 export function RegistrationFieldset({ legend, children }: RegistrationFieldsetProps) {
   return (
     <fieldset className="min-w-0">
-      <legend className="mb-3 text-sm font-semibold text-app-text">{legend}</legend>
-      <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">{children}</div>
+      <legend className="mb-3 text-sm font-semibold text-app-text lg:mb-1.5">{legend}</legend>
+      <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2 lg:gap-y-3">{children}</div>
     </fieldset>
   );
 }

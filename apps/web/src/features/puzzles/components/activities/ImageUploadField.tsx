@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useId, useRef, useState } from "react";
 import { ImagePlus, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -41,7 +42,7 @@ export function ImageUploadField({
       const { url } = await uploadActivityImage(file);
       onChange(url);
     } catch (error) {
-      toast.error({ message: (error as Error).message, title: "Couldn't upload the image" });
+      toast.error({ message: getErrorMessage(error), title: "Couldn't upload the image" });
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";

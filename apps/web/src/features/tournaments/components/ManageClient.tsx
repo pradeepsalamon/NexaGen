@@ -1,5 +1,6 @@
 "use client";
 
+import { queryKeys } from "@/lib/queryKeys";
 import Link from "next/link";
 import { useRouter } from "@/lib/navigation";
 import { useState } from "react";
@@ -529,7 +530,7 @@ function GamesPanel({ t }: { t: TournamentDetailDto }) {
     const ok = await run(() => api.decideGame(t.id, deciding.id, { reason, result, version }), deciding.finished ? "Result corrected" : "Result recorded");
     if (ok) {
       setDeciding(null);
-      void qc.invalidateQueries({ queryKey: ["tournaments", "games", t.id] });
+      void qc.invalidateQueries({ queryKey: queryKeys.tournaments.gamesAll(t.id) });
     }
   };
 
@@ -647,8 +648,8 @@ function CertificatesPanel({ t }: { t: TournamentDetailDto }) {
   const templateOptions = (templates.data?.templates ?? []).map((tpl) => ({ label: tpl.name, value: tpl.id }));
   const update = (i: number, patch: Partial<RuleDraft>) => setDraft(current.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const refresh = () => {
-    void qc.invalidateQueries({ queryKey: ["tournaments", "certificate-rules", t.id] });
-    void qc.invalidateQueries({ queryKey: ["tournaments", "certificates", t.id] });
+    void qc.invalidateQueries({ queryKey: queryKeys.tournaments.certificateRules(t.id) });
+    void qc.invalidateQueries({ queryKey: queryKeys.tournaments.certificates(t.id) });
   };
 
   return (

@@ -29,7 +29,9 @@ for India.
   a stale `PENDING` redelivered after a capture — or a `FAILED` for a sibling
   attempt — cannot un-pay anything. A captured amount that differs from the
   order parks the payment at `PROCESSING` with `failureCode: amount_mismatch`
-  rather than granting. State whose `providerOrderId` is not the payment's own
+  rather than granting; a capture in another currency does the same with
+  `currency_mismatch`. Checkout always uses the plan's own currency and refuses
+  a request for another (nothing converts the amount). State whose `providerOrderId` is not the payment's own
   is ignored, and `verify` only ever queries the stored gateway order — a
   client-supplied handle for another order can never apply that order's capture.
 - **Access is an `Entitlement` row, never a gateway status (§21).** Provider →
@@ -81,7 +83,13 @@ for India.
   on `isRecurringInterval(plan.interval)` into `SubscriptionService.start`, and
   the router is passed `recurring: true` so only a gateway that can actually
   mandate that method is a candidate. The provider bills each cycle; we mirror
-  its state from webhooks and never charge on our own clock.
+  its state from webhooks and never charge on our own clock. **The mandate
+  charges the priced order total** (discount and tax included), and **every
+  cycle's charge becomes a Payment** (`PaymentService.recordSubscriptionCharge`
+  on Razorpay `subscription.charged` / Stripe `invoice.paid`): the first cycle
+  lands on the checkout's order, each renewal on a new order priced like it
+  (no second discount redemption), then `applyProviderState` grants the
+  entitlement and issues the invoice like any capture (review P2).
 - **Discounts are the ONE mechanism that changes what someone pays.** A launch
   code, a UPI-only offer and a batch deal are the same `Discount` row with a
   different scope (`planIds` / `batchIds` / `methods`). The arithmetic is
@@ -107,6 +115,8 @@ for India.
   boots and a checkout attempt is a clean 503.
 - **Manual / offline payments (cash, a coach's personal UPI/GPay, bank
   transfer) are tracked the same way without a gateway.**
+  Plan feature `feeTracking` (every SaaS plan), not `studentPayments` (online,
+  Growth up): docs/SAAS_PLANS.md "Fee tracking and online payments".
   `apps/api/src/payments/manual-payment.service.ts` builds an ordinary
   `Order` + `Payment` (`provider: MANUAL`, never routed to by
   `PaymentRouterService` or given a provider adapter) and reaches `PAID`
@@ -160,7 +170,16 @@ for India.
   matching the issued document. **Never assume CGST+SGST or IGST**: the
   treatment is derived from the seller's and buyer's place of supply, and a sale
   abroad is a zero-rated export whatever the plan's rate says. Tax is charged on
-  the **discounted** subtotal.
+  the **discounted** subtotal. **Checkout prices with the same engine**
+  (`PaymentService.priceForUser` → `InvoiceService.taxFor`: seller settings +
+  the buyer's billing profile), so the amount charged is the invoice total
+  (review P4); never use bare `priceOrder` for a buyer's order.
+- **A refund's credit note is capped, never refused.** It is issued inside the
+  refund settlement, so a refund larger than what the invoice has left (an admin
+  credit note already issued, or billing details changed after checkout) gets a
+  note for the remainder, or none once the invoice is fully credited, with a
+  warning log and `cappedFrom` in the audit entry. An admin credit note still
+  refuses to over-credit (review P4).
 - **PDF generation NEVER touches the payment (§20).** It runs after the capture
   commits, on the BullMQ `invoice` queue. A failure sets `pdfStatus: FAILED` and
   leaves the financial `status: PAID` alone; `sweepFailedGenerations` (10 min,
@@ -352,6 +371,15 @@ Rules that shape the implementation:
 - **A code is consumed when money arrives, not when a checkout opens.** An
   abandoned cart never burns a limited code, and a replayed webhook never
   consumes a second use (the redemption is unique per order).
+- **A code on an unfinished checkout of yours counts as used, for you.** While
+  one of your open orders (inside its window, or with a payment still being
+  confirmed) carries a limited code, the same code is refused on a new
+  checkout with `IN_USE`, against both your per-account limit and the total
+  limit. The checkout re-checks this under the discount's row lock while it
+  writes the order, so two tabs can't both take the last use (review P8).
+  Other people's abandoned carts still hold nothing; if two people's
+  checkouts take the last use, both captures stand and the over-limit count is
+  logged.
 - A code can never make an order negative — one worth more than the order makes
   it free.
 - The receipt shows the discount as its own negative line, naming the code, so
@@ -374,6 +402,14 @@ transaction that marks the payment PAID, and it is unique per `(orderId,
 planId)` — so a replayed webhook, a status-check and a reconciliation sweep all
 converge on one grant and one batch enrolment.
 
+**The checkout screen does no maths** (FE review P1, 2026-11-23): it shows the
+config's `taxAmount` / `total`, the discount preview's own figures once a code
+is applied (`DiscountField` passes the whole quote up), and the charged
+`amount` when checkout resolved the code differently. Tax only ever comes from
+the server's invoice engine. **The gateway sheet always names the academy
+being paid**: `openGateway`'s `merchantName` is required, on the first attempt
+as on a retry (P3).
+
 ### Money
 
 Always **integer minor units** (paise, cents) in `Int` columns — never a float,
@@ -385,13 +421,20 @@ speaks rupees, converts at its adapter boundary and nowhere else.
 
 | Hazard | What stops it |
 |---|---|
-| Double click, refresh, back/forward, second tab | Unique index on `orders.idempotencyKey`; the client holds one key per plan in `sessionStorage` and the server replays the original order |
+| Double click, refresh, back/forward, second tab | Unique index on `orders.idempotencyKey`; the client holds one key per plan **and discount code** in `sessionStorage` and the server replays the original order |
+| Code applied or removed after the gateway was closed | A changed code is a new key, so a new order at the new price (FE review P2). A replay whose code differs from its unpaid order's is refused with 409 `CHECKOUT_CHANGED` (the screen clears its key) instead of silently charging the old price. The older unpaid order simply expires |
 | Webhook delivered twice | Unique `(provider, eventId)` on `payment_webhook_events` — the redelivery collides on insert |
 | Out-of-order webhooks | `PAYMENT_STATUS_RANK`: a status may only move forward, so a stale `PENDING` (or a sibling attempt's `FAILED`) cannot un-pay a captured payment |
 | Benefit granted twice | Unique `(orderId, planId)` on `entitlements` |
 | Retry against another gateway | Off by default (`failoverEnabled`). A provider is only excluded after its attempt reached a *settled* failure — never while it is unclear whether money moved |
-| Browser closed mid-payment | The reconciliation cron asks the gateway directly and applies the answer through the same funnel |
+| Browser closed mid-payment | The reconciliation cron asks the gateway directly and applies the answer through the same funnel. With no payment id yet it asks by gateway order (Razorpay `/orders/:id/payments`). A failed lookup never expires the payment; only a stale one the gateway says nobody paid expires (review P5) |
+| Pay clicked twice, two tabs, or a retry while a payment is confirming | One attempt in the air per order: opening an attempt locks the order row and refuses (409) while another payment on it is processing/authorised, or created/pending within `PAYMENTS_ORDER_TTL_MINUTES`. A capture that still lands on an order already paid is held at PROCESSING with `failureCode: duplicate_capture` (no second entitlement or invoice) for an admin refund (review P6) |
+| Failed attempt, then a success, on one gateway order | The capturing (or authorised) payment id replaces the failed one, so refunds and reconcile use it; a row that already captured keeps its id (review P7) |
 | Wrong amount captured | Parked at `PROCESSING` with `amount_mismatch`; access is withheld for review |
+| Captured in another currency | Parked at `PROCESSING` with `currency_mismatch`; access is withheld for review |
+| Stripe renewal (`invoice.*` events) | An invoice event carries no subscription status (an invoice's `paid`/`open` is not the subscription's). Any webhook moves a subscription forward only (`allowedSubscriptionMove`: CREATED → PENDING_ACTIVATION → ACTIVE/PAST_DUE/PAUSED → CANCELLED/EXPIRED, moves inside a stage allowed), never out of CANCELLED/EXPIRED (review P3) |
+| Two admins refund one payment at once; a refund webhook without a refund id | The balance is read and the refund written under the payment's row lock. Refund webhooks match by the gateway's refund id only, never "the newest unsettled refund"; anything else is left to the reconcile sweep. Cashfree events without an `event_id` are keyed on the body, not the payment id, so a payment's refund event isn't dropped as a repeat of its success (review P10) |
+| Refund with "revoke access" fails at the gateway | Access is revoked once the gateway accepts the refund; if it later fails and no refund of that payment succeeded, the access it revoked comes back (`restoreRevokedForOrder`, review P9) |
 
 ### Refunds
 

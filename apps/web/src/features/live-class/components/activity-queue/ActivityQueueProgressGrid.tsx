@@ -2,6 +2,16 @@
 
 import { ACTIVITY_RESPONSE_LABELS, type ActivityQueue } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/Table";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
 import { useActivityQueueProgress } from "../../hooks/useActivityQueue";
@@ -45,20 +55,23 @@ export function ActivityQueueProgressGrid({ classId, queue }: { classId: string;
 
   return (
     <div className="space-y-2">
-      {/* Scrolls sideways inside its own box on a narrow panel — never the page. */}
-      <div className="custom-scrollbar max-w-full overflow-x-auto rounded-app border border-app-border">
-        <table className="w-full border-collapse text-xs">
-          <caption className="sr-only">Each student&apos;s response to each activity</caption>
-          <thead>
-            <tr className="bg-app-soft/60">
-              <th scope="col" className="sticky left-0 z-10 bg-app-surface px-2 py-1.5 text-left font-semibold text-app-muted">
+      {/* Scrolls sideways inside its own box (Table's ScrollShadow) on a narrow panel — never the page. */}
+      <div className="max-w-full overflow-hidden rounded-app border border-app-border">
+        <Table className="border-collapse text-xs">
+          <TableCaption className="sr-only">Each student&apos;s response to each activity</TableCaption>
+          <TableHeader>
+            <TableRow className="bg-app-soft/60">
+              <TableHead scope="col" className="sticky left-0 z-10 bg-app-surface px-2 py-1.5">
                 Student
-              </th>
+              </TableHead>
               {columns.map((item) => (
-                <th
+                <TableHead
                   key={item.id}
                   scope="col"
-                  className={cn("px-1.5 py-1.5 text-center font-semibold", item.id === queue.currentItemId ? "text-primary-ink" : "text-app-muted")}
+                  className={cn(
+                    "bg-transparent px-1.5 py-1.5 text-center",
+                    item.id === queue.currentItemId ? "text-primary-ink" : "text-app-muted"
+                  )}
                 >
                   <SimpleTooltip label={`${item.position + 1}. ${item.title}`}>
                     <span className="inline-flex items-center gap-0.5" tabIndex={0} aria-label={`Activity ${item.position + 1}: ${item.title}`}>
@@ -66,54 +79,57 @@ export function ActivityQueueProgressGrid({ classId, queue }: { classId: string;
                       {item.position + 1}
                     </span>
                   </SimpleTooltip>
-                </th>
+                </TableHead>
               ))}
-            </tr>
-          </thead>
-          <tbody>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {students.length === 0 ? (
-              <tr>
-                <td colSpan={columns.length + 1} className="px-2 py-3 text-center text-app-muted">
+              <TableRow>
+                <TableCell colSpan={columns.length + 1} className="px-2 py-3 text-center text-app-muted">
                   No students in this class yet.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ) : (
               students.map((student) => (
-                <tr key={student.studentId} className="border-t border-app-border/60">
-                  <th scope="row" className="sticky left-0 z-10 max-w-[9rem] truncate bg-app-surface px-2 py-1 text-left font-medium text-app-text">
+                <TableRow key={student.studentId} className="border-app-border/60">
+                  <TableHead
+                    scope="row"
+                    className="sticky left-0 z-10 max-w-[9rem] truncate bg-app-surface px-2 py-1 font-medium text-app-text"
+                  >
                     {student.studentName}
-                  </th>
+                  </TableHead>
                   {columns.map((item) => {
                     const cell = cells[item.id]?.[student.studentId];
-                    if (!cell) return <td key={item.id} />;
+                    if (!cell) return <TableCell key={item.id} className="p-0" />;
                     const label = `${student.studentName} — ${ACTIVITY_RESPONSE_LABELS[cell.state]}${cell.detail ? ` (${cell.detail})` : ""}`;
                     return (
-                      <td key={item.id} className="px-1.5 py-1 text-center">
+                      <TableCell key={item.id} className="px-1.5 py-1 text-center">
                         <SimpleTooltip label={label}>
                           <span tabIndex={0} aria-label={label} className="inline-flex">
                             <ResponseStateIcon state={cell.state} />
                           </span>
                         </SimpleTooltip>
-                      </td>
+                      </TableCell>
                     );
                   })}
-                </tr>
+                </TableRow>
               ))
             )}
-          </tbody>
-          <tfoot>
-            <tr className="border-t border-app-border bg-app-soft/60">
-              <th scope="row" className="sticky left-0 z-10 bg-app-surface px-2 py-1 text-left font-semibold text-app-muted">
+          </TableBody>
+          <TableFooter className="bg-app-soft/60">
+            <TableRow className="hover:bg-transparent">
+              <TableHead scope="row" className="sticky left-0 z-10 bg-app-surface px-2 py-1">
                 Responded
-              </th>
+              </TableHead>
               {columns.map((item) => (
-                <td key={item.id} className="px-1.5 py-1 text-center font-semibold tabular-nums text-app-text">
+                <TableCell key={item.id} className="px-1.5 py-1 text-center font-semibold tabular-nums text-app-text">
                   {respondedCounts[item.id] ?? 0}/{students.length}
-                </td>
+                </TableCell>
               ))}
-            </tr>
-          </tfoot>
-        </table>
+            </TableRow>
+          </TableFooter>
+        </Table>
       </div>
       <ResponseLegend />
     </div>

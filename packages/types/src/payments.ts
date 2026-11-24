@@ -989,6 +989,7 @@ export const discountRejectionSchema = z.enum([
   "EXPIRED",
   "USAGE_LIMIT_REACHED",
   "ALREADY_USED",
+  "IN_USE",
   "PLAN_NOT_ELIGIBLE",
   "METHOD_NOT_ELIGIBLE",
   "BELOW_MINIMUM",
@@ -1003,6 +1004,8 @@ export const DISCOUNT_REJECTION_MESSAGES: Record<DiscountRejection, string> = {
   EXPIRED: "That code has expired.",
   USAGE_LIMIT_REACHED: "That code has been fully claimed.",
   ALREADY_USED: "You have already used that code.",
+  IN_USE:
+    "That code is on another checkout of yours that hasn't finished. Finish that payment, or try again once it closes.",
   PLAN_NOT_ELIGIBLE: "That code does not apply to this plan.",
   METHOD_NOT_ELIGIBLE:
     "That code only applies to certain payment methods. Choose another method to use it.",

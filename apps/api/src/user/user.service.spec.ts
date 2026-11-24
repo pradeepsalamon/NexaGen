@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException
 } from "@nestjs/common";
@@ -17,6 +18,7 @@ type MockPrismaService = {
   user: {
     count: jest.Mock;
     create: jest.Mock;
+    findFirst: jest.Mock;
     findMany: jest.Mock;
     findUnique: jest.Mock;
     findUniqueOrThrow: jest.Mock;
@@ -26,6 +28,9 @@ type MockPrismaService = {
     create: jest.Mock;
   };
   authSession: {
+    updateMany: jest.Mock;
+  };
+  passwordResetToken: {
     updateMany: jest.Mock;
   };
   coachProfile: {
@@ -67,6 +72,7 @@ describe("UserService", () => {
     const userMock = {
       count: jest.fn(),
       create: jest.fn(),
+      findFirst: jest.fn().mockResolvedValue(null),
       findMany: jest.fn(),
       findUnique: jest.fn(),
       findUniqueOrThrow: jest.fn(),
@@ -80,6 +86,9 @@ describe("UserService", () => {
         create: jest.fn()
       },
       authSession: {
+        updateMany: jest.fn()
+      },
+      passwordResetToken: {
         updateMany: jest.fn()
       },
       coachProfile: {
@@ -243,7 +252,6 @@ describe("UserService", () => {
 
     it("creates a student user and profile", async () => {
       mockAuthContext();
-      prismaService.user.findUnique.mockResolvedValueOnce(null);
       prismaService.user.create.mockResolvedValueOnce({
         firstName: "Student",
         id: "new-user",
@@ -258,6 +266,34 @@ describe("UserService", () => {
         data: { parentName: "Student Parent", userId: "new-user" }
       });
       expect(result.user.id).toBe("new-user");
+    });
+
+    // Review A4: sign-in looks the email up lowercased.
+    it("stores the email lowercased and trimmed", async () => {
+      mockAuthContext();
+      prismaService.user.create.mockResolvedValueOnce({ firstName: "Student", id: "new-user", role: UserRole.STUDENT });
+      prismaService.user.findUniqueOrThrow.mockResolvedValueOnce(studentRow("new-user"));
+
+      await service.create("token", { ...createStudentPayload, email: "  Ravi.K@Example.COM " });
+
+      expect(prismaService.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ email: "ravi.k@example.com" }) })
+      );
+      expect(prismaService.user.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ email: { equals: "ravi.k@example.com", mode: "insensitive" } })
+        })
+      );
+    });
+
+    it("refuses an email another account has in another letter case", async () => {
+      mockAuthContext();
+      prismaService.user.findFirst.mockResolvedValueOnce({ id: "old-user" });
+
+      await expect(
+        service.create("token", { ...createStudentPayload, email: "Student@Example.com" })
+      ).rejects.toThrow("User with this email already exists.");
+      expect(prismaService.user.create).not.toHaveBeenCalled();
     });
   });
 
@@ -300,6 +336,11 @@ describe("UserService", () => {
         data: { revokedAt: expect.any(Date) },
         where: { revokedAt: null, userId: "student-1" }
       });
+      // Review A1: an unused reset or invite link dies with the old password.
+      expect(prismaService.passwordResetToken.updateMany).toHaveBeenCalledWith({
+        data: { usedAt: expect.any(Date) },
+        where: { usedAt: null, userId: "student-1" }
+      });
     });
 
     it("leaves sessions alone for a plain profile edit", async () => {
@@ -312,6 +353,7 @@ describe("UserService", () => {
 
       expect(prismaService.user.update).toHaveBeenCalled();
       expect(prismaService.authSession.updateMany).not.toHaveBeenCalled();
+      expect(prismaService.passwordResetToken.updateMany).not.toHaveBeenCalled();
     });
   });
 
@@ -352,6 +394,11 @@ describe("UserService", () => {
       const result = await service.archive("token", "student-1");
 
       expect(result.user.status).toBe("ARCHIVED");
+      // Review A3: a restore must not bring an old refresh token back.
+      expect(prismaService.authSession.updateMany).toHaveBeenCalledWith({
+        data: { revokedAt: expect.any(Date) },
+        where: { revokedAt: null, userId: "student-1" }
+      });
     });
   });
 
@@ -400,7 +447,166 @@ describe("UserService", () => {
         expect.any(String),
         { metadata: { title: "student@example.com" } }
       );
+      expect(prismaService.authSession.updateMany).toHaveBeenCalledWith({
+        data: { revokedAt: expect.any(Date) },
+        where: { revokedAt: null, userId: "student-1" }
+      });
       expect(result.ok).toBe(true);
+    });
+  });
+
+  // docs/MULTI_ROLE_ACCOUNTS.md §5.2: "Can also teach".
+  describe("setExtraRoles", () => {
+    type Extra = {
+      batchCoach: { findMany: jest.Mock };
+      coachProfile: { create: jest.Mock; update: jest.Mock };
+      user: { updateMany: jest.Mock };
+      userRoleChange: { create: jest.Mock };
+      withDeleted: { coachProfile: { findUnique: jest.Mock } };
+    };
+    let extra: Extra;
+    let assertSeatAvailable: jest.Mock;
+    const adminRow = (overrides: Record<string, unknown> = {}) => ({
+      ...studentRow("admin-1"),
+      extraRoles: [] as UserRole[],
+      role: UserRole.ADMIN,
+      ...overrides
+    });
+
+    beforeEach(() => {
+      const mock = prismaService as unknown as Extra & MockPrismaService;
+      mock.batchCoach = { findMany: jest.fn().mockResolvedValue([]) };
+      mock.coachProfile.update = jest.fn();
+      mock.user.updateMany = jest.fn().mockResolvedValue({ count: 1 });
+      mock.userRoleChange = { create: jest.fn() };
+      (mock.withDeleted as unknown as Extra["withDeleted"]).coachProfile = { findUnique: jest.fn().mockResolvedValue(null) };
+      extra = mock;
+      assertSeatAvailable = jest.fn().mockResolvedValue(undefined);
+      (service as unknown as { entitlements: { assertSeatAvailable: jest.Mock } }).entitlements.assertSeatAvailable =
+        assertSeatAvailable;
+    });
+
+    it("lets a super admin make an admin able to teach", async () => {
+      mockAuthContext(UserRole.SUPER_ADMIN);
+      prismaService.user.findUnique.mockResolvedValueOnce(adminRow());
+      prismaService.user.findUniqueOrThrow.mockResolvedValueOnce(adminRow({ extraRoles: [UserRole.COACH] }));
+
+      const result = await service.setExtraRoles("token", "admin-1", { extraRoles: ["COACH"] });
+
+      expect(assertSeatAvailable).toHaveBeenCalledWith(prismaService, UserRole.COACH, "admin-1");
+      expect(prismaService.coachProfile.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ approvalStatus: UserStatus.ACTIVE, approvedById: "auth-123", userId: "admin-1" })
+      });
+      expect(extra.user.updateMany).toHaveBeenCalledWith({
+        data: { extraRoles: [UserRole.COACH] },
+        where: { extraRoles: { equals: [] }, id: "admin-1", isDeleted: false, role: UserRole.ADMIN, status: UserStatus.ACTIVE }
+      });
+      expect(extra.userRoleChange.create).toHaveBeenCalledWith({
+        data: { action: "GRANTED", actorId: "auth-123", role: UserRole.COACH, userId: "admin-1" }
+      });
+      expect(result.user.extraRoles).toEqual([UserRole.COACH]);
+      expect(result.coachedBatches).toEqual([]);
+    });
+
+    it("lets a super admin grant it to their own account (a solo academy owner)", async () => {
+      mockAuthContext(UserRole.SUPER_ADMIN, UserStatus.ACTIVE, "owner-1");
+      prismaService.user.findUnique.mockResolvedValueOnce(adminRow({ id: "owner-1", role: UserRole.SUPER_ADMIN }));
+      prismaService.user.findUniqueOrThrow.mockResolvedValueOnce(adminRow({ extraRoles: [UserRole.COACH], id: "owner-1" }));
+      await expect(service.setExtraRoles("token", "owner-1", { extraRoles: ["COACH"] })).resolves.toBeDefined();
+    });
+
+    it("revives a retired coach profile instead of creating a second one", async () => {
+      mockAuthContext(UserRole.SUPER_ADMIN);
+      prismaService.user.findUnique.mockResolvedValueOnce(adminRow());
+      extra.withDeleted.coachProfile.findUnique.mockResolvedValueOnce({ approvalStatus: "ACTIVE", id: "cp-1", isDeleted: true });
+      prismaService.user.findUniqueOrThrow.mockResolvedValueOnce(adminRow({ extraRoles: [UserRole.COACH] }));
+
+      await service.setExtraRoles("token", "admin-1", { extraRoles: ["COACH"] });
+
+      expect(prismaService.coachProfile.create).not.toHaveBeenCalled();
+      expect(extra.coachProfile.update).toHaveBeenCalledWith({
+        data: expect.objectContaining({ isDeleted: false }),
+        where: { id: "cp-1" }
+      });
+    });
+
+    it("refuses a plain admin", async () => {
+      mockAuthContext(UserRole.ADMIN);
+      await expect(service.setExtraRoles("token", "admin-1", { extraRoles: ["COACH"] })).rejects.toBeInstanceOf(
+        ForbiddenException
+      );
+    });
+
+    it("refuses an account that is not staff", async () => {
+      mockAuthContext(UserRole.SUPER_ADMIN);
+      prismaService.user.findUnique.mockResolvedValueOnce(adminRow({ role: UserRole.STUDENT }));
+      await expect(service.setExtraRoles("token", "admin-1", { extraRoles: ["COACH"] })).rejects.toBeInstanceOf(
+        BadRequestException
+      );
+      expect(extra.user.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("refuses to grant to an inactive account", async () => {
+      mockAuthContext(UserRole.SUPER_ADMIN);
+      prismaService.user.findUnique.mockResolvedValueOnce(adminRow({ status: UserStatus.ARCHIVED }));
+      await expect(service.setExtraRoles("token", "admin-1", { extraRoles: ["COACH"] })).rejects.toThrow("Activate");
+    });
+
+    it("refuses when the plan has no coach seat left", async () => {
+      mockAuthContext(UserRole.SUPER_ADMIN);
+      prismaService.user.findUnique.mockResolvedValueOnce(adminRow());
+      assertSeatAvailable.mockRejectedValueOnce(new Error("Your plan allows 1 coach."));
+      await expect(service.setExtraRoles("token", "admin-1", { extraRoles: ["COACH"] })).rejects.toThrow("1 coach");
+      expect(extra.user.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("loses cleanly to a concurrent change", async () => {
+      mockAuthContext(UserRole.SUPER_ADMIN);
+      prismaService.user.findUnique.mockResolvedValueOnce(adminRow());
+      extra.user.updateMany.mockResolvedValueOnce({ count: 0 });
+      await expect(service.setExtraRoles("token", "admin-1", { extraRoles: ["COACH"] })).rejects.toBeInstanceOf(
+        ConflictException
+      );
+    });
+
+    it("removes it, records it and lists the batches still coached", async () => {
+      mockAuthContext(UserRole.SUPER_ADMIN);
+      prismaService.user.findUnique.mockResolvedValueOnce(adminRow({ extraRoles: [UserRole.COACH] }));
+      prismaService.user.findUniqueOrThrow.mockResolvedValueOnce(adminRow());
+      extra.batchCoach.findMany.mockResolvedValueOnce([{ batch: { id: "b1", name: "Juniors" } }]);
+
+      const result = await service.setExtraRoles("token", "admin-1", { extraRoles: [] });
+
+      expect(assertSeatAvailable).not.toHaveBeenCalled();
+      expect(extra.userRoleChange.create).toHaveBeenCalledWith({
+        data: { action: "REMOVED", actorId: "auth-123", role: UserRole.COACH, userId: "admin-1" }
+      });
+      expect(result.coachedBatches).toEqual([{ id: "b1", name: "Juniors" }]);
+    });
+
+    it("turns a grant that raced a role change into a conflict, not a 500", async () => {
+      mockAuthContext(UserRole.SUPER_ADMIN);
+      prismaService.user.findUnique.mockResolvedValueOnce(adminRow());
+      prismaService.user.update.mockRejectedValueOnce(
+        new Error('new row for relation "users" violates check constraint "users_extra_roles_v1_check"')
+      );
+      await expect(service.update("token", "admin-1", { role: UserRole.STUDENT } as UpdateUserRequest)).rejects.toBeInstanceOf(
+        ConflictException
+      );
+    });
+
+    it("drops the extra role when the account stops being staff", async () => {
+      mockAuthContext(UserRole.SUPER_ADMIN);
+      prismaService.user.findUnique.mockResolvedValueOnce(adminRow({ extraRoles: [UserRole.COACH] }));
+      prismaService.user.update.mockResolvedValueOnce(adminRow({ role: UserRole.COACH }));
+      prismaService.user.findUniqueOrThrow.mockResolvedValueOnce(adminRow({ role: UserRole.COACH }));
+
+      await service.update("token", "admin-1", { role: UserRole.COACH } as UpdateUserRequest);
+
+      expect(prismaService.user.update.mock.calls[0][0].data).toMatchObject({ extraRoles: [], role: UserRole.COACH });
+      expect(extra.userRoleChange.create).toHaveBeenCalledWith({
+        data: { action: "REMOVED", actorId: "auth-123", role: UserRole.COACH, userId: "admin-1" }
+      });
     });
   });
 });

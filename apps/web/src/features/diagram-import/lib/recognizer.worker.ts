@@ -12,6 +12,7 @@ self.onmessage = (event: MessageEvent<RecognizerRequest>) => {
         ? { boards: analysePage(request.image, request.text), id: request.id }
         : { board: analyseSelection(request.image, request.selection, request.text, request.textRect), id: request.id };
   } catch (err) {
+    // eslint-disable-next-line no-restricted-syntax -- the in-browser recognizer's own error, shown in the import dialog
     response = { error: err instanceof Error ? err.message : "Recognition failed.", id: request.id };
   }
   self.postMessage(response);

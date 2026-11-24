@@ -142,6 +142,7 @@ export function PgnViewer({ pgn }: { pgn: string }) {
     try {
       return { game: parsePgnToMoveTree(pgn, createMoveTreeChess), error: null };
     } catch (error) {
+      // eslint-disable-next-line no-restricted-syntax -- a PGN parse error from the article text, shown to its editor
       return { error: error instanceof Error ? error.message : "Unreadable PGN", game: null };
     }
   }, [pgn]);

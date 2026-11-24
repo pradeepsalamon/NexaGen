@@ -12,14 +12,14 @@ export function useInvalidateTournament() {
     Promise.all([
       qc.invalidateQueries({ queryKey: K.detail(id) }),
       qc.invalidateQueries({ queryKey: K.live(id) }),
-      qc.invalidateQueries({ queryKey: ["tournaments", "standings", id] }),
+      qc.invalidateQueries({ queryKey: queryKeys.tournaments.standingsAll(id) }),
       qc.invalidateQueries({ queryKey: K.rounds(id) }),
       qc.invalidateQueries({ queryKey: K.bracket(id) }),
       qc.invalidateQueries({ queryKey: K.players(id) }),
-      qc.invalidateQueries({ queryKey: ["tournaments", "games", id] }),
+      qc.invalidateQueries({ queryKey: queryKeys.tournaments.gamesAll(id) }),
       qc.invalidateQueries({ queryKey: K.myGame(id) }),
       qc.invalidateQueries({ queryKey: K.certificates(id) }),
-      qc.invalidateQueries({ queryKey: ["tournaments", "list"] })
+      qc.invalidateQueries({ queryKey: queryKeys.tournaments.listAll })
     ]);
 }
 
@@ -118,5 +118,5 @@ export function useTournamentMutation<TArgs, TResult>(id: string, fn: (args: TAr
 
 export function useAdminMutation<TArgs, TResult>(fn: (args: TArgs) => Promise<TResult>) {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: fn, onSuccess: () => qc.invalidateQueries({ queryKey: ["tournaments", "admin"] }) });
+  return useMutation({ mutationFn: fn, onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.tournaments.admin.all }) });
 }

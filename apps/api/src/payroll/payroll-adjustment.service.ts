@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import type {
   CreatePayrollAdjustmentRequest,
   PayrollAdjustmentItem,
@@ -6,9 +6,9 @@ import type {
   ReversePayrollAdjustmentRequest
 } from "@nexa-chess/types";
 import type { CoachPayrollRecord, PayrollAdjustment } from "@prisma/client";
-import { PrismaService } from "../prisma/prisma.service";
+import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { PayrollAuditService } from "./payroll-audit.service";
-import { recomputeAdjustmentTotals } from "./payroll-record-totals.util";
+import { lockAndReadRecord, recomputeAdjustmentTotalsTx } from "./payroll-record-totals.util";
 
 const ADJUSTABLE_RECORD_STATUSES = ["CALCULATED", "APPROVED"] as const;
 
@@ -26,7 +26,8 @@ export class PayrollAdjustmentService {
   ) {}
 
   async list(payrollRecordId: string): Promise<PayrollAdjustmentListResponse> {
-    await this.getRecordOrThrow(payrollRecordId);
+    const record = await this.prisma.coachPayrollRecord.findUnique({ select: { id: true }, where: { id: payrollRecordId } });
+    if (!record) throw new NotFoundException("Payroll record not found.");
     const adjustments = await this.prisma.payrollAdjustment.findMany({
       where: { payrollRecordId },
       orderBy: { createdAt: "desc" }
@@ -39,20 +40,26 @@ export class PayrollAdjustmentService {
     actorId: string,
     dto: CreatePayrollAdjustmentRequest
   ): Promise<PayrollAdjustmentItem> {
-    const record = await this.getRecordOrThrow(payrollRecordId);
-    this.assertAdjustable(record);
-
-    const adjustment = await this.prisma.payrollAdjustment.create({
-      data: {
-        payrollRecordId,
-        type: dto.type,
-        description: dto.description,
-        amountMinor: dto.amountMinor,
-        reason: dto.reason,
-        createdById: actorId
-      }
+    // Check, insert and recompute under the record's row lock in one
+    // transaction (review R2): a finalize that commits first is seen here,
+    // and one that comes later waits for this adjustment.
+    const adjustment = await this.prisma.$transaction(async (tx) => {
+      const record = await this.lockedRecordOrThrow(tx, payrollRecordId);
+      this.assertNotOwnRecord(record, actorId);
+      this.assertAdjustable(record);
+      const created = await tx.payrollAdjustment.create({
+        data: {
+          payrollRecordId,
+          type: dto.type,
+          description: dto.description,
+          amountMinor: dto.amountMinor,
+          reason: dto.reason,
+          createdById: actorId
+        }
+      });
+      await recomputeAdjustmentTotalsTx(tx, payrollRecordId);
+      return created;
     });
-    await recomputeAdjustmentTotals(this.prisma, payrollRecordId);
 
     await this.audit.log({
       entity: "PayrollAdjustment",
@@ -78,16 +85,21 @@ export class PayrollAdjustmentService {
   ): Promise<PayrollAdjustmentItem> {
     const adjustment = await this.prisma.payrollAdjustment.findUnique({ where: { id: adjustmentId } });
     if (!adjustment) throw new NotFoundException("Payroll adjustment not found.");
-    if (adjustment.reversedAt) throw new ConflictException("This adjustment is already reversed.");
 
-    const record = await this.getRecordOrThrow(adjustment.payrollRecordId);
-    this.assertAdjustable(record);
-
-    const updated = await this.prisma.payrollAdjustment.update({
-      where: { id: adjustmentId },
-      data: { reversedById: actorId, reversedAt: new Date(), reversalReason: dto.reversalReason }
+    // Same lock as create (review R2); the reversal is claimed so two clicks
+    // can't both reverse it.
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const record = await this.lockedRecordOrThrow(tx, adjustment.payrollRecordId);
+      this.assertNotOwnRecord(record, actorId);
+      this.assertAdjustable(record);
+      const { count } = await tx.payrollAdjustment.updateMany({
+        where: { id: adjustmentId, reversedAt: null },
+        data: { reversedById: actorId, reversedAt: new Date(), reversalReason: dto.reversalReason }
+      });
+      if (count === 0) throw new ConflictException("This adjustment is already reversed.");
+      await recomputeAdjustmentTotalsTx(tx, adjustment.payrollRecordId);
+      return tx.payrollAdjustment.findUniqueOrThrow({ where: { id: adjustmentId } });
     });
-    await recomputeAdjustmentTotals(this.prisma, adjustment.payrollRecordId);
 
     await this.audit.log({
       entity: "PayrollAdjustment",
@@ -100,10 +112,17 @@ export class PayrollAdjustmentService {
     return this.toItem(updated);
   }
 
-  private async getRecordOrThrow(payrollRecordId: string): Promise<CoachPayrollRecord> {
-    const record = await this.prisma.coachPayrollRecord.findUnique({ where: { id: payrollRecordId } });
+  private async lockedRecordOrThrow(tx: PrismaTransactionClient, payrollRecordId: string): Promise<CoachPayrollRecord> {
+    const record = await lockAndReadRecord(tx, payrollRecordId);
     if (!record) throw new NotFoundException("Payroll record not found.");
     return record;
+  }
+
+  /** An admin who also teaches never adjusts their own pay (review R8). */
+  private assertNotOwnRecord(record: CoachPayrollRecord, actorId: string): void {
+    if (record.coachId === actorId) {
+      throw new ForbiddenException("You can't adjust your own payroll. Ask another admin.");
+    }
   }
 
   private assertAdjustable(record: CoachPayrollRecord): void {

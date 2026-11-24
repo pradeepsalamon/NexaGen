@@ -8,7 +8,7 @@ import {
   type SubmitHandler,
   type UseFormReturn
 } from "react-hook-form";
-import { useToast } from "@/providers/ToastProvider";
+import { onInvalidSubmit } from "@/lib/forms";
 
 interface FormProps<TFieldValues extends FieldValues> {
   form: UseFormReturn<TFieldValues>;
@@ -25,16 +25,10 @@ export function Form<TFieldValues extends FieldValues>({
   className,
   id
 }: FormProps<TFieldValues>) {
-  const { error } = useToast();
-
-  // Each field shows its own message under it (and react-hook-form focuses the first one), so
-  // a blocked submit needs no toast listing them again. Only an error with no field of its own
-  // (`root`) is a toast (UI_RULES § "Form errors").
+  // A blocked submit: react-hook-form focuses the first invalid field, which turns red, and one
+  // toast names the problem (UI_RULES § "Form errors").
   function handleInvalid(errors: FieldErrors<TFieldValues>) {
-    const rootMessage = errors.root?.message;
-    if (typeof rootMessage === "string" && rootMessage) {
-      error({ title: "Please fix the form", message: rootMessage });
-    }
+    onInvalidSubmit(errors);
   }
 
   return (

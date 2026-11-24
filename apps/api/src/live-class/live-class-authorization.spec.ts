@@ -7,7 +7,7 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { UserRole, UserStatus } from "@prisma/client";
-import { liveClassSettingsSchema } from "@nexa-chess/types";
+import { DEFAULT_LIVE_CLASS_SETTINGS, deriveLiveKitGrants, liveClassSettingsSchema } from "@nexa-chess/types";
 import { LiveClassService } from "./live-class.service";
 import { LiveClassChatService } from "./live-class-chat.service";
 import { LiveClassModerationService } from "./live-class-moderation.service";
@@ -112,7 +112,7 @@ describe("LiveClassChatService chat authorization", () => {
         { provide: SystemNotifier, useValue: { send: jest.fn() } },
         {
           provide: LiveClassSettingsService,
-          useValue: { resolveForClass: jest.fn().mockResolvedValue({ resolved: {} }) }
+          useValue: { resolveForClass: jest.fn().mockResolvedValue({ batchLocks: [], lockExceptions: [], resolved: {}, systemLocks: [] }) }
         },
         {
           provide: AnalyticsEventService,
@@ -166,6 +166,22 @@ describe("LiveClassChatService chat authorization", () => {
       ).resolves.toEqual([]);
     });
 
+    it("loads the newest messages and returns them oldest first (review L10)", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+      const row = (id: string, at: string) => ({
+        id, senderId: "coach-1", senderName: "Ada", senderRole: "COACH", recipientId: null,
+        message: id, createdAt: new Date(at)
+      });
+      chatFindMany.mockResolvedValue([row("m3", "2026-11-23T10:03:00Z"), row("m2", "2026-11-23T10:02:00Z")]);
+
+      const messages = await service.getChatHistory(ACCESS_TOKEN, "class-1");
+
+      expect(chatFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 500 })
+      );
+      expect(messages.map((m) => m.id)).toEqual(["m2", "m3"]);
+    });
+
     it("still 404s when there is no live session", async () => {
       authenticateAs("coach-1", UserRole.COACH);
       liveSessionFindUnique.mockResolvedValue(null);
@@ -202,6 +218,34 @@ describe("LiveClassChatService chat authorization", () => {
           })
         })
       );
+    });
+
+    // Review L5: the class's chat settings hold on the server.
+    it("refuses a student when the class chat is switched off, but not the coach", async () => {
+      liveSessionFindUnique.mockResolvedValue({
+        ...session,
+        effectiveSettings: liveClassSettingsSchema.parse({ student: { chat: "DISABLED" } })
+      });
+      authenticateAs("student-1", UserRole.STUDENT);
+      await expect(service.saveChatMessage(ACCESS_TOKEN, "class-1", "hello")).rejects.toThrow(
+        "Chat is switched off in this class."
+      );
+
+      authenticateAs("coach-1", UserRole.COACH);
+      await service.saveChatMessage(ACCESS_TOKEN, "class-1", "class, listen");
+      expect(chatCreate).toHaveBeenCalledTimes(1);
+    });
+
+    it("refuses a student's private message when private chat is switched off", async () => {
+      liveSessionFindUnique.mockResolvedValue({
+        ...session,
+        effectiveSettings: liveClassSettingsSchema.parse({ student: { privateChat: "DISABLED" } })
+      });
+      authenticateAs("student-1", UserRole.STUDENT);
+      await expect(
+        service.saveChatMessage(ACCESS_TOKEN, "class-1", "psst", undefined, "coach-1")
+      ).rejects.toThrow("Private messages are switched off in this class.");
+      expect(chatCreate).not.toHaveBeenCalled();
     });
   });
 
@@ -726,7 +770,7 @@ describe("LiveClassService.getToken coach-presence gate", () => {
         { provide: SystemNotifier, useValue: { send: jest.fn() } },
         {
           provide: LiveClassSettingsService,
-          useValue: { resolveForClass: jest.fn().mockResolvedValue({ resolved: {} }) }
+          useValue: { resolveForClass: jest.fn().mockResolvedValue({ batchLocks: [], lockExceptions: [], resolved: {}, systemLocks: [] }) }
         },
         {
           provide: AnalyticsEventService,
@@ -766,6 +810,15 @@ describe("LiveClassService.getToken coach-presence gate", () => {
 
     expect(res.token).toBe("livekit-token");
     expect(recordJoinEvent).toHaveBeenCalled();
+  });
+
+  it("refuses the coach's board client id, and an unsafe client id, from a student (review L7)", async () => {
+    authenticateAs("student-1", UserRole.STUDENT);
+    listParticipants.mockResolvedValue([{ identity: "coach-1" }]);
+
+    await expect(service.getToken(ACCESS_TOKEN, "class-1", "board")).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.getToken(ACCESS_TOKEN, "class-1", "tab_x")).rejects.toBeInstanceOf(BadRequestException);
+    expect(recordJoinEvent).not.toHaveBeenCalled();
   });
 
   it("admits the student when the coach joined without a suffix", async () => {
@@ -860,15 +913,18 @@ describe("LiveClassService.getToken coach-presence gate", () => {
       );
     });
 
-    it("falls back to default grants (no policy) for a class started before the feature", async () => {
+    // Review L4: no snapshot (it failed at start) never means wide-open grants.
+    it("resolves the policy when the class has no snapshot, never the wide-open grants", async () => {
       authenticateAs("student-1", UserRole.STUDENT);
       listParticipants.mockResolvedValue([{ identity: "coach-1" }]);
       // default liveSession from the outer beforeEach has no effectiveSettings
 
       const res = await service.getToken(ACCESS_TOKEN, "class-1");
 
-      expect(generateAccessToken.mock.calls[0][0].grants).toBeUndefined();
-      expect(res.settings).toBeNull();
+      expect(generateAccessToken.mock.calls[0][0].grants).toEqual(
+        deriveLiveKitGrants(DEFAULT_LIVE_CLASS_SETTINGS, "STUDENT")
+      );
+      expect(res.settings).toEqual(DEFAULT_LIVE_CLASS_SETTINGS);
     });
   });
 });
@@ -883,6 +939,7 @@ describe("LiveClassService.updateLiveSettings (mid-class change)", () => {
   let updateParticipantPermissions: jest.Mock;
   let muteParticipantTrack: jest.Mock;
   let broadcastData: jest.Mock;
+  let approvedShares: jest.Mock;
   let updateSettingsForClass: jest.Mock;
   let resolveForClass: jest.Mock;
   let getSettingsForClass: jest.Mock;
@@ -916,6 +973,7 @@ describe("LiveClassService.updateLiveSettings (mid-class change)", () => {
     updateParticipantPermissions = jest.fn().mockResolvedValue(undefined);
     muteParticipantTrack = jest.fn().mockResolvedValue(undefined);
     broadcastData = jest.fn().mockResolvedValue(undefined);
+    approvedShares = jest.fn().mockResolvedValue([]);
     updateSettingsForClass = jest.fn().mockResolvedValue(undefined);
     resolveForClass = jest.fn().mockResolvedValue({ resolved: forcedOffMic });
     getSettingsForClass = jest.fn().mockResolvedValue({ resolved: forcedOffMic });
@@ -928,6 +986,7 @@ describe("LiveClassService.updateLiveSettings (mid-class change)", () => {
           provide: PrismaService,
           useValue: {
             liveClassPull: { findFirst: jest.fn().mockResolvedValue(null), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+            liveClassScreenShareRequest: { findMany: approvedShares },
             liveSession: { findUnique: liveSessionFindUnique, update: liveSessionUpdate },
             user: { findUnique: userFindUnique },
           },
@@ -1001,6 +1060,18 @@ describe("LiveClassService.updateLiveSettings (mid-class change)", () => {
       expect.any(Uint8Array),
       "live_class_settings",
     );
+  });
+
+  // Review L9: an approved screen share survives a mid-class settings change.
+  it("keeps an approved student's screen share when the settings change", async () => {
+    authenticateAs("coach-1", UserRole.COACH);
+    approvedShares.mockResolvedValue([{ studentId: "student-1" }]);
+
+    await service.updateLiveSettings(ACCESS_TOKEN, "class-1", {
+      liveClassSettings: { student: { mic: "FORCED_OFF" } },
+    });
+
+    expect(updateParticipantPermissions.mock.calls[0][2].canPublishSources).toContain("screen_share");
   });
 
   // V1: a locked field refused by the settings service stops the whole mid-class
@@ -1272,7 +1343,11 @@ describe("LiveClassService screen-share requests", () => {
     ...overrides
   });
 
+  // Review L2: the academy/batch locks the screen-share checks read.
+  let screenShareLocks: jest.Mock;
+
   beforeEach(async () => {
+    screenShareLocks = jest.fn().mockResolvedValue({ batchLocks: [], lockExceptions: [], resolved: {}, systemLocks: [] });
     jwtService = { verifyAsync: jest.fn() };
     userFindUnique = jest.fn();
     coachClassFindUnique = jest.fn().mockResolvedValue({ id: "class-1", status: "LIVE" });
@@ -1347,7 +1422,7 @@ describe("LiveClassService screen-share requests", () => {
         { provide: WhatsAppService, useValue: {} },
         { provide: MailService, useValue: {} },
         { provide: SystemNotifier, useValue: { send: jest.fn() } },
-        { provide: LiveClassSettingsService, useValue: {} },
+        { provide: LiveClassSettingsService, useValue: { resolveForClass: (classId: string) => screenShareLocks(classId) } },
         {
           provide: AnalyticsEventService,
           useValue: { record: jest.fn(), recordRecordingWatchOncePerDay: jest.fn() }
@@ -1495,6 +1570,23 @@ describe("LiveClassService screen-share requests", () => {
       expect(muteParticipantTrack).toHaveBeenCalledWith("room-1", "student-1_client-a", "track-1");
       expect(result.status).toBe("REVOKED");
     });
+
+    // Review L3: a second tab of the same student is narrowed and muted too.
+    it("revokes on every connection the student has", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+      listParticipants.mockResolvedValue([
+        { identity: "student-1_client-a", tracks: [] },
+        { identity: "student-1_client-b", tracks: [{ sid: "track-2", source: 3, muted: false }] },
+        { identity: "student-2_client-c", tracks: [{ sid: "track-3", source: 3, muted: false }] }
+      ]);
+      shareFindUniqueOrThrow.mockResolvedValue(shareRow({ status: "REVOKED" }));
+
+      await screenShare.resolveScreenShareRequest(ACCESS_TOKEN, "class-1", { action: "REVOKE", studentId: "student-1" });
+
+      expect(updateParticipantPermissions.mock.calls.map((call) => call[1]).sort()).toEqual(["student-1_client-a", "student-1_client-b"]);
+      expect(muteParticipantTrack).toHaveBeenCalledWith("room-1", "student-1_client-b", "track-2");
+      expect(muteParticipantTrack).not.toHaveBeenCalledWith("room-1", "student-2_client-c", "track-3");
+    });
   });
 
   describe("grantScreenShare (coach allows without a request)", () => {
@@ -1554,6 +1646,18 @@ describe("LiveClassService screen-share requests", () => {
       await expect(
         screenShare.grantScreenShare(ACCESS_TOKEN, "class-1", { studentId: "student-1" })
       ).rejects.toBeInstanceOf(BadRequestException);
+      expect(shareUpsert).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["the academy", { systemLocks: ["student.screenShare"] }],
+      ["the batch", { batchLocks: ["student.screenShare"] }]
+    ])("refuses when %s locked screen sharing off (review L2)", async (_who, locks) => {
+      screenShareLocks.mockResolvedValue({ batchLocks: [], lockExceptions: [], resolved: {}, systemLocks: [], ...locks });
+      authenticateAs("coach-1", UserRole.COACH);
+      await expect(
+        screenShare.grantScreenShare(ACCESS_TOKEN, "class-1", { studentId: "student-1" })
+      ).rejects.toBeInstanceOf(ForbiddenException);
       expect(shareUpsert).not.toHaveBeenCalled();
     });
 
@@ -1655,8 +1759,12 @@ describe("LiveClassModerationService.kickParticipant", () => {
   let pullUpdateMany: jest.Mock;
   let removeParticipant: jest.Mock;
   let waitingFindUnique: jest.Mock;
+  let registrationUpdateMany: jest.Mock;
+  let registrationFindFirst: jest.Mock;
 
   beforeEach(async () => {
+    registrationUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+    registrationFindFirst = jest.fn().mockResolvedValue({ approval: "APPROVED" });
     waitingFindUnique = jest.fn().mockResolvedValue(null);
     jwtService = { verifyAsync: jest.fn().mockResolvedValue({ sub: "coach-1", type: "access" }) };
     waitingFindUnique = jest.fn().mockResolvedValue(null);
@@ -1685,6 +1793,7 @@ describe("LiveClassModerationService.kickParticipant", () => {
       user: { findUnique: userFindUnique, findFirst: userFindFirst },
       liveClassWaitingParticipant: { upsert: waitingUpsert, findUnique: waitingFindUnique },
       liveClassPull: { updateMany: pullUpdateMany },
+      demoClassRegistration: { updateMany: registrationUpdateMany, findFirst: registrationFindFirst },
       $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops))
     };
 
@@ -1701,7 +1810,10 @@ describe("LiveClassModerationService.kickParticipant", () => {
               { identity: "coach-1" },
               { identity: "student-1_tab-a" },
               { identity: "student-1_tab-b" },
-              { identity: "student-2_tab-c" }
+              { identity: "student-2_tab-c" },
+              { identity: "guest_reg-1_aaaa" },
+              { identity: "guest_reg-1_bbbb" },
+              { identity: "guest_reg-2_cccc" }
             ]),
             removeParticipant
           }
@@ -1748,6 +1860,41 @@ describe("LiveClassModerationService.kickParticipant", () => {
     await expect(
       service.kickParticipant(ACCESS_TOKEN, "class-1", { identity: "admin-1_tab-x" })
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("removes a demo guest: denies their registration and disconnects each of their tabs", async () => {
+    const res = await service.kickParticipant(ACCESS_TOKEN, "class-1", { identity: "guest_reg-1_aaaa" });
+
+    expect(res.removed).toBe(2);
+    expect(removeParticipant.mock.calls.map((c) => c[1])).toEqual(["guest_reg-1_aaaa", "guest_reg-1_bbbb"]);
+    expect(registrationUpdateMany).toHaveBeenCalledWith({
+      where: { id: "reg-1", classId: "class-1" },
+      data: { approval: "DENIED" }
+    });
+    expect(waitingUpsert).not.toHaveBeenCalled();
+  });
+
+  it("refuses to remove a guest registered for another class", async () => {
+    registrationUpdateMany.mockResolvedValue({ count: 0 });
+    await expect(
+      service.kickParticipant(ACCESS_TOKEN, "class-1", { identity: "guest_reg-9_zzzz" })
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(removeParticipant).not.toHaveBeenCalled();
+  });
+
+  describe("enforceGuestRemovalOnJoin (participant_joined webhook)", () => {
+    const session = { classId: "class-1", roomName: "room-1" };
+
+    it("puts a removed guest back out", async () => {
+      registrationFindFirst.mockResolvedValue({ approval: "DENIED" });
+      await expect(service.enforceGuestRemovalOnJoin(session, "guest_reg-1_aaaa")).resolves.toBe(true);
+      expect(removeParticipant).toHaveBeenCalledWith("room-1", "guest_reg-1_aaaa");
+    });
+
+    it("leaves an admitted guest alone", async () => {
+      await expect(service.enforceGuestRemovalOnJoin(session, "guest_reg-1_aaaa")).resolves.toBe(false);
+      expect(removeParticipant).not.toHaveBeenCalled();
+    });
   });
 
   describe("enforceRemovalOnJoin (participant_joined webhook)", () => {

@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
+import { usePlanFeature } from "@/features/subscription/hooks/useSubscription";
 import { DiscountsPanel } from "./DiscountsPanel";
 import { GatewayKeysPanel } from "./GatewayKeysPanel";
 import { ManualPaymentsPanel } from "./ManualPaymentsPanel";
@@ -15,27 +16,35 @@ import { RoutingPanel } from "./RoutingPanel";
 import { SubscriptionsPanel } from "./SubscriptionsPanel";
 
 /** The admin payment dashboard (§16) and its configuration surfaces. */
-const TABS = ["overview", "transactions", "manual", "refunds", "subscriptions", "plans", "discounts", "gateways"];
+const FEE_TABS = ["overview", "transactions", "manual", "plans"];
+/** Only with online payments (`studentPayments`); fee tracking alone records offline payments. */
+const ONLINE_TABS = ["refunds", "subscriptions", "discounts", "gateways"];
 
 export function PaymentsAdminClient() {
   // `?tab=manual` is the admin request inbox's link to the offline-payment queue.
   const requested = useSearchParams().get("tab");
-  const initialTab = requested && TABS.includes(requested) ? requested : "overview";
+  const online = usePlanFeature("studentPayments") === true;
+  const tabs = online ? [...FEE_TABS, ...ONLINE_TABS] : FEE_TABS;
+  const initialTab = requested && tabs.includes(requested) ? requested : "overview";
   return (
     <div className="space-y-6">
       <Tabs defaultValue={initialTab}>
         <PageHeader
-          description="Revenue, transactions, refunds, subscriptions and gateway configuration."
+          description={
+            online
+              ? "Revenue, transactions, refunds, subscriptions and gateway configuration."
+              : "Fees received, payments recorded in cash, UPI or bank transfer, and fee plans."
+          }
           tabs={
             <TabsList>
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="transactions">Transactions</TabsTrigger>
               <TabsTrigger value="manual">Manual payments</TabsTrigger>
-              <TabsTrigger value="refunds">Refunds</TabsTrigger>
-              <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
+              {online ? <TabsTrigger value="refunds">Refunds</TabsTrigger> : null}
+              {online ? <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger> : null}
               <TabsTrigger value="plans">Plans</TabsTrigger>
-              <TabsTrigger value="discounts">Discounts</TabsTrigger>
-              <TabsTrigger value="gateways">Gateways</TabsTrigger>
+              {online ? <TabsTrigger value="discounts">Discounts</TabsTrigger> : null}
+              {online ? <TabsTrigger value="gateways">Gateways</TabsTrigger> : null}
             </TabsList>
           }
           title="Payments"
@@ -50,25 +59,33 @@ export function PaymentsAdminClient() {
         <TabsContent value="manual">
           <ManualPaymentsPanel />
         </TabsContent>
-        <TabsContent value="refunds">
-          <RefundsPanel />
-        </TabsContent>
-        <TabsContent value="subscriptions">
-          <SubscriptionsPanel />
-        </TabsContent>
+        {online ? (
+          <TabsContent value="refunds">
+            <RefundsPanel />
+          </TabsContent>
+        ) : null}
+        {online ? (
+          <TabsContent value="subscriptions">
+            <SubscriptionsPanel />
+          </TabsContent>
+        ) : null}
         <TabsContent value="plans">
           <PlansPanel />
         </TabsContent>
-        <TabsContent value="discounts">
-          <DiscountsPanel />
-        </TabsContent>
-        <TabsContent value="gateways">
-          <div className="space-y-6">
-            <GatewayKeysPanel />
-            <ProviderHealthPanel />
-            <RoutingPanel />
-          </div>
-        </TabsContent>
+        {online ? (
+          <TabsContent value="discounts">
+            <DiscountsPanel />
+          </TabsContent>
+        ) : null}
+        {online ? (
+          <TabsContent value="gateways">
+            <div className="space-y-6">
+              <GatewayKeysPanel />
+              <ProviderHealthPanel />
+              <RoutingPanel />
+            </div>
+          </TabsContent>
+        ) : null}
       </Tabs>
     </div>
   );

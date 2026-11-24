@@ -32,6 +32,7 @@ import {
   useReconcilePayment
 } from "../hooks/usePaymentsApi";
 import { RefundDialog } from "./RefundDialog";
+import { usePlanFeature } from "@/features/subscription/hooks/useSubscription";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
@@ -88,6 +89,7 @@ export function PaymentsTablePanel() {
     }
   });
   const reconcile = useReconcilePayment();
+  const online = usePlanFeature("studentPayments") === true;
 
   const set = (patch: Partial<PaymentListQuery>) =>
     setFilters((current) => ({ ...current, ...patch, page: patch.page ?? 1 }));
@@ -280,34 +282,39 @@ export function PaymentsTablePanel() {
                     </TableCell>
                     <TableCell className="whitespace-nowrap px-4 py-3 text-right">
                       <div className="flex justify-end gap-1.5">
-                        <SimpleTooltip label="Re-read this payment from the gateway">
-                          <Button
-                            aria-label="Reconcile with the gateway"
-                            className="size-8"
-                            disabled={reconcile.isPending}
-                            onClick={() => reconcile.mutate(payment.id)}
-                            size="icon"
-                            type="button"
-                            variant="neutral"
-                          >
-                            <RotateCw className="size-3.5" strokeWidth={2.5} />
-                          </Button>
-                        </SimpleTooltip>
+                        {/* Gateway actions: only with online payments (plan `studentPayments`). */}
+                        {online ? (
+                          <>
+                            <SimpleTooltip label="Re-read this payment from the gateway">
+                              <Button
+                                aria-label="Reconcile with the gateway"
+                                className="size-8"
+                                disabled={reconcile.isPending}
+                                onClick={() => reconcile.mutate(payment.id)}
+                                size="icon"
+                                type="button"
+                                variant="neutral"
+                              >
+                                <RotateCw className="size-3.5" strokeWidth={2.5} />
+                              </Button>
+                            </SimpleTooltip>
 
-                        {payment.status === "PAID" ||
-                        payment.status === "PARTIALLY_REFUNDED" ? (
-                          <SimpleTooltip label="Refund this payment">
-                            <Button
-                              aria-label="Refund this payment"
-                              className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
-                              onClick={() => setRefunding(payment)}
-                              size="icon"
-                              type="button"
-                              variant="neutral"
-                            >
-                              <Undo2 className="size-3.5" strokeWidth={2.5} />
-                            </Button>
-                          </SimpleTooltip>
+                            {payment.status === "PAID" ||
+                            payment.status === "PARTIALLY_REFUNDED" ? (
+                              <SimpleTooltip label="Refund this payment">
+                                <Button
+                                  aria-label="Refund this payment"
+                                  className="size-8 text-app-danger-ink hover:bg-app-danger-soft"
+                                  onClick={() => setRefunding(payment)}
+                                  size="icon"
+                                  type="button"
+                                  variant="neutral"
+                                >
+                                  <Undo2 className="size-3.5" strokeWidth={2.5} />
+                                </Button>
+                              </SimpleTooltip>
+                            ) : null}
+                          </>
                         ) : null}
                       </div>
                     </TableCell>

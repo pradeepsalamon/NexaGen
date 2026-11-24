@@ -1,5 +1,10 @@
 # Form validation audit (2026-11-17 night run)
 
+> **Superseded display (owner 2026-11-24):** the messages this audit placed under each field
+> are now screen-reader text only. A blocked submit turns the bad fields red, focuses the
+> first and raises one toast; nothing is checked while typing or on blur. The rule is in
+> [UI_RULES.md](UI_RULES.md) § "Form errors". The inventory below is still the list of forms.
+
 Inventory of every file in `apps/web/src` with a `<form>`, a `useForm`, or a dialog holding inputs, built by a script (the counts are files: one file can hold several dialogs). "Today" is `dev` at `183a2c00`, before this branch. The rule the sweep applies is in [UI_RULES.md](UI_RULES.md) § "Form errors".
 
 **How much was tested, honestly:** "auto" = an assertion in `e2e/form-validation.spec.ts` drives that form in Chromium; "manual" = clicked through by hand on staging; "read only" = changed or inheriting the new `FormField`, checked by reading the code plus typecheck / lint / build, never driven in a browser; "not tested" = unchanged and not exercised. Every row that is not "auto" or "manual" could still hide a regression.
@@ -12,7 +17,7 @@ Totals: 105 files (42 with `<form>`, 17 with `useForm`, 72 dialogs). See the sum
 |---|---|---|---|---|---|
 | Coach Register Form (form) | `features/auth/components/CoachRegisterForm.tsx` | none / ad hoc | FormField error, toast | Was browser bubbles: field messages; FIDE rating ≤ 4000 and experience ≤ 80 now checked (the API limits) | auto (e2e/form-validation.spec.ts) |
 | Forgot Password Form (form) | `features/auth/components/ForgotPasswordForm.tsx` | none / ad hoc | FormField error, toast | Was browser bubble: noValidate + email message | read only |
-| Login Form (form) | `features/auth/components/LoginForm.tsx` | touched hook | FormField error, toast | Human messages; noValidate kept; first invalid focused; lockout (429) under the password field; other server errors toast | auto (e2e/form-validation.spec.ts) |
+| Login Form (form) | `features/auth/frame/LoginAuthPanel.tsx` + `hooks/useLoginFlow.ts` | touched hook | FormField error, toast | Human messages; noValidate kept; first invalid focused; lockout (429) under the password field; other server errors toast | auto (e2e/form-validation.spec.ts) |
 | Profile Form (form) | `features/auth/components/ProfileForm.tsx` | none / ad hoc | toast | No change | not tested |
 | Register Form (form) | `features/auth/components/RegisterForm.tsx` | touched hook | FormField error, toast | Was browser bubbles + setCustomValidity: now validateRegisterForm (API password rule, age 3–99), field messages, focus first invalid | auto (e2e/form-validation.spec.ts) |
 | Reset Password Form (form) | `features/auth/components/ResetPasswordForm.tsx` | none / ad hoc | FormField error, toast | Was setCustomValidity bubble: password rule and match under their fields | read only |
@@ -34,7 +39,7 @@ Totals: 105 files (42 with `<form>`, 17 with `useForm`, 72 dialogs). See the sum
 | Route or dialog | File | Validation today | How errors show today | What changed | Tested |
 |---|---|---|---|---|---|
 | Admin Requests Client (dialog) | `features/approvals/components/AdminRequestsClient.tsx` | none / ad hoc | none shown | No change | not tested |
-| Class Request Dialog (dialog) | `features/approvals/components/ClassRequestDialog.tsx` | Zod parse | inline red <p> | Start/reason messages under their fields; other issues toast; red text removed | read only |
+| Class Request Dialog (dialog) | `features/approvals/components/ClassRequestDialog.tsx` | Zod parse | inline red <p> | Start/reason messages under their fields; other issues toast; red text removed | auto (`risky-forms.spec.ts`, 2026-11-20) |
 | Request Approval Dialog (dialog) | `features/approvals/components/RequestApprovalDialog.tsx` | none / ad hoc | FormField error | Inherits FormField: error floats, no added height | read only |
 | Add Member Dialog (dialog) | `features/batches/components/AddMemberDialog.tsx` | none / ad hoc | none shown | No change | not tested |
 | Batch Form (RHF) | `features/batches/components/BatchForm.tsx` | RHF+Zod | FormField error | react-hook-form mode onTouched | auto (e2e/form-validation.spec.ts) |
@@ -64,7 +69,7 @@ Totals: 105 files (42 with `<form>`, 17 with `useForm`, 72 dialogs). See the sum
 | Route or dialog | File | Validation today | How errors show today | What changed | Tested |
 |---|---|---|---|---|---|
 | Assignment Form Dialog (form, dialog, RHF) | `features/assignments/components/AssignmentFormDialog.tsx` | RHF, native required | FormField error, inline red <p> | noValidate; solution/batches errors on their group title line | read only |
-| Deploy Assignment Dialog (dialog) | `features/assignments/components/DeployAssignmentDialog.tsx` | none / ad hoc | inline red <p> | Batches group + due date messages; red text removed | read only |
+| Deploy Assignment Dialog (dialog) | `features/assignments/components/DeployAssignmentDialog.tsx` | none / ad hoc | inline red <p> | Batches group + due date messages; red text removed | auto (`risky-forms.spec.ts`, 2026-11-20) |
 | Attach Module Modal (dialog) | `features/courses/components/AttachModuleModal.tsx` | none / ad hoc | none shown | No change | not tested |
 | Game Sources Card (dialog) | `features/game-analysis/components/GameSourcesCard.tsx` | none / ad hoc | inline red <p>, toast | Error text via FieldError / getErrorMessage | read only |
 | Import Game Dialog (dialog) | `features/game-library/components/ImportGameDialog.tsx` | none / ad hoc | inline red <p>, role=alert text | File problems under the PGN; refused import is a toast; red box removed | read only |
@@ -87,12 +92,12 @@ Totals: 105 files (42 with `<form>`, 17 with `useForm`, 72 dialogs). See the sum
 
 | Route or dialog | File | Validation today | How errors show today | What changed | Tested |
 |---|---|---|---|---|---|
-| Credit Note Dialog (dialog) | `features/invoices/components/CreditNoteDialog.tsx` | none / ad hoc | red Alert banner | Refusal is a toast (dialog stays open); red banner removed | read only |
+| Credit Note Dialog (dialog) | `features/invoices/components/CreditNoteDialog.tsx` | none / ad hoc | red Alert banner | Refusal is a toast (dialog stays open); red banner removed | auto (`risky-forms.spec.ts`, 2026-11-20) |
 | Gateway Keys Panel (form) | `features/payments/components/GatewayKeysPanel.tsx` | native required | none shown | No change | not tested |
 | Manual Payments Panel (dialog) | `features/payments/components/ManualPaymentsPanel.tsx` | none / ad hoc | none shown | No change | not tested |
 | Plans Panel (dialog) | `features/payments/components/PlansPanel.tsx` | Zod parse | none shown | No change | not tested |
 | Record Manual Payment Dialog (dialog) | `features/payments/components/RecordManualPaymentDialog.tsx` | none / ad hoc | inline red <p> | Error text via FieldError / getErrorMessage | read only |
-| Refund Dialog (dialog) | `features/payments/components/RefundDialog.tsx` | none / ad hoc | inline red <p> | Error text via FieldError / getErrorMessage | read only |
+| Refund Dialog (dialog) | `features/payments/components/RefundDialog.tsx` | none / ad hoc | inline red <p> | Error text via FieldError / getErrorMessage | auto (`risky-forms.spec.ts`, 2026-11-20) |
 | Adjustment Dialog (dialog) | `features/payroll/components/AdjustmentDialog.tsx` | none / ad hoc | none shown | No change | not tested |
 | Admin Payroll Period Detail Client (dialog) | `features/payroll/components/AdminPayrollPeriodDetailClient.tsx` | none / ad hoc | none shown | No change | not tested |
 | Compensation Profile Dialog (dialog) | `features/payroll/components/CompensationProfileDialog.tsx` | none / ad hoc | FormField error | Inherits FormField: error floats, no added height | read only |
@@ -151,9 +156,9 @@ Totals: 105 files (42 with `<form>`, 17 with `useForm`, 72 dialogs). See the sum
 | Referral Detail Dialog (dialog) | `features/referrals/components/admin/ReferralDetailDialog.tsx` | none / ad hoc | none shown | No change | not tested |
 | Referrers Panel (dialog) | `features/referrals/components/admin/ReferrersPanel.tsx` | Zod parse | red Alert banner | Code / amount / note under fields; red banners removed | read only |
 | Sales Access Dialogs (dialog) | `features/referrals/components/admin/SalesAccessDialogs.tsx` | none / ad hoc | red Alert banner | First name / email / phone under fields; link-send failure is a toast; red banner removed | auto (e2e/form-validation.spec.ts) |
-| Stages Panel (dialog) | `features/referrals/components/admin/StagesPanel.tsx` | Zod parse | red Alert banner | Each reward value checked under its own field; red banner removed; gap 16px | read only |
-| Vouchers Panel (form, dialog, RHF) | `features/referrals/components/admin/VouchersPanel.tsx` | RHF+Zod, native required | FormField error, inline red <p> | noValidate; voucher rule problems under the field the rule names | read only |
-| Withdrawals Panel (dialog) | `features/referrals/components/admin/WithdrawalsPanel.tsx` | none / ad hoc | red Alert banner | Reference / reason under fields; red banner removed | read only |
+| Stages Panel (dialog) | `features/referrals/components/admin/StagesPanel.tsx` | Zod parse | red Alert banner | Each reward value checked under its own field; red banner removed; gap 16px | auto (`risky-forms.spec.ts`, 2026-11-20) |
+| Vouchers Panel (form, dialog, RHF) | `features/referrals/components/admin/VouchersPanel.tsx` | RHF+Zod, native required | FormField error, inline red <p> | noValidate; voucher rule problems under the field the rule names | auto (`risky-forms.spec.ts`, 2026-11-20) |
+| Withdrawals Panel (dialog) | `features/referrals/components/admin/WithdrawalsPanel.tsx` | none / ad hoc | red Alert banner | Reference / reason under fields; red banner removed | auto (`risky-forms.spec.ts`, 2026-11-20) |
 
 ## Feedback forms and settings pages
 
@@ -174,9 +179,9 @@ Totals: 105 files (42 with `<form>`, 17 with `useForm`, 72 dialogs). See the sum
 ## Summary
 
 - Files audited: **105**
-- Tested automatically: **6**
+- Tested automatically: **13** (6 in `form-validation.spec.ts`; 7 added 2026-11-20 in `risky-forms.spec.ts`, which also found and fixed date pickers whose label and error weren't wired to the picker)
 - Clicked through by hand: **0**
-- Read only (changed or inheriting `FormField`, not driven in a browser): **49**
+- Read only (changed or inheriting `FormField`, not driven in a browser): **42**
 - Not tested (unchanged): **50**
 
 Kept on purpose (not field errors): red advisory notices in the messaging editors, attachment status in support tickets, and load / permission banners on tournament, retention, 2FA status and email-log screens.

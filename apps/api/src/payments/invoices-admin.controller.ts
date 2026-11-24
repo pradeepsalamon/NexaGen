@@ -47,7 +47,7 @@ import { RequireFeature } from "../platform/require-feature.decorator";
  * Every route asserts an admin role before doing anything. There is no coach
  * view here by design — money is between the student and the academy.
  */
-@RequireFeature("studentPayments")
+@RequireFeature("feeTracking")
 @Controller()
 export class InvoicesAdminController {
   constructor(

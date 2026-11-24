@@ -28,7 +28,7 @@ import { ManualPaymentAttachmentStorage } from "./manual-payment-attachment.stor
 import { OfflinePaymentMethodService } from "./offline-payment-method.service";
 import { PaymentService } from "./payment.service";
 import { assertAdmin, fullName, isAdminRole } from "./payments-auth.helper";
-import { generateOrderNumber, isUniqueViolationOn, priceOrder, toPlanItem } from "./payments.util";
+import { generateOrderNumber, isUniqueViolationOn, toPlanItem } from "./payments.util";
 
 export type ManualAttachmentInput = {
   buffer: Buffer;
@@ -100,7 +100,7 @@ export class ManualPaymentService {
     }
 
     const method = await this.methods.requireActive(dto.methodId);
-    const pricing = priceOrder(plan.amount, plan.taxPercent);
+    const pricing = await this.payments.priceForUser(student.id, plan.amount, plan.taxPercent);
 
     const idempotencyKey = dto.idempotencyKey
       ? `manual:${actor.id}:${dto.idempotencyKey}`

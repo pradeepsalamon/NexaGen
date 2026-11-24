@@ -1,8 +1,11 @@
 "use client";
 
+import { onInvalidSubmit } from "@/lib/forms";
+import { assignmentFormSchema } from "../validation/assignmentForm";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FieldError } from "@/components/ui/FieldError";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, type Resolver, useForm } from "react-hook-form";
 import {
   resolvePuzzleLeaderboard,
   resolvePuzzleScoring,
@@ -287,7 +290,13 @@ export function AssignmentFormDialog({
   // An admin's set is a shared library item, so it may hold global puzzles only.
   const isAdmin = isStaffRole(useAuthStore((state) => state.user?.role));
 
-  const form = useForm<FormValues>({ mode: "onTouched", defaultValues: DEFAULTS });
+  // Mirrors the API's limits, so a bad value shows under its field rather
+  // than as a server error toast (FE review F1).
+  const form = useForm<FormValues>({
+    defaultValues: DEFAULTS,
+    mode: "onSubmit",
+    resolver: zodResolver(assignmentFormSchema) as unknown as Resolver<FormValues>
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -377,22 +386,6 @@ export function AssignmentFormDialog({
 
   const onSubmit = form.handleSubmit((values) => {
     form.clearErrors();
-    if (!values.title.trim()) {
-      form.setError("title", { message: "Title is required." });
-      return;
-    }
-    if (values.activityType === "REPLAY" && !values.pgn.trim()) {
-      form.setError("pgn", { message: "PGN is required." });
-      return;
-    }
-    if (values.activityType === "SOLVE_LINE" && values.solutionMoves.length === 0) {
-      form.setError("solutionMoves", { message: "Record at least one solution move." });
-      return;
-    }
-    if (values.activityType === "PUZZLE_SET" && values.puzzles.length === 0) {
-      form.setError("puzzles", { message: "Add at least one puzzle." });
-      return;
-    }
 
     const base = {
       title: values.title.trim(),
@@ -463,7 +456,7 @@ export function AssignmentFormDialog({
         batchIds: deploying ? values.batchIds : undefined,
         dueDate: deploying ? values.dueDate : undefined
       } as CreateAssignmentRequest);
-  });
+  }, onInvalidSubmit);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -782,10 +775,10 @@ export function AssignmentFormDialog({
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <FormField id="maxAttempts" label="Maximum attempts (blank = unlimited)">
+                <FormField id="maxAttempts" label="Maximum attempts (blank = unlimited)" error={errors.maxAttempts?.message as string | undefined}>
                   <Input id="maxAttempts" type="number" min="1" max="50" {...form.register("maxAttempts")} />
                 </FormField>
-                <FormField id="passThresholdPercent" label="Pass threshold (%)">
+                <FormField id="passThresholdPercent" label="Pass threshold (%)" error={errors.passThresholdPercent?.message as string | undefined}>
                   <Input
                     id="passThresholdPercent"
                     type="number"
@@ -847,7 +840,7 @@ export function AssignmentFormDialog({
               <p className="rounded-app border border-app-border bg-app-background/50 p-3 text-xs text-app-muted">
                 The student explores freely from the starting position and submits when done.
               </p>
-              <FormField id="minMoves" label="Minimum moves (blank = none; each side's move counts as one)">
+              <FormField id="minMoves" label="Minimum moves (blank = none; each side's move counts as one)" error={errors.minMoves?.message as string | undefined}>
                 <Input id="minMoves" type="number" min="1" max="200" {...form.register("minMoves")} />
               </FormField>
             </>

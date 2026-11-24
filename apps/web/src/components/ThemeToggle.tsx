@@ -3,6 +3,7 @@
 import { Moon, Sun } from "lucide-react";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { revealOriginOf } from "@/lib/theme/themeReveal";
+import { cn } from "@/lib/utils";
 import { useTheme } from "@/providers/ThemeProvider";
 
 /**
@@ -13,7 +14,10 @@ import { useTheme } from "@/providers/ThemeProvider";
  * in. `data-theme-keep-transition` lets the knob and its icons animate through
  * the provider's transition freeze.
  */
-export function ThemeToggle() {
+export function ThemeToggle({ knob = "primary" }: {
+  /** `accent`: a gold knob, for the gold-and-navy hero of the auth pages. */
+  knob?: "accent" | "primary";
+} = {}) {
   const { mode, toggleMode } = useTheme();
   const isDark = mode === "dark";
   const label = `Change to ${isDark ? "light" : "dark"} theme`;
@@ -36,7 +40,10 @@ export function ThemeToggle() {
         </span>
         <span
           aria-hidden="true"
-          className="absolute left-1 top-1/2 z-10 flex size-6 -translate-y-1/2 translate-x-0 items-center justify-center rounded-full bg-primary text-on-primary shadow-card motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-in-out dark:translate-x-9"
+          className={cn(
+            "absolute left-1 top-1/2 z-10 flex size-6 -translate-y-1/2 translate-x-0 items-center justify-center rounded-full shadow-card motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-in-out dark:translate-x-9",
+            knob === "accent" ? "bg-accent text-on-accent" : "bg-primary text-on-primary"
+          )}
           data-theme-keep-transition=""
         >
           <Sun

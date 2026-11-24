@@ -8,6 +8,7 @@ import {
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { Hand, Mic, MicOff, Pin, PinOff, Scaling, Undo2, Video, VideoOff } from "lucide-react";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
@@ -15,9 +16,10 @@ import { usePip } from "../../providers/PipProvider";
 import { useSpotlightTrack } from "../../hooks/useSpotlightTrack";
 import { ParticipantAvatar } from "./ParticipantAvatar";
 
-// Native `title` throughout: Radix tooltips portal into the main document, not this PiP window.
+// Tooltips portal into the PiP window itself (`container`), not the main document (FE review U2).
 function MiniPlayerContent() {
-  const { close, cycleSize, pinned, togglePinned } = usePip();
+  const { close, cycleSize, pinned, pipWindow, togglePinned } = usePip();
+  const tipContainer = pipWindow?.document.body ?? null;
   const { pinnedParticipantSid, raisedHands, settings } = useLiveClassState(
     "pinnedParticipantSid",
     "raisedHands",
@@ -93,54 +95,59 @@ function MiniPlayerContent() {
             <MicOff className="size-3.5 shrink-0 text-on-scrim-danger" aria-label="Muted" />
           ) : null}
         </span>
-        <button
-          type="button"
-          onClick={() => localParticipant?.setMicrophoneEnabled(!micOn)}
-          disabled={micLocked}
-          aria-label={micLocked ? "Microphone turned off by the coach" : micOn ? "Mute microphone" : "Unmute microphone"}
-          title={micLocked ? "Microphone turned off by the coach" : micOn ? "Mute" : "Unmute"}
-          className={cn(scrimButton, !micOn && "text-on-scrim-danger")}
-        >
-          {micOn ? <Mic className="size-4" strokeWidth={1.75} /> : <MicOff className="size-4" strokeWidth={1.75} />}
-        </button>
-        <button
-          type="button"
-          onClick={() => localParticipant?.setCameraEnabled(!cameraOn)}
-          disabled={cameraLocked}
-          aria-label={cameraLocked ? "Camera turned off by the coach" : cameraOn ? "Turn camera off" : "Turn camera on"}
-          title={cameraLocked ? "Camera turned off by the coach" : cameraOn ? "Stop video" : "Start video"}
-          className={cn(scrimButton, !cameraOn && "text-on-scrim-danger")}
-        >
-          {cameraOn ? <Video className="size-4" strokeWidth={1.75} /> : <VideoOff className="size-4" strokeWidth={1.75} />}
-        </button>
-        <button
-          type="button"
-          onClick={togglePinned}
-          aria-label={pinned ? "Unpin mini player" : "Keep open in class"}
-          aria-pressed={pinned}
-          title={pinned ? "Unpin: closes when you return to the class" : "Keep open while in the class tab"}
-          className={cn(scrimButton, pinned && "bg-on-scrim/20")}
-        >
-          {pinned ? <PinOff className="size-4" strokeWidth={1.75} /> : <Pin className="size-4" strokeWidth={1.75} />}
-        </button>
-        <button
-          type="button"
-          onClick={cycleSize}
-          aria-label="Change mini player size"
-          title="Change size (or drag the window edges)"
-          className={scrimButton}
-        >
-          <Scaling className="size-4" strokeWidth={1.75} />
-        </button>
-        <button
-          type="button"
-          onClick={returnToClass}
-          aria-label="Back to class"
-          title="Back to class"
-          className={scrimButton}
-        >
-          <Undo2 className="size-4" strokeWidth={1.75} />
-        </button>
+        <SimpleTooltip container={tipContainer} label={micLocked ? "Microphone turned off by the coach" : micOn ? "Mute" : "Unmute"}>
+          <button
+            type="button"
+            onClick={() => localParticipant?.setMicrophoneEnabled(!micOn)}
+            disabled={micLocked}
+            aria-label={micLocked ? "Microphone turned off by the coach" : micOn ? "Mute microphone" : "Unmute microphone"}
+            className={cn(scrimButton, !micOn && "text-on-scrim-danger")}
+          >
+            {micOn ? <Mic className="size-4" strokeWidth={1.75} /> : <MicOff className="size-4" strokeWidth={1.75} />}
+          </button>
+        </SimpleTooltip>
+        <SimpleTooltip container={tipContainer} label={cameraLocked ? "Camera turned off by the coach" : cameraOn ? "Stop video" : "Start video"}>
+          <button
+            type="button"
+            onClick={() => localParticipant?.setCameraEnabled(!cameraOn)}
+            disabled={cameraLocked}
+            aria-label={cameraLocked ? "Camera turned off by the coach" : cameraOn ? "Turn camera off" : "Turn camera on"}
+            className={cn(scrimButton, !cameraOn && "text-on-scrim-danger")}
+          >
+            {cameraOn ? <Video className="size-4" strokeWidth={1.75} /> : <VideoOff className="size-4" strokeWidth={1.75} />}
+          </button>
+        </SimpleTooltip>
+        <SimpleTooltip container={tipContainer} label={pinned ? "Unpin: closes when you return to the class" : "Keep open while in the class tab"}>
+          <button
+            type="button"
+            onClick={togglePinned}
+            aria-label={pinned ? "Unpin mini player" : "Keep open in class"}
+            aria-pressed={pinned}
+            className={cn(scrimButton, pinned && "bg-on-scrim/20")}
+          >
+            {pinned ? <PinOff className="size-4" strokeWidth={1.75} /> : <Pin className="size-4" strokeWidth={1.75} />}
+          </button>
+        </SimpleTooltip>
+        <SimpleTooltip container={tipContainer} label="Change size (or drag the window edges)">
+          <button
+            type="button"
+            onClick={cycleSize}
+            aria-label="Change mini player size"
+            className={scrimButton}
+          >
+            <Scaling className="size-4" strokeWidth={1.75} />
+          </button>
+        </SimpleTooltip>
+        <SimpleTooltip container={tipContainer} label="Back to class">
+          <button
+            type="button"
+            onClick={returnToClass}
+            aria-label="Back to class"
+            className={scrimButton}
+          >
+            <Undo2 className="size-4" strokeWidth={1.75} />
+          </button>
+        </SimpleTooltip>
       </div>
     </div>
   );

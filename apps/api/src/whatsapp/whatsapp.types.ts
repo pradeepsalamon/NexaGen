@@ -13,9 +13,23 @@ export interface WhatsAppDocumentParameter {
   document: { id?: string; link?: string; filename?: string };
 }
 
+/** An image header parameter (Puzzle of the Day's board picture). */
+export interface WhatsAppImageParameter {
+  type: "image";
+  image: { link: string };
+}
+
+/** A quick-reply button's payload on a template: comes back as the tap's id. */
+export interface WhatsAppPayloadParameter {
+  type: "payload";
+  payload: string;
+}
+
 export type WhatsAppParameter =
   | WhatsAppTextParameter
-  | WhatsAppDocumentParameter;
+  | WhatsAppDocumentParameter
+  | WhatsAppImageParameter
+  | WhatsAppPayloadParameter;
 
 export interface WhatsAppTemplateComponent {
   type: WhatsAppComponentType;
@@ -49,6 +63,11 @@ export interface WhatsAppTemplateMessage {
    * rejects the send.
    */
   headerDocument?: WhatsAppDocumentRef;
+  /**
+   * A picture as the template's header, by a link Meta fetches at send time
+   * (Puzzle of the Day's board). The template must have an IMAGE header.
+   */
+  headerImage?: { link: string };
   /** Escape hatch: replaces the generated components entirely. */
   components?: WhatsAppTemplateComponent[];
 }
@@ -85,6 +104,13 @@ export interface WhatsAppDocumentMessage extends WhatsAppDocumentRef {
   caption?: string;
 }
 
+/** A picture by link, free-form (inside the 24h window), with the text as its caption. */
+export interface WhatsAppImageMessage {
+  to: string;
+  link: string;
+  caption?: string;
+}
+
 export interface WhatsAppMediaUploadResult {
   /** Meta's handle for the upload. Valid for 30 days. */
   mediaId: string;
@@ -112,6 +138,8 @@ export interface WhatsAppOutboundMessage {
   template?: { name: string; language?: string; bodyParams?: string[] } | null;
   /** With a template it becomes the template's DOCUMENT header (the template must have one). */
   document?: WhatsAppDocumentRef | null;
+  /** A picture link: with a template its IMAGE header (the template must have one), else sent with the text as caption. */
+  image?: string | null;
 }
 
 export type WhatsAppSendOutcome =

@@ -42,6 +42,7 @@ describe("parseWhatsAppWebhook", () => {
     );
     expect(events).toEqual([
       {
+        adReferral: null,
         dedupeKey: "msg:wamid.A",
         kind: "message",
         media: null,
@@ -113,6 +114,76 @@ describe("parseWhatsAppWebhook", () => {
     );
     expect(events.map((event) => event.dedupeKey)).toEqual(["status:wamid.B:delivered", "status:wamid.B:failed"]);
     expect(events[1]).toMatchObject({ error: "131047: Re-engagement message", kind: "status" });
+  });
+
+  it("reads a Click-to-WhatsApp ad's referral", () => {
+    const [event] = parseWhatsAppWebhook(
+      webhook({
+        contacts: [{ profile: { name: "Priya" }, wa_id: "919876543210" }],
+        messages: [
+          {
+            from: "919876543210",
+            id: "wamid.AD",
+            referral: {
+              body: "Book a free class",
+              ctwa_clid: "ARAkLkA8rmlFeiCktEJQ",
+              headline: "Chess for kids",
+              media_type: "image",
+              source_id: "120210000000000001",
+              source_type: "ad",
+              source_url: "https://fb.me/abc"
+            },
+            text: { body: "Hello! Can I get more info on this?" },
+            timestamp: "1700000000",
+            type: "text"
+          }
+        ]
+      })
+    );
+    expect(event).toMatchObject({
+      adReferral: {
+        ctwaClid: "ARAkLkA8rmlFeiCktEJQ",
+        headline: "Chess for kids",
+        sourceId: "120210000000000001",
+        sourceType: "ad",
+        sourceUrl: "https://fb.me/abc"
+      },
+      kind: "message"
+    });
+  });
+
+  it("ignores an empty or malformed referral", () => {
+    const parse = (referral: unknown) =>
+      parseWhatsAppWebhook(
+        webhook({ messages: [{ from: "919876543210", id: "wamid.R", referral, text: { body: "Hi" }, timestamp: "1700000000", type: "text" }] })
+      )[0];
+    expect(parse({})).toMatchObject({ adReferral: null });
+    expect(parse("ad")).toMatchObject({ adReferral: null });
+    expect(parse({ source_id: 42, source_type: "ad" })).toMatchObject({ adReferral: { sourceId: null, sourceType: "ad" } });
+  });
+
+  it("skips the WhatsApp Business app's coexistence echoes and syncs without error", () => {
+    const echo = {
+      entry: [
+        {
+          changes: [
+            {
+              field: "smb_message_echoes",
+              value: {
+                message_echoes: [{ from: "15550001111", id: "wamid.E", text: { body: "Staff reply" }, timestamp: "1700000000", to: "919876543210", type: "text" }],
+                messaging_product: "whatsapp",
+                metadata: { phone_number_id: "PNID" }
+              }
+            },
+            { field: "smb_app_state_sync", value: { messaging_product: "whatsapp", metadata: { phone_number_id: "PNID" }, state_sync: [{ type: "contact" }] } },
+            { field: "history", value: { history: [{ threads: [] }], messaging_product: "whatsapp", metadata: { phone_number_id: "PNID" } } }
+          ],
+          id: "WABA"
+        }
+      ],
+      object: "whatsapp_business_account"
+    };
+    expect(parseWhatsAppWebhook(echo)).toEqual([]);
   });
 
   it("skips other objects, other fields and malformed entries without throwing", () => {

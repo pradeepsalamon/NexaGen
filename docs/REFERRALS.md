@@ -77,6 +77,20 @@ Rewards are `ReferralReward` rows with `stageId` (and `ruleId` null), dedupe key
 Settings `autoApprovePoints` (default on) and `autoApproveCash` (default off)
 decide whether a stage reward is credited at once or waits in the Rewards tab.
 
+**Which role an account refers as (review R6):** `referralRoleOf` (`referral.util.ts`), from the
+stored role and extra roles, never the session's active role: a student, coach or sales account
+as itself, an admin who also teaches as a coach (cash), anyone else not at all. The summary, the
+link check and the rewards all use it.
+
+**What can't be farmed (review R5).** Anyone can open a link and book a demo, so:
+a `LINK_VISITED` stage never pays the referrer (stage value or bonus), whatever
+is set; a `DEMO_BOOKED` stage's referrer rewards and bonuses always wait for an
+admin, whatever the auto-approve settings say (`UNPAID_REFERRER_TRIGGERS` /
+`HELD_REFERRER_TRIGGERS` in `referral-pipeline.service.ts`); and a lead whose
+email or phone (last ten digits) is the referrer's own, or their parent contact,
+is never attached to their referral (`leadIsReferrer`). Welcome points for the
+new member are unchanged: they need a linked account.
+
 ### Milestone bonuses
 
 `ReferralRewardRule` rows with `kind: MILESTONE`, `beneficiary: REFERRER`: every
@@ -136,7 +150,9 @@ withdrawals refuse students outright.
   each paid one is announced like a single payment.
 - **History**: `GET /referrals/me/credits` is the user's points/money history;
   the admin History tab (`GET /admin/referrals/ledger`, filter by wallet, type,
-  user) lists every movement of every user; admins adjust either wallet.
+  user) lists every movement of every user; admins adjust the wallet the
+  person's role earns (points for a student, money for coaches and sales; a
+  wrong wallet is a 400, review R9).
 
 Financial rows (`ReferralReward`, `ReferralCreditEntry`, `ReferralWithdrawal`,
 `ReferralRedemption`, legacy transfers/conversions, personal discounts)
@@ -203,7 +219,9 @@ path). A voucher someone redeemed is switched off instead of deleted.
 lock (`referral-voucher:<id>`) then the user's lock, re-checks the window,
 stock, per-student limit, the academy's `maxRedemptionsPer30Days` and the
 points balance, writes a `ReferralRedemption` (the voucher's terms
-**snapshotted**) and a `REDEMPTION` debit. Stock and limits count `PENDING` +
+**snapshotted**, including its plans `voucherPlanIds` and `codeValidDays`, so
+approving a request later fulfils what was redeemed even if the voucher was
+edited meanwhile, review R4) and a `REDEMPTION` debit. Stock and limits count `PENDING` +
 `FULFILLED` redemptions.
 
 - No approval: fulfilled in the same transaction (a failure spends nothing).
@@ -249,7 +267,11 @@ never sees the password. A phone number given for WhatsApp is saved on the
 account. **`authenticateUser` refuses SALES (403) unless the caller passes
 `{ allowSales: true }`**, which only these do: the referral board, `/auth/*` and
 MFA, `GET /subscription`, the user's own typography/board-appearance
-preferences, and the privacy export. A new service that should serve SALES must
+preferences, the privacy export and the user's own account-deletion request,
+their in-app notifications (the referral notices below are in-app by default)
+and the presence heartbeat every signed-in page sends. Its email settings list
+only the kinds it can be sent (`emailCategoriesForRole`: account, referrals,
+messages from the academy team). A new service that should serve SALES must
 opt in the same way. On the web, `routeAccess.ts` sends SALES to `/sales` and
 lets it open only `/sales` and `/profile`. SALES sees its own prospects' full
 name and contact (to follow up); students and coaches see "Priya S." and no
@@ -279,3 +301,11 @@ contact.
   the SALES fence; stage edits.
 - `cross-user-access.int-spec.ts`: cancelling another user's withdrawal or
   voucher redemption is a 404.
+- `e2e/referrals.spec.ts` (browser, opt-in `RUN_REFERRAL_E2E=1`, writes rows on
+  the target): an admin creates a SALES account from Admin → Users; it signs in
+  to `/sales` and `/profile` with no refused request; a visitor opens `/r/<code>`
+  and signs up (tracked to the sales account); a paying stage credits its
+  wallet; it withdraws from the Wallet tab; the admin pays; the three notices
+  reach its bell (in-app notices go through the delivery outbox, about a
+  minute). It restores the stage value and withdrawal settings and trashes the
+  accounts it made. Passed on staging 2026-11-21.

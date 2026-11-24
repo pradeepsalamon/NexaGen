@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { useState } from "react";
 import { Clock, MessagesSquare, UserPlus, Users } from "lucide-react";
 import { SUPPORT_ANALYTICS_DAYS, type KpiValue, type SupportAnalyticsDays, type SupportAnalyticsResponse } from "@nexa-chess/types";
@@ -85,7 +86,7 @@ export function SupportInsightsClient() {
       />
 
       {query.isError ? (
-        <WidgetError message={(query.error as Error).message} onRetry={() => void query.refetch()} />
+        <WidgetError message={getErrorMessage(query.error)} onRetry={() => void query.refetch()} />
       ) : !data ? (
         <PageLoading />
       ) : (

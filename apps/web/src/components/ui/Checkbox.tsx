@@ -18,7 +18,9 @@ const Checkbox = React.forwardRef<
   const checkbox = (
     <CheckboxPrimitive.Root
       className={cn(
-        "peer size-4 shrink-0 rounded-[0.25rem] border-[1.5px] border-app-line-strong bg-app-surface transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus disabled:cursor-not-allowed disabled:opacity-60 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-on-primary",
+        // 14px box; the `before:` area around it keeps a comfortable tap target without
+        // drawing it bigger.
+        "peer relative size-3.5 shrink-0 rounded-[0.1875rem] border-[1.5px] border-app-line-strong bg-app-surface transition-colors before:absolute before:-inset-2 before:content-[''] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus disabled:cursor-not-allowed disabled:opacity-60 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-on-primary",
         className
       )}
       id={id}
@@ -26,7 +28,7 @@ const Checkbox = React.forwardRef<
       {...props}
     >
       <CheckboxPrimitive.Indicator className="flex items-center justify-center text-current">
-        <Check className="size-3" strokeWidth={3.5} />
+        <Check className="size-2.5" strokeWidth={3.5} />
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { useState, useId } from "react";
 import { FieldError, fieldErrorId } from "@/components/ui/FieldError";
 import { Plus, Save, X } from "lucide-react";
@@ -80,6 +81,7 @@ function ScheduleForm({ schedule, onDone }: { schedule: DemoScheduleDto | null; 
   const [passcode, setPasscode] = useState(schedule?.passcode ?? "");
   const [isActive, setIsActive] = useState(schedule?.isActive ?? true);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  useRevealFormErrors(errors);
 
   const timezoneOptions = TIMEZONE_OPTIONS.includes(timezone) ? TIMEZONE_OPTIONS : [timezone, ...TIMEZONE_OPTIONS];
   const coachOptions = (usersData?.coaches ?? []).map((coach) => ({
@@ -118,7 +120,7 @@ function ScheduleForm({ schedule, onDone }: { schedule: DemoScheduleDto | null; 
   };
 
   return (
-    <form onSubmit={submit} className="grid gap-4">
+    <form noValidate onSubmit={submit} className="grid gap-4">
       <Field label="Topic" error={errors.topic}>
         <Input
           value={topic}

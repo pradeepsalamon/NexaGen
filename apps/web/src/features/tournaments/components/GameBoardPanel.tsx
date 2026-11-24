@@ -1,5 +1,6 @@
 "use client";
 
+import { scrollWithinNearest } from "@/lib/scrollWithin";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, FlipVertical2, Zap } from "lucide-react";
 import { TOURNAMENT_END_REASON_LABELS, type TournamentEndReason, type TournamentGameResult } from "@nexa-chess/types";
@@ -141,7 +142,7 @@ export function GameBoardPanel({
   }, [shownPly, fen]);
 
   useEffect(() => {
-    if (viewPly === null) moveListRef.current?.lastElementChild?.scrollIntoView({ block: "nearest" });
+    if (viewPly === null) scrollWithinNearest(moveListRef.current?.lastElementChild as HTMLElement | null | undefined);
   }, [game.moves.length, viewPly]);
 
   const go = (ply: number) => setViewPly(ply >= last ? null : Math.max(0, ply));

@@ -241,11 +241,13 @@ const filterableRelationNames = new Set([
 /**
  * Rows hidden because their parent is in the trash, though they have no `isDeleted` of their
  * own: an assignment's deployments and each student's copy go with it (`Assignment` cascades
- * to both, so this matches what a permanent delete removes).
+ * to both, so this matches what a permanent delete removes). A deployment a coach withdrew
+ * (`withdrawnAt`, review S8) is hidden the same way, with its students' copies; their
+ * attempts stay, and `includeDeleted: true` still reads them.
  */
 const parentScopedWhere: Record<string, Record<string, unknown>> = {
-  AssignmentBatch: { assignment: { isDeleted: false } },
-  StudentAssignment: { assignmentBatch: { assignment: { isDeleted: false } } },
+  AssignmentBatch: { assignment: { isDeleted: false }, withdrawnAt: null },
+  StudentAssignment: { assignmentBatch: { assignment: { isDeleted: false }, withdrawnAt: null } },
   // A trashed tournament's hosts and players go with it (Tournament cascades to both).
   TournamentHost: { tournament: { isDeleted: false } },
   TournamentPlayer: { tournament: { isDeleted: false } }

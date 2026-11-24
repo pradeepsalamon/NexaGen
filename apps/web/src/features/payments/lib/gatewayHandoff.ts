@@ -33,7 +33,7 @@ export type HandoffOutcome =
 
 export async function openGateway(
   handoff: CheckoutHandoff,
-  options: { amount: number; currency: string; description: string; merchantName?: string }
+  options: { amount: number; currency: string; description: string; merchantName: string }
 ): Promise<HandoffOutcome> {
   switch (handoff.kind) {
     case "REDIRECT":
@@ -60,7 +60,7 @@ function redirect(handoff: CheckoutHandoff): HandoffOutcome {
 
 async function openRazorpay(
   handoff: CheckoutHandoff,
-  options: { amount: number; currency: string; description: string; merchantName?: string }
+  options: { amount: number; currency: string; description: string; merchantName: string }
 ): Promise<HandoffOutcome> {
   if (!handoff.publicKey || !handoff.providerOrderId) {
     return { kind: "failed", message: "The gateway session is incomplete." };
@@ -87,7 +87,8 @@ async function openRazorpay(
       amount: options.amount,
       currency: options.currency,
       // The academy being paid (its brand name), never the platform (§F).
-      name: options.merchantName ?? "NexaChess",
+      // Required, so no caller can fall back to another academy's name.
+      name: options.merchantName,
       description: options.description,
       prefill: {
         name: handoff.customer?.name,

@@ -1,7 +1,8 @@
-import { Controller, Get, Param, Query, Req } from "@nestjs/common";
-import { API_ROUTES } from "@nexa-chess/types";
+import { Body, Controller, Get, Param, Patch, Query, Req } from "@nestjs/common";
+import { API_ROUTES, studentPlayingProfileSchema, type StudentPlayingProfile } from "@nexa-chess/types";
 import type { Request } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
+import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { ActivityHistoryService } from "./activity-history.service";
 import { ProgressService } from "./progress.service";
 
@@ -39,6 +40,20 @@ export class ProgressController {
   @Get(API_ROUTES.progress.history())
   historyFor(@Req() request: Request, @Param("id") id: string, @Query() query: Record<string, unknown>) {
     return this.activityHistory.historyFor(this.getAccessToken(request), id, query);
+  }
+
+  @Get(API_ROUTES.progress.playingProfile())
+  getPlayingProfile(@Req() request: Request, @Param("id") id: string) {
+    return this.progressService.getPlayingProfile(this.getAccessToken(request), id);
+  }
+
+  @Patch(API_ROUTES.progress.playingProfile())
+  updatePlayingProfile(
+    @Req() request: Request,
+    @Param("id") id: string,
+    @Body(new ZodBodyPipe(studentPlayingProfileSchema)) body: StudentPlayingProfile
+  ) {
+    return this.progressService.updatePlayingProfile(this.getAccessToken(request), id, body);
   }
 
   @Get(API_ROUTES.progress.summary())

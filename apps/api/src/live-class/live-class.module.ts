@@ -28,11 +28,13 @@ import { AnalyticsEventModule } from "../analytics/analytics-event.module";
 import { WhatsAppModule } from "../whatsapp/whatsapp.module";
 import { MailModule } from "../mail/mail.module";
 import { GameLibraryModule } from "../game-library/game-library.module";
+import { LeadStageModule } from "../lead/lead-stage.module";
 import { ReferralModule } from "../referral/referral.module";
 import { TrashModule } from "../trash/trash.module";
 
 @Module({
   imports: [
+    LeadStageModule,
     PrismaModule,
     TrashModule,
     JwtModule.register({}),

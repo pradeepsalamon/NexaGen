@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import { StageHeader } from "./classroom/StageHeader";
 
 import type { ReactNode } from "react";
@@ -71,7 +72,7 @@ function GuestPuzzlePractice({ classId, guestToken, assignmentId }: { classId: s
     if (query.isError || (data && !query.isFetching)) {
       return (
         <div className="mx-auto flex max-w-sm flex-col items-center gap-3 py-10 text-center text-sm text-app-muted">
-          <p>{query.error instanceof Error ? query.error.message : "Couldn't load the puzzle."}</p>
+          <p>{getErrorMessage(query.error, "Couldn't load the puzzle.")}</p>
           <Button type="button" variant="outline" size="sm" onClick={() => void query.refetch()}>
             Try again
           </Button>

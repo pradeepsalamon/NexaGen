@@ -1,6 +1,11 @@
 import type {
   CreateUserRequest,
+  ResendInviteResponse,
+  RosterImportRequest,
+  RosterImportResponse,
   TrashActionResponse,
+  UpdateExtraRolesRequest,
+  UpdateExtraRolesResponse,
   UpdateUserRequest,
   UserListResponse,
   UserResponse
@@ -47,4 +52,26 @@ export function deleteUser(userId: string) {
   return apiFetch<TrashActionResponse>(API_ROUTES.users.delete(userId), {
     method: "DELETE"
   });
+}
+
+/** "Can also teach" (super admin only, docs/MULTI_ROLE_ACCOUNTS.md). */
+export function setExtraRoles(userId: string, payload: UpdateExtraRolesRequest) {
+  return apiFetch<UpdateExtraRolesResponse>(API_ROUTES.users.extraRoles(userId), {
+    body: payload,
+    method: "PUT"
+  });
+}
+
+/** Roster import (docs/ROSTER_IMPORT.md): checks every row, creates nothing. */
+export function previewRosterImport(payload: RosterImportRequest) {
+  return apiFetch<RosterImportResponse>(API_ROUTES.users.importPreview, { body: payload, method: "POST" });
+}
+
+export function importRoster(payload: RosterImportRequest) {
+  return apiFetch<RosterImportResponse>(API_ROUTES.users.import, { body: payload, method: "POST" });
+}
+
+/** A fresh set-your-password link for an account that has never signed in. */
+export function resendAccountInvite(userId: string) {
+  return apiFetch<ResendInviteResponse>(API_ROUTES.users.invite(userId), { method: "POST" });
 }

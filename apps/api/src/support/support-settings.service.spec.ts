@@ -6,6 +6,7 @@ const SERVER = {
   SUPPORT_AGENT_REPLY_TEMPLATE: "agent_reply",
   SUPPORT_AGENT_REPLY_TEMPLATE_LANGUAGE: "en",
   SUPPORT_BOT_ENABLED: true,
+  SUPPORT_CAPTURE_LEADS: true,
   SUPPORT_LEAD_NUDGE_HOURS: 20,
   SUPPORT_STAFF_REMINDER_MINUTES: 15,
   SUPPORT_TEST_NUMBERS_ALLOWLIST: "+91 90000 00001, 9000000002",
@@ -17,6 +18,7 @@ const ROW = {
   agentReplyTemplate: null,
   agentReplyTemplateLanguage: "en_US",
   botEnabled: false,
+  captureLeads: false,
   hours: { days: [{ close: "18:00", day: 1, open: "09:00" }], timezone: "Asia/Kolkata" },
   leadNudgeHours: 6,
   menu: DEFAULT_SUPPORT_MENU as unknown as Prisma.JsonValue,
@@ -32,6 +34,7 @@ describe("resolveSupportSettings", () => {
       agentReplyTemplate: "agent_reply",
       agentReplyTemplateLanguage: "en",
       botEnabled: true,
+      captureLeads: true,
       hours: null,
       leadNudgeHours: 20,
       menu: DEFAULT_SUPPORT_MENU,
@@ -52,6 +55,12 @@ describe("resolveSupportSettings", () => {
     expect(settings.botEnabled).toBe(false);
     expect(settings.agentReplyTemplate).toBeNull();
     expect(settings.testNumbers).toEqual([]);
+    expect(settings.captureLeads).toBe(false);
+  });
+
+  it("captures WhatsApp leads for Nexa's academy only, even when another academy's row says so", () => {
+    expect(resolveSupportSettings({ ...ROW, captureLeads: true }, "tenant_nexa", SERVER).captureLeads).toBe(true);
+    expect(resolveSupportSettings({ ...ROW, captureLeads: true }, "tenant_rook", SERVER).captureLeads).toBe(false);
   });
 
   it("treats an unreadable stored menu as the built-in one", () => {

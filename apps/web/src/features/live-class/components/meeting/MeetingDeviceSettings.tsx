@@ -156,6 +156,7 @@ function DeviceSelector({
       await playTestSound(activeId);
     } catch (e) {
       toast.error("Couldn't play the test sound", {
+        // eslint-disable-next-line no-restricted-syntax -- the browser's audio-device error names what went wrong
         description: e instanceof Error ? e.message : undefined,
       });
     } finally {

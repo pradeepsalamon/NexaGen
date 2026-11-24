@@ -32,6 +32,7 @@ import {
   WaitingRoomStatus,
 } from "@prisma/client";
 import { AttendanceService } from "../attendance/attendance.service";
+import { effectiveClassSettings } from "./live-class-effective-settings";
 import { LiveClassSettingsService } from "./live-class-settings.service";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { LiveClassAccessService } from "./live-class-access.service";
@@ -227,25 +228,27 @@ export class LiveClassService {
       throw new ForbiddenException("You are not authorized to join this class.");
     }
 
-    // Pre-class settings enforcement: derive LiveKit publish grants from the
-    // frozen snapshot (§38). A class started before this feature has no
-    // snapshot → `grants` stays undefined and the pre-feature grant logic runs.
-    // Hoisted above the gates below so the waiting-room check can read the
-    // resolved policy before minting anything.
-    let effectiveSettings: LiveClassSettings | null = null;
-    let grants: LiveKitTokenOptions["grants"];
-    if (liveSession.effectiveSettings) {
-      try {
-        effectiveSettings = liveClassSettingsSchema.parse(liveSession.effectiveSettings);
-        grants = deriveLiveKitGrants(
-          effectiveSettings,
-          isStudent ? "STUDENT" : "COACH"
-        );
-      } catch (error) {
-        this.logger.warn(`Invalid effectiveSettings for class ${classId}; using default grants`, error as Error);
-        effectiveSettings = null;
-      }
+    // The client id becomes part of the LiveKit identity, so it is a tab id
+    // (letters, digits, dashes). `board` is the coach's pop-out board window,
+    // which the attendance webhook records as the coach's board (review L7).
+    if (clientId !== undefined && !/^[A-Za-z0-9-]{1,64}$/.test(clientId)) {
+      throw new BadRequestException("clientId may only contain letters, digits and dashes.");
     }
+    if (clientId === "board" && !isCoach && !isAdmin) {
+      throw new ForbiddenException("Only the coach can open the class board window.");
+    }
+
+    // Pre-class settings enforcement: derive LiveKit publish grants from the
+    // frozen snapshot (§38). Fail closed (review L4): a missing or unreadable
+    // snapshot (the best-effort snapshot at start failed) is resolved now with
+    // the admin's locks, else the safe defaults; never the wide-open grants
+    // that skipped the waiting room. Hoisted above the gates below so the
+    // waiting-room check can read the policy before minting anything.
+    const effectiveSettings = await effectiveClassSettings(liveSession, this.settingsService, this.logger);
+    let grants: LiveKitTokenOptions["grants"] = deriveLiveKitGrants(
+      effectiveSettings,
+      isStudent ? "STUDENT" : "COACH"
+    );
 
     // A previously-approved screen-share request must survive a reconnect —
     // `getToken` is otherwise the only place grants are computed, so without
@@ -396,13 +399,14 @@ export class LiveClassService {
       data: { effectiveSettings: resolved as object, settingsSnapshotAt: new Date() },
     });
 
-    await this.applyLiveSettingsToRoom(liveSession.roomName, liveSession.coachId, resolved);
+    await this.applyLiveSettingsToRoom(liveSession.id, liveSession.roomName, liveSession.coachId, resolved);
 
     return this.settingsService.getSettingsForClass(accessToken, classId);
   }
 
   /** Push refreshed grants to connected students and broadcast the new config. */
   private async applyLiveSettingsToRoom(
+    liveSessionId: string,
     roomName: string,
     coachId: string,
     resolved: LiveClassSettings,
@@ -415,7 +419,16 @@ export class LiveClassService {
     }
 
     const studentGrants = deriveLiveKitGrants(resolved, "STUDENT");
-    const allowedSources = new Set(studentGrants.canPublishSources);
+    // A student whose screen share was approved keeps it through a settings change,
+    // as on a reconnect (`getToken`), so the request row and the room agree (review L9).
+    const approvedSharers = new Set(
+      (
+        await this.prisma.liveClassScreenShareRequest.findMany({
+          select: { studentId: true },
+          where: { liveSessionId, status: ScreenShareRequestStatus.APPROVED },
+        })
+      ).map((row) => row.studentId),
+    );
 
     for (const participant of participants) {
       if (isCoachParticipant(participant.identity, coachId)) continue;
@@ -429,8 +442,12 @@ export class LiveClassService {
       }
       if (role && role !== "STUDENT") continue;
 
+      const grants = approvedSharers.has(participant.identity.split("_")[0] ?? "")
+        ? withScreenShareSources(studentGrants)
+        : studentGrants;
+      const allowedSources = new Set(grants.canPublishSources);
       try {
-        await this.livekit.updateParticipantPermissions(roomName, participant.identity, studentGrants);
+        await this.livekit.updateParticipantPermissions(roomName, participant.identity, grants);
         for (const track of participant.tracks ?? []) {
           if (track.muted) continue;
           const label = LiveKitService.trackSourceLabel(track.source);

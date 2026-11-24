@@ -5,6 +5,8 @@ import { Label } from "@/components/ui/Label";
 type FormFieldProps = {
   children: ReactNode;
   error?: string;
+  /** Draw `error` under the field: only for a notice the user must keep reading (a lockout). */
+  errorVisible?: boolean;
   hint?: string;
   id: string;
   label: string;
@@ -15,12 +17,13 @@ type DescribedProps = { "aria-describedby"?: string; "aria-invalid"?: boolean | 
 
 /**
  * Label, control, optional hint and the field's error. The hint keeps its slot in the flow;
- * the error floats just under the field (FieldError), so it never adds height. A single
+ * the error is screen-reader text (FieldError) and the control turns red. A single
  * control child gets `aria-describedby` (hint + error) and `aria-invalid` filled in.
  */
 export function FormField({
   children,
   error,
+  errorVisible = false,
   hint,
   id,
   label,
@@ -58,7 +61,7 @@ export function FormField({
           {hint}
         </p>
       ) : null}
-      <FieldError id={id} message={error} />
+      <FieldError id={id} message={error} visible={errorVisible} />
     </div>
   );
 }

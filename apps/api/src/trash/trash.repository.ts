@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { Prisma, UserRole, UserStatus } from "@prisma/client";
+import { EntitlementService } from "../platform/entitlement.service";
 import { PrismaService } from "../prisma/prisma.service";
 import {
   getTrashEntity,
@@ -60,7 +61,10 @@ const CASCADE_CHILDREN: Record<
 
 @Injectable()
 export class TrashRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly entitlements: EntitlementService
+  ) {}
 
   async list(options: TrashFindOptions) {
     const entityConfigs = options.entity
@@ -145,6 +149,14 @@ export class TrashRepository {
     const deleteGroupId = item.deleteGroupId ?? null;
 
     return this.prisma.$transaction(async (transaction) => {
+      // A restore adds a seat or a batch like a create does (review T2):
+      // otherwise trash 10 students, add 10, restore 10 beats the plan's limit.
+      if (entity.label === "User" && item.status === UserStatus.ACTIVE) {
+        await this.entitlements.assertSeatAvailable(transaction, item.role as UserRole, id);
+      } else if (entity.label === "Batch") {
+        await this.entitlements.assertCanCreateBatch(transaction);
+      }
+
       const restored = await this.getDelegate(transaction, entity.delegate).update({
         data: {
           deleteGroupId: null,

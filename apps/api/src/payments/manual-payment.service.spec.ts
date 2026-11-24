@@ -6,6 +6,7 @@ import { ManualPaymentAttachmentStorage } from "./manual-payment-attachment.stor
 import { ManualPaymentService } from "./manual-payment.service";
 import { OfflinePaymentMethodService } from "./offline-payment-method.service";
 import { PaymentService } from "./payment.service";
+import { priceOrder } from "./payments.util";
 
 /**
  * Manual/offline payment recording (cash, personal UPI-GPay, bank transfer).
@@ -128,7 +129,15 @@ describe("ManualPaymentService", () => {
           provide: ManualPaymentAttachmentStorage,
           useValue: { upload: jest.fn(), download: jest.fn() }
         },
-        { provide: PaymentService, useValue: { applyProviderState } }
+        {
+          provide: PaymentService,
+          useValue: {
+            applyProviderState,
+            priceForUser: jest.fn((_userId: string, amount: number, taxPercent: number) =>
+              Promise.resolve(priceOrder(amount, taxPercent))
+            )
+          }
+        }
       ]
     }).compile();
 

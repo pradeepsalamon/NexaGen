@@ -49,8 +49,9 @@ export function AuthStatus({
       <div className="grid gap-1.5">
         <Heading
           className={cn(
-            "font-extrabold leading-tight tracking-tight text-app-text",
-            headingLevel === "h1" ? "text-2xl" : "text-lg"
+            "leading-tight tracking-tight text-app-text",
+            // The page heading takes the app's page-heading type, like `AuthHeader`.
+            headingLevel === "h1" ? "text-2xl font-extrabold" : "text-lg font-extrabold"
           )}
         >
           {title}

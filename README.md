@@ -80,6 +80,11 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
     Stockfish engine (skill level configurable); scored from the game result,
     with move accuracy computed from per-move engine analysis (falls back to
     result-only when the engine pool is offline or the student resigned).
+    The game is stored on the server: the student sends one move at a time
+    (`{ uci, ply }`, 409 when `ply` isn't the stored length), the server plays
+    and stores the engine's reply from the stored position, and `submit` scores
+    the stored game. No position is ever taken from the client, so the endpoint
+    is not a best-move oracle for other games.
   - `FREE_ANALYSIS` — an open interactive board the student submits when done,
     optionally after a minimum number of moves (`minMoves`).
   - `PUZZLE_SET` — an ordered list of published library puzzles
@@ -477,6 +482,9 @@ JWT_REFRESH_SECRET=...
 # Production refuses to boot without the key while MFA_REQUIRED_ROLES names a role (NONE opts out).
 MFA_ENCRYPTION_KEY=...
 MFA_REQUIRED_ROLES=SUPER_ADMIN,ADMIN
+# Signs Puzzle of the Day's WhatsApp board-picture links (never a JWT secret). Optional:
+# unset = derived from CREDENTIALS_ENCRYPTION_KEY, else MFA_ENCRYPTION_KEY; none = no picture.
+DAILY_PUZZLE_PICTURE_SECRET=
 # JSON logs (nestjs-pino); default info in production, debug (pretty) locally.
 LOG_LEVEL=info
 JWT_ACCESS_TTL=15m
@@ -573,6 +581,8 @@ A daily sweep (`apps/api/src/retention/`, 4 AM, single-runner via the `retention
 ## Trash And Soft Delete
 
 Soft-delete behavior is centralized in `apps/api/src/prisma/soft-delete.extension.ts` and exposed through the Trash module in `apps/api/src/trash`. Current trash entities are `User`, `StudentProfile`, `CoachProfile`, `Batch`, `BatchCoach`, `BatchStudent`, `Puzzle`, `PuzzleTopic`, `LibraryActivity`, `Course`, `CourseModule`, `Assignment`, `Announcement`, `Lead`, `FeedbackForm`, `KnowledgeArticle`, `KnowledgeCategory`, `ChessGame`, `LiveClassPreset`, `DemoSchedule` and `Tournament` (its hosts and players are hidden with it through `parentScopedWhere`).
+
+A restore counts against the academy's plan like a create: restoring an active student or coach calls `EntitlementService.assertSeatAvailable`, and restoring a batch `assertCanCreateBatch`, inside the restore transaction (a full plan refuses with 402).
 
 Nested list filters check the real target model through Prisma's schema metadata (`Prisma.dmmf`), not just the relation name (`Assignment.puzzles` is `AssignmentPuzzle`, which has no `isDeleted`). Rows with no `isDeleted` of their own can be hidden with their parent through `parentScopedWhere`: a trashed `Assignment` hides its `AssignmentBatch` deployments and every `StudentAssignment`, and purging it removes them through the existing cascade. Not Trash entities, on purpose: discounts and other financial models (never soft-deleted, docs/PAYMENTS.md), referrals and their stages/reward rules (wallet money and the pipeline, docs/REFERRALS.md), and live-class chapters and activity queues (in-room state, docs/LIVE_CLASS.md).
 

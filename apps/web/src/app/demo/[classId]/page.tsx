@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import "@livekit/components-styles";
 import "@livekit/components-styles/prefabs";
 
@@ -21,6 +22,8 @@ import {
   type DemoClassPublicInfo,
   type DemoRegistrationContactMethod,
   type GuestJoinDemoRequest,
+  type ResendDemoInviteRequest,
+  type ResendDemoInviteResponse,
   type GuestJoinDemoResponse
 } from "@nexa-chess/types";
 import { useToast } from "@/providers/ToastProvider";
@@ -74,6 +77,9 @@ function DemoClassJoin() {
   const [passcodeError, setPasscodeError] = useState<string | null>(null);
   const [guestErrors, setGuestErrors] = useState<{ contact?: string; name?: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // An invited guest typed their details: offer to send the personal link again.
+  const [inviteRequired, setInviteRequired] = useState(false);
+  const [resend, setResend] = useState<"idle" | "sending" | "sent">("idle");
   const requestRef = useRef<GuestJoinDemoRequest | null>(null);
 
   const classId = info?.classId ?? idOrSlug;
@@ -101,12 +107,18 @@ function DemoClassJoin() {
         }
       } catch (err) {
         const code = err instanceof ApiError ? err.code : undefined;
-        const message = err instanceof Error ? err.message : "Failed to join demo class.";
+        const message = getErrorMessage(err, "Failed to join demo class.");
         if (code === "DEMO_INVITE_INVALID") {
           // Fall back to the regular form — the phone/email may still match.
           setInviteToken(null);
           setPhase("form");
           if (!opts.silent) toast.warning({ title: message });
+        } else if (code === "DEMO_INVITE_REQUIRED") {
+          // An invited guest typed their details: their personal link is the way
+          // in, and the form offers to send it again (shown inline, not a toast).
+          setInviteRequired(true);
+          setResend("idle");
+          setPhase("form");
         } else if (code === "DEMO_PASSCODE_INVALID") {
           setPasscodeError(message);
           setPhase("form");
@@ -149,7 +161,7 @@ function DemoClassJoin() {
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setUnavailableMessage(err instanceof Error ? err.message : "This demo class was not found.");
+        setUnavailableMessage(getErrorMessage(err, "This demo class was not found."));
         setPhase("unavailable");
       });
     return () => {
@@ -288,6 +300,25 @@ function DemoClassJoin() {
 
   const accessMode = info?.accessMode ?? "PUBLIC";
 
+  const resendLink = async () => {
+    if (!info) return;
+    setResend("sending");
+    const body: ResendDemoInviteRequest =
+      values.contactMethod === "EMAIL"
+        ? { contactMethod: "EMAIL", email: values.email.trim() }
+        : { contactMethod: "PHONE", phoneNumber: values.phoneNumber.trim() };
+    try {
+      await apiFetch<ResendDemoInviteResponse>(API_ROUTES.liveClass.demoResendInvite(info.classId), {
+        body: JSON.stringify(body),
+        method: "POST"
+      });
+      setResend("sent");
+    } catch (err) {
+      setResend("idle");
+      toast.error({ message: getErrorMessage(err), title: "Couldn't send the link" });
+    }
+  };
+
   return shell(
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
@@ -300,6 +331,22 @@ function DemoClassJoin() {
         {accessMode === "INVITE_ONLY" && (
           <Alert className="mb-4" variant="info">
             This class is for invited guests. Use the phone number or email your invitation was sent to. Otherwise the coach can let you in.
+          </Alert>
+        )}
+        {inviteRequired && (
+          <Alert className="mb-4" variant="warning">
+            <div className="space-y-3">
+            <p>You were invited to this class. Open the personal invite link we sent you to join.</p>
+            {resend === "sent" ? (
+              <p className="font-medium">
+                If this {values.contactMethod === "EMAIL" ? "email" : "number"} was invited, the link is on its way. It can take a minute.
+              </p>
+            ) : (
+              <Button isLoading={resend === "sending"} onClick={() => void resendLink()} size="sm" type="button" variant="outline">
+                Send my link again
+              </Button>
+            )}
+            </div>
           </Alert>
         )}
         <form noValidate onSubmit={handleSubmit} className="space-y-4">

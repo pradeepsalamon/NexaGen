@@ -1,7 +1,8 @@
 "use client";
 
+import { useRevealFormErrors } from "@/hooks/useRevealFormErrors";
 import { useState } from "react";
-import { FieldError } from "@/components/ui/FieldError";
+import { FieldError, fieldErrorId } from "@/components/ui/FieldError";
 import { PAYROLL_PERIOD_TYPE_LABELS, type PayrollPeriodType } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import {
@@ -28,9 +29,15 @@ export function CreatePeriodDialog({ onClose }: { onClose: () => void }) {
   const [endDate, setEndDate] = useState("");
   const [notes, setNotes] = useState("");
 
-  const canSubmit = Boolean(startDate && endDate && endDate > startDate);
+  const canSubmit = Boolean(startDate && endDate);
+  // Checked when Create is pressed, not while picking (UI_RULES § "Form errors").
+  const [tried, setTried] = useState(false);
+  const endError = tried && startDate && endDate && endDate <= startDate ? "End date must be after the start date" : undefined;
+  useRevealFormErrors(endError);
 
   const handleSubmit = () => {
+    setTried(true);
+    if (endDate <= startDate) return;
     create.mutate(
       { periodType, startDate, endDate, notes: notes.trim() || undefined },
       { onSuccess: onClose }
@@ -75,11 +82,13 @@ export function CreatePeriodDialog({ onClose }: { onClose: () => void }) {
             <div className="relative">
               <Label htmlFor="period-end">End date</Label>
               <DateStringPicker
+                aria-describedby={endError ? fieldErrorId("period-end") : undefined}
+                aria-invalid={Boolean(endError)}
                 id="period-end"
                 onChange={(value) => setEndDate(value)}
                 value={endDate}
               />
-              <FieldError id="period-end" message={startDate && endDate && endDate <= startDate ? "End date must be after the start date" : undefined} />
+              <FieldError id="period-end" message={endError} />
             </div>
           </div>
 

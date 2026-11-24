@@ -7,7 +7,7 @@ import {
 } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
-import type { DemoInviteeInput } from "@nexa-chess/types";
+import type { DemoInviteeInput, ResendDemoInviteRequest, ResendDemoInviteResponse } from "@nexa-chess/types";
 import {
   ClassStatus,
   DemoGuestApproval,
@@ -18,12 +18,14 @@ import {
 } from "@prisma/client";
 import { SystemNotifier } from "../mail/system-notifier.service";
 import { formatDemoTime } from "../messaging/messaging.format";
-import { ReferralTrackerService } from "../referral/referral-tracker.service";
+import { LeadStageService } from "../lead/lead-stage.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 
-const CONVERTING_STATUSES: LeadStatus[] = ["CONVERTED", "ACTIVE_STUDENT"];
 const INVITABLE_STATUSES: ClassStatus[] = [ClassStatus.SCHEDULED, ClassStatus.LIVE];
+
+/** One re-sent personal link per invitation per this long (owner 2026-11-24). */
+export const INVITE_RESEND_COOLDOWN_MS = 10 * 60_000;
 
 type InvitableClass = {
   id: string;
@@ -64,7 +66,7 @@ export class DemoInviteService {
     private readonly prisma: PrismaService,
     private readonly notifier: SystemNotifier,
     private readonly whatsapp: WhatsAppService,
-    private readonly referrals: ReferralTrackerService
+    private readonly leadStages: LeadStageService
   ) {}
 
   /** Same normalization the public join page uses — the dedupe/match key. */
@@ -166,27 +168,16 @@ export class DemoInviteService {
 
     const topic = demoClass.topic ?? "Demo class";
     const coachName = `${demoClass.coach.firstName} ${demoClass.coach.lastName || ""}`.trim();
-    await this.prisma.lead.update({
-      where: { id: lead.id },
-      data: {
-        assignedClassId: demoClass.id,
-        status:
-          CONVERTING_STATUSES.includes(lead.status) || lead.status === "LOST"
-            ? lead.status
-            : "DEMO_SCHEDULED",
-        lastActivityAt: new Date(),
-        activities: {
-          create: {
-            activityType: "DEMO_CLASS_ASSIGNED",
-            title: `Assigned to demo class: ${topic}`,
-            description: `Scheduled for ${demoClass.startsAt.toISOString()} with ${coachName}`,
-            createdById: actorId
-          }
-        }
-      }
+    await this.prisma.lead.update({ data: { assignedClassId: demoClass.id }, where: { id: lead.id } });
+    await this.leadStages.apply(lead.id, "DEMO_BOOKED", {
+      activity: {
+        description: `Scheduled for ${demoClass.startsAt.toISOString()} with ${coachName}`,
+        title: `Assigned to demo class: ${topic}`,
+        type: "DEMO_CLASS_ASSIGNED"
+      },
+      actorId
     });
 
-    await this.referrals.onLeadEvent(lead.id, "DEMO_BOOKED", actorId);
     if (created && notify) void this.sendInvitation(demoClass, target, inviteToken);
     return { created, inviteToken };
   }
@@ -286,6 +277,58 @@ export class DemoInviteService {
       }
       throw error;
     }
+  }
+
+  /**
+   * An invited guest who lost their personal link asks for it again from the
+   * join page (owner 2026-11-24). The link goes only to the contact stored on
+   * the invitation, at most once per `INVITE_RESEND_COOLDOWN_MS`, and the
+   * answer is the same whether or not that contact was invited, so the page
+   * can't be used to find out who is.
+   */
+  async resendInvite(classId: string, body: ResendDemoInviteRequest): Promise<ResendDemoInviteResponse> {
+    const accepted: ResendDemoInviteResponse = { accepted: true };
+    const contactMethod =
+      body.contactMethod === "EMAIL" ? DemoRegistrationContactMethod.EMAIL : DemoRegistrationContactMethod.PHONE;
+    const contactValue = this.normalizeContact(
+      contactMethod,
+      contactMethod === DemoRegistrationContactMethod.EMAIL ? body.email : body.phoneNumber
+    );
+    if (!contactValue) return accepted;
+
+    const demoClass = await this.prisma.coachClass.findFirst({
+      where: { id: classId, isDemo: true, status: { in: INVITABLE_STATUSES } },
+      select: { coach: { select: { firstName: true, lastName: true } }, id: true, startsAt: true, topic: true }
+    });
+    if (!demoClass) return accepted;
+
+    const registration = await this.prisma.demoClassRegistration.findUnique({
+      where: { classId_contactMethod_contactValue: { classId, contactMethod, contactValue } }
+    });
+    if (!registration?.inviteToken) return accepted;
+
+    const now = new Date();
+    const { count } = await this.prisma.demoClassRegistration.updateMany({
+      where: {
+        id: registration.id,
+        OR: [{ inviteResentAt: null }, { inviteResentAt: { lt: new Date(now.getTime() - INVITE_RESEND_COOLDOWN_MS) } }]
+      },
+      data: { inviteResentAt: now }
+    });
+    if (count === 0) return accepted;
+
+    // Not awaited: the reply takes as long whether or not anything is sent.
+    void this.sendInvitation(
+      demoClass,
+      {
+        contactMethod: registration.contactMethod,
+        email: registration.email,
+        name: registration.name,
+        phoneNumber: registration.phoneNumber
+      },
+      registration.inviteToken
+    );
+    return accepted;
   }
 
   /** Best-effort — a failed invitation never fails the assignment. */

@@ -105,6 +105,61 @@ describe("FeedbackService", () => {
     service = module.get(FeedbackService);
   });
 
+  it("shows a coach only forms with at least 3 responses about them, and counts the rest as withheld (review G1)", async () => {
+    asRole(UserRole.COACH, COACH_ID);
+    const p = prisma as unknown as Record<string, Record<string, jest.Mock>>;
+    p.user.findUniqueOrThrow = jest.fn().mockResolvedValue({ firstName: "Maya", lastName: "Rao" });
+    p.feedbackResponse.groupBy = jest.fn().mockResolvedValue([
+      { _count: { _all: 2 }, formId: "form-small" },
+      { _count: { _all: 3 }, formId: "form-big" }
+    ]);
+    p.feedbackAnswer = { groupBy: jest.fn().mockResolvedValue([]) };
+    const summarize = jest
+      .spyOn(service as unknown as { summarizeCoaches: (...args: unknown[]) => Promise<unknown[]> }, "summarizeCoaches")
+      .mockResolvedValue([{ averageRating: null, coachId: COACH_ID, responseCount: 0 }]);
+
+    const result = await service.getMyFeedback(ACCESS_TOKEN);
+
+    expect(result.withheldCount).toBe(2);
+    expect(prisma.feedbackResponse.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ formId: { in: ["form-big"] } }) })
+    );
+    expect(summarize).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ formId: { in: ["form-big"] } }));
+  });
+
+  it("gives a coach no class and no time of day on an anonymous response (review G1)", () => {
+    const row = {
+      answers: [],
+      class: { title: "Endgames", topic: null },
+      classId: CLASS_ID,
+      coach: { firstName: "Ada", lastName: null },
+      coachId: COACH_ID,
+      createdAt: new Date("2026-11-20T19:42:13.000Z"),
+      form: { title: "Class feedback" },
+      formId: "form-1",
+      id: "resp-1",
+      overallRating: 4,
+      student: { firstName: "Asha", lastName: null },
+      studentId: STUDENT_ID
+    };
+    const toDto = (service as unknown as { toResponseDto: (r: unknown, anonymous: boolean) => Record<string, unknown> })
+      .toResponseDto.bind(service);
+
+    expect(toDto(row, true)).toMatchObject({
+      classId: null,
+      classTitle: null,
+      createdAt: "2026-11-20T12:00:00.000Z",
+      studentId: null,
+      studentName: null
+    });
+    expect(toDto(row, false)).toMatchObject({
+      classId: CLASS_ID,
+      classTitle: "Endgames",
+      createdAt: "2026-11-20T19:42:13.000Z",
+      studentName: "Asha"
+    });
+  });
+
   it("rejects a missing token", async () => {
     await expect(service.getPending(undefined, {})).rejects.toBeInstanceOf(UnauthorizedException);
   });

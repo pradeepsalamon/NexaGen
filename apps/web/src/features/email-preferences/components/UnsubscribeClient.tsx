@@ -38,7 +38,7 @@ export function UnsubscribeClient() {
 
   if (!token) {
     return (
-      <AuthSplitShell variant="forgot-password">
+      <AuthSplitShell>
         <AuthStatus actions={home} title="This link is incomplete" tone="error">
           Open the unsubscribe link from a recent email again, or change the setting on your profile
           page.
@@ -49,7 +49,7 @@ export function UnsubscribeClient() {
 
   if (change.isError) {
     return (
-      <AuthSplitShell variant="forgot-password">
+      <AuthSplitShell>
         <AuthStatus actions={home} title="We couldn't change your emails" tone="error">
           {getErrorMessage(change.error)}
         </AuthStatus>
@@ -61,7 +61,7 @@ export function UnsubscribeClient() {
     const on = isOn(change.data, scope);
     const label = scope.category ? EMAIL_CATEGORY_DEFINITIONS[scope.category].label : null;
     return (
-      <AuthSplitShell variant="forgot-password">
+      <AuthSplitShell>
         <AuthStatus
           actions={
             <div className="flex flex-wrap gap-2">
@@ -103,7 +103,7 @@ export function UnsubscribeClient() {
   if (category) {
     const definition = EMAIL_CATEGORY_DEFINITIONS[category];
     return (
-      <AuthSplitShell variant="forgot-password">
+      <AuthSplitShell>
         <AuthStatus
           actions={
             <div className="flex flex-wrap gap-2">
@@ -133,7 +133,7 @@ export function UnsubscribeClient() {
   }
 
   return (
-    <AuthSplitShell variant="forgot-password">
+    <AuthSplitShell>
       <AuthStatus
         actions={
           <Button

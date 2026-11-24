@@ -109,6 +109,19 @@ describe("cross-academy access (real app, real Postgres, enforce)", () => {
     expect(nexaOnOther.status).toBe(401);
   });
 
+  // Review B1/B2 (2026-11-23): an academy's owner is a SUPER_ADMIN of their
+  // academy, and the backups hold every academy's data. Nexa's operators only.
+  it.each([
+    ["GET", "/admin/backups"],
+    ["POST", "/admin/backups/trigger"],
+    ["GET", "/admin/backups/download?key=database%2Fx.sql.gz"],
+    ["GET", "/admin/backups/download?key=recordings%2Fx.mp4"],
+    ["DELETE", "/admin/backups?key=database%2Fx.sql.gz"]
+  ] as const)("another academy's super admin is refused the backups: %s %s", async (method, path) => {
+    const res = await t.call(other.superAdmin, method, path, undefined, { origin: OTHER_ORIGIN });
+    expect(res.status).toBe(403);
+  });
+
   it("the cross-academy writes above changed nothing", async () => {
     await asPlatform("test: read the other academy", async () => {
       const klass = await t.prisma.coachClass.findUniqueOrThrow({ where: { id: other.a.class.id } });

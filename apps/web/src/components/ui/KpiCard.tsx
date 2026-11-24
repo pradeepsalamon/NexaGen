@@ -1,5 +1,6 @@
 "use client";
 
+import { formatNumber } from "@/lib/formatNumber";
 import type { KpiValue } from "@nexa-chess/types";
 import Link from "next/link";
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Info } from "lucide-react";
@@ -24,9 +25,9 @@ interface KpiCardProps {
 function formatValue(value: number | null, unit: KpiCardProps["unit"]): string {
   if (value === null || value === undefined) return "—";
   if (unit === "percent") return `${value}%`;
-  if (unit === "hours") return `${value.toLocaleString()} h`;
-  if (unit === "gb") return `${value.toLocaleString()} GB`;
-  return value.toLocaleString();
+  if (unit === "hours") return `${formatNumber(value)} h`;
+  if (unit === "gb") return `${formatNumber(value)} GB`;
+  return formatNumber(value);
 }
 
 export function KpiCard({

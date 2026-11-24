@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@/lib/errors";
 import {
   resolveAutoSync,
   type ExternalChessAccountDto,
@@ -48,7 +49,7 @@ export function AutoSyncSwitch({
         onCheckedChange={(autoSync) =>
           update.mutate(
             { autoSync, id: account.id },
-            { onError: (err) => toast.error(err instanceof Error ? err.message : "Could not change this setting.") },
+            { onError: (err) => toast.error(getErrorMessage(err, "Could not change this setting.")) },
           )
         }
       />
