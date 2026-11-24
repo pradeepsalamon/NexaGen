@@ -42,6 +42,7 @@ import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDateTime } from "@/lib/datetime";
 import { useAuthStore } from "@/stores/authStore";
 import { useSupportSettingsQuery, useUpdateSupportSettings } from "../hooks/useSupportAdmin";
+import { SupportBotMessages } from "./SupportBotMessages";
 
 const wholeNumber = (max: number, unit: string) =>
   z
@@ -194,6 +195,7 @@ function SettingsForm({ data }: { data: SupportSettingsResponse }) {
   const templateLanguage = useWatch({ control, name: "agentReplyTemplateLanguage" });
   const menu = useFieldArray({ control, keyName: "key", name: "menu" });
   const menuValues = useWatch({ control, name: "menu" });
+  const outOfHoursMessage = useWatch({ control, name: "outOfHoursMessage" });
   const menuError = errors.menu?.root?.message ?? errors.menu?.message;
 
   return (
@@ -452,6 +454,8 @@ function SettingsForm({ data }: { data: SupportSettingsResponse }) {
           <WhatsAppTemplateStatus language={templateLanguage} name={templateName} />
         </div>
       </SectionCard>
+
+      <SupportBotMessages academyName={data.academyName} menu={menuValues} outOfHoursMessage={outOfHoursMessage} />
 
       <div className="flex justify-end gap-2">
         <Button disabled={!isDirty || save.isPending} onClick={() => reset(toForm(data, userZone))} type="button" variant="neutral">

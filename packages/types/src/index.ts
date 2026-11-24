@@ -2731,6 +2731,7 @@ export * from "./messaging";
 export * from "./system-messages";
 export * from "./support";
 export * from "./support-flows";
+export * from "./support-bot-script";
 export * from "./support-hours";
 export * from "./whatsapp-template";
 

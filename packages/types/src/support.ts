@@ -336,6 +336,8 @@ export interface SupportSettingsValues {
 }
 
 export interface SupportSettingsResponse extends SupportSettingsValues {
+  /** The name the bot greets with ("This is the … assistant"): the academy's own. */
+  academyName: string;
   /** ACADEMY = saved on this page; SERVER = Nexa's academy, still on the server's defaults until the first save. */
   source: "ACADEMY" | "SERVER";
   /** Whether WhatsApp can reach the bot for this academy. */

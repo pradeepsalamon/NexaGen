@@ -42,8 +42,11 @@ Files in the repo: `deploy/status-pages/` (the page and the API JSON) and
 ```
 
 - One self-contained HTML page (inline CSS/JS/SVG, Design System v2 colours,
-  light/dark from the saved app theme, no brand, so it is also right on an
-  academy's own address). It reads `/__status/maintenance.json` and
+  light/dark from the saved app theme). Same layout as the app's 404
+  (`app/not-found.tsx`): brand line, the error code in large type (a spinning
+  icon while deploying), a gold bar, the message. The brand line says Nexa Chess
+  on Nexa's hosts, the academy's name cached in `localStorage` `nexa-brand` on its
+  own address, and is hidden otherwise. It reads `/__status/maintenance.json` and
   `/__status/deploying.json` to pick its wording, then sends `HEAD` to the
   original URL until the app answers below 500 and goes back to that URL.
   A deploy marker older than 20 minutes is ignored (left by a killed deploy).

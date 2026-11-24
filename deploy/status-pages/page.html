@@ -8,8 +8,10 @@
 <!--
   Served by nginx (not the app) when the web app can't answer: 502/504 while a
   container restarts or has crashed, 503 during maintenance. Everything is inline
-  because nothing else on this host may be reachable. No brand: academies use
-  their own addresses. Colours mirror apps/web/src/styles/globals.css.
+  because nothing else on this host may be reachable. Same layout as the app's 404
+  (apps/web/src/app/not-found.tsx). The brand line is Nexa Chess on Nexa's hosts, an
+  academy's cached name (localStorage "nexa-brand") on its own address, else hidden.
+  Colours mirror apps/web/src/styles/globals.css.
   docs/SERVICE_STATUS.md
 -->
 <style>
@@ -17,12 +19,11 @@
     --bg: rgb(255 255 255); --surface: rgb(255 255 255); --soft: rgb(245 245 245);
     --border: rgb(229 229 229); --line: rgb(138 138 138);
     --text: rgb(23 23 23); --muted: rgb(82 82 82); --subtle: rgb(112 112 112);
-    --primary: rgb(47 95 208); --primary-hover: rgb(38 79 176); --on-primary: rgb(255 255 255);
-    --primary-soft: rgb(238 243 253); --primary-ink: #1E3F94;
-    --warning-soft: rgb(254 243 199); --warning-ink: #92400E;
-    --danger-soft: rgb(254 226 226); --danger-ink: #B91C1C;
+    --emphasis: rgb(15 30 58);
+    --button: rgb(47 95 208); --button-hover: rgb(38 79 176); --on-button: rgb(255 255 255);
+    --accent: rgb(233 190 114);
     --focus: rgb(47 95 208);
-    --control-h: 36px;
+    --control-h: 44px;
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
@@ -30,9 +31,7 @@
       --bg: rgb(10 10 10); --surface: rgb(23 23 23); --soft: rgb(31 31 31);
       --border: rgb(38 38 38); --line: rgb(115 115 115);
       --text: rgb(245 245 245); --muted: rgb(163 163 163); --subtle: rgb(140 140 140);
-      --primary-soft: rgb(23 42 85); --primary-ink: #A9C1F5;
-      --warning-soft: rgb(51 36 10); --warning-ink: #FBBF24;
-      --danger-soft: rgb(58 20 20); --danger-ink: #F87171;
+      --emphasis: rgb(245 245 245);
       color-scheme: dark;
     }
   }
@@ -40,12 +39,9 @@
     --bg: rgb(10 10 10); --surface: rgb(23 23 23); --soft: rgb(31 31 31);
     --border: rgb(38 38 38); --line: rgb(115 115 115);
     --text: rgb(245 245 245); --muted: rgb(163 163 163); --subtle: rgb(140 140 140);
-    --primary-soft: rgb(23 42 85); --primary-ink: #A9C1F5;
-    --warning-soft: rgb(51 36 10); --warning-ink: #FBBF24;
-    --danger-soft: rgb(58 20 20); --danger-ink: #F87171;
+    --emphasis: rgb(245 245 245);
     color-scheme: dark;
   }
-  @media (pointer: coarse) { :root { --control-h: 44px; } }
 
   * { box-sizing: border-box; }
   html, body { margin: 0; min-height: 100%; }
@@ -54,56 +50,64 @@
     font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     display: flex; align-items: center; justify-content: center;
-    min-height: 100vh; min-height: 100dvh; padding: 32px 16px;
+    min-height: 100vh; min-height: 100dvh; padding: 48px 16px;
   }
-  main { width: 100%; max-width: 440px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px; }
-  .icon {
-    width: 56px; height: 56px; border-radius: 999px; display: flex; align-items: center; justify-content: center;
-    background: var(--primary-soft); color: var(--primary-ink);
+  main { width: 100%; max-width: 36rem; text-align: center; display: flex; flex-direction: column; align-items: center; }
+  .brand { margin: 0 0 32px; font-size: 1.25rem; font-weight: 700; letter-spacing: -0.01em; color: var(--emphasis); }
+  .code {
+    margin: 0; font-size: 6rem; line-height: 1; font-weight: 800; letter-spacing: -0.02em;
+    color: var(--emphasis); font-variant-numeric: tabular-nums;
   }
-  .icon[data-tone="warning"] { background: var(--warning-soft); color: var(--warning-ink); }
-  .icon[data-tone="danger"] { background: var(--danger-soft); color: var(--danger-ink); }
-  .icon svg { width: 28px; height: 28px; }
-  .spin svg { animation: spin 1.4s linear infinite; }
+  .code svg { display: block; width: 6rem; height: 6rem; }
+  .spin svg { animation: spin 1.6s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) { .spin svg { animation: none; } }
-  h1 { margin: 0; font-size: 1.5rem; line-height: 1.2; font-weight: 800; letter-spacing: -0.01em; }
+  .bar { display: block; width: 80px; height: 6px; margin: 32px 0; border-radius: 999px; background: var(--accent); }
+  h1 { margin: 0; font-size: 1.5rem; line-height: 1.25; font-weight: 700; letter-spacing: -0.01em; color: var(--emphasis); }
   p { margin: 0; color: var(--muted); }
-  .eta { color: var(--text); font-weight: 600; }
-  .check {
-    display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center;
-    margin-top: 8px; padding: 8px 8px 8px 16px; border: 1px solid var(--border); border-radius: 999px;
-    background: var(--surface); font-size: 0.875rem; color: var(--muted);
-  }
-  .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--primary); }
-  .checking .dot { animation: pulse 1s ease-in-out infinite; }
-  @keyframes pulse { 50% { opacity: 0.3; } }
+  .lead { margin-top: 12px; font-size: 1rem; }
+  .eta { margin-top: 12px; color: var(--text); font-weight: 600; }
+  .actions { margin-top: 32px; display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
   button {
-    min-height: var(--control-h); padding: 4px 12px; border-radius: 8px; cursor: pointer;
-    border: 1px solid var(--line); background: var(--surface); color: var(--text);
+    width: 100%; min-height: var(--control-h); padding: 8px 24px; border-radius: 8px; cursor: pointer;
+    border: 1px solid transparent; background: var(--button); color: var(--on-button);
     font: inherit; font-size: 0.875rem; font-weight: 500;
   }
-  button:hover { background: var(--soft); }
+  button:hover { background: var(--button-hover); }
   button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
   button:disabled { cursor: default; opacity: 0.6; }
-  footer { font: 0.75rem/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--subtle); }
+  .check { display: flex; align-items: center; gap: 8px; font-size: 0.875rem; color: var(--muted); }
+  .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--button); }
+  .checking .dot { animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: 0.3; } }
+  .hint { margin-top: 32px; font-size: 0.875rem; }
+  footer { margin-top: 16px; font: 0.75rem/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--subtle); }
+  @media (min-width: 640px) {
+    .code { font-size: 8rem; }
+    .code svg { width: 8rem; height: 8rem; }
+    h1 { font-size: 1.875rem; }
+    .lead { font-size: 1.125rem; }
+    button { width: auto; min-width: 12rem; }
+  }
   [hidden] { display: none !important; }
 </style>
 </head>
 <body>
 <main>
-  <div class="icon" id="icon" aria-hidden="true"></div>
-  <div>
-    <h1 id="title">We'll be right back</h1>
-  </div>
-  <p id="body">The app isn't responding at the moment. We're retrying automatically, so there's no need to refresh.</p>
+  <p class="brand" id="brand" hidden></p>
+  <div class="code" id="code" aria-hidden="true">502</div>
+  <span class="bar" aria-hidden="true"></span>
+  <h1 id="title">We'll be right back</h1>
+  <p class="lead" id="body">The app isn't responding at the moment. We're retrying automatically, so there's no need to refresh.</p>
   <p class="eta" id="eta" hidden></p>
-  <div class="check" id="check" role="status" aria-live="polite">
-    <span class="dot" aria-hidden="true"></span>
-    <span id="checkText">Checking again shortly</span>
+  <div class="actions">
     <button id="retry" type="button">Try now</button>
+    <div class="check" id="check" role="status" aria-live="polite">
+      <span class="dot" aria-hidden="true"></span>
+      <span id="checkText">Checking again shortly</span>
+    </div>
   </div>
-  <p id="hint">If this lasts more than a few minutes, please let your coach or academy know.</p>
+  <p class="hint" id="hint">Still stuck after a few minutes? Let your coach or academy know.</p>
   <footer id="meta"></footer>
 </main>
 <script>
@@ -118,34 +122,43 @@
     if (pref === "dark" || pref === "light") root.dataset.theme = pref;
   } catch (e) { /* follow the system */ }
 
+  // The brand line: never guess an academy's name, hide it instead.
+  try {
+    var brand = /(^|\.)nexachess\.in$/.test(location.hostname)
+      ? "Nexa Chess"
+      : (JSON.parse(localStorage.getItem("nexa-brand") || "{}").name || "");
+    if (typeof brand === "string" && brand.trim()) {
+      document.getElementById("brand").textContent = brand.trim();
+      document.getElementById("brand").hidden = false;
+    }
+  } catch (e) { /* no brand line */ }
+
+  // Shown in place of the big code while a deploy swaps containers (a "502" there would alarm people).
   var ICONS = {
-    clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
-    cloudOff: '<path d="m2 2 20 20"/><path d="M5.782 5.782A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.307-.193"/><path d="M21.532 16.5A4.5 4.5 0 0 0 17.5 10h-1.79A7.008 7.008 0 0 0 10 5.07"/>',
-    refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
-    wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>'
+    refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>'
   };
 
-  // mode -> copy, icon, how often to look (ms) and the cap for backing off.
+  // mode -> copy, big icon (else the error code), how often to look (ms) and the cap for backing off.
   var MODES = {
     deploying: {
       title: "Updating to a new version",
       body: "This usually takes less than a minute. The page will reload by itself when it's ready.",
-      icon: "refresh", tone: "primary", spin: true, every: 4000, max: 10000, hint: false
+      icon: "refresh", spin: true, every: 4000, max: 10000, hint: false
     },
     maintenance: {
       title: "Scheduled maintenance",
       body: "We're doing some planned work to keep things running smoothly. The page will reload by itself when we're back.",
-      icon: "wrench", tone: "warning", every: 20000, max: 60000, hint: false
+      every: 20000, max: 60000, hint: false
     },
     slow: {
       title: "This is taking longer than usual",
       body: "The server didn't answer in time. We're trying again automatically, so there's no need to refresh.",
-      icon: "clock", tone: "warning", every: 6000, max: 30000, hint: true
+      every: 6000, max: 30000, hint: true
     },
     down: {
       title: "We'll be right back",
       body: "The app isn't responding at the moment. We're retrying automatically, so there's no need to refresh.",
-      icon: "cloudOff", tone: "danger", every: 6000, max: 30000, hint: true
+      every: 6000, max: 30000, hint: true
     }
   };
   // A deploy marker older than this was left behind by a killed deploy: show the plain outage copy.
@@ -165,10 +178,14 @@
     delay = mode.every;
     $("title").textContent = mode.title;
     $("body").textContent = (data && typeof data.message === "string" && data.message.trim()) || mode.body;
-    var icon = $("icon");
-    icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">' + ICONS[mode.icon] + "</svg>";
-    icon.dataset.tone = mode.tone;
-    icon.className = "icon" + (mode.spin ? " spin" : "");
+    var code = status >= 500 ? status : name === "maintenance" ? 503 : name === "slow" ? 504 : 502;
+    var big = $("code");
+    if (mode.icon) {
+      big.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + ICONS[mode.icon] + "</svg>";
+    } else {
+      big.textContent = String(code);
+    }
+    big.className = "code" + (mode.spin ? " spin" : "");
     $("hint").hidden = !mode.hint;
     var eta = $("eta");
     var until = data && data.until ? new Date(data.until) : null;
@@ -178,7 +195,6 @@
     } else {
       eta.hidden = true;
     }
-    var code = status >= 500 ? status : name === "maintenance" ? 503 : name === "slow" ? 504 : 502;
     $("meta").textContent = "Error " + code + " · " + new Date().toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
     document.title = mode.title;
   }
