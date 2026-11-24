@@ -54,7 +54,6 @@ const REVIEWED: Record<string, { calls: number; kind: Kind; why: string }> = {
   "approval/handlers/tournament-publish.handler.ts": { calls: 1, kind: "id-keyed", why: "FOR UPDATE on one tournament by id" },
   "attendance/attendance.service.ts": { calls: 4, kind: "tenant-filtered", why: "stale-log sweeps filtered; correction locks by id" },
   "game-analysis/game-analysis.worker.ts": { calls: 2, kind: "global-claim", why: "claim, then run in the row's academy; heartbeat by id" },
-  "health/health.service.ts": { calls: 1, kind: "platform", why: "SELECT 1" },
   "knowledge/knowledge.service.ts": { calls: 1, kind: "tenant-filtered", why: "ranks articles a" },
   "live-class/live-class-settings.service.ts": { calls: 5, kind: "id-keyed", why: "policy/batch/class locks by id" },
   "messaging/messaging-delivery.worker.ts": { calls: 1, kind: "global-claim", why: "outbox claim; each row sent in its academy" },
