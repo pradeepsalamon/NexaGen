@@ -267,8 +267,7 @@ export function RegisterForm() {
           />
           Our team reviews every registration. You can sign in once it is approved.
         </p>
-        {/* From `lg` it sits under the page heading instead (RegisterPageClient). */}
-        <LoginPrompt className="lg:hidden" />
+        <LoginPrompt />
       </div>
     </form>
   );

@@ -12,8 +12,13 @@ follow the theme (champagne and ivory in light, navy in dark): its colours are t
 tokens in `globals.css` ("Login page"; hero colours are `login-hero*`, the navy is
 `--rgb-brand-900`), and sign-in is `useLoginFlow`. **The frame never changes between auth pages
 (owner, 2026-11-24):** the `(auth)` layout renders `AuthFrame` once (same hero text and width on
-every page), and each page renders only its `AuthCard`; `/unsubscribe`, outside the group, uses
-`AuthSplitShell` (frame + card). **The card is the app's own look**: app tokens, blue primary
+every page), and each page renders only its `AuthCard` (content inside the frame's card);
+`/unsubscribe`, outside the group, uses `AuthSplitShell`. The card fills the form side with the
+same gap on all four sides (`--auth-gap`: 16px, 24px from `sm`, 32px from `xl`, 16px on a desktop
+screen up to 760px high), the Privacy/Terms/Help links in its foot; both registration forms stay
+mounted in one grid cell, so Student and Coach are the same size, and "Already have an
+account?" sits under the submit button. The hero is 46% wide; its trust row shows only from
+1440px wide and above 760px high, its badge from 1360px. **The card is the app's own look**: app tokens, blue primary
 button and tabs, `PageHeader` heading type, no gold and no serif inside it. Registration must fit
 a 1366×650 desktop viewport without scrolling (its spacing tightens from `lg`). The hero's gold is deliberately not `--rgb-accent`: every
 academy gets this same page, and academy branding would recolour the accent.
@@ -172,7 +177,7 @@ disagree.
 | Pick one of several cards (themes, piece sets, sounds, payment method) | `ChoiceTile` / `choiceTileClass(selected)` (`components/ui/ChoiceTile.tsx`) | 1px border; chosen = blue border, soft blue fill, inset ring, `aria-pressed`. Never hand-build a `border-2` selection card. |
 | Chessboards | `BoardFrame` (`features/chessboard/components/board/BoardFrame.tsx`) around the board; promotion via `PromotionPicker` (`PromotionDialog` for the board store) | The caller sizes the frame; real pieces in the user's set (`PieceIcon`). Grid tiles (live boards, puzzle tiles) keep their tile frame. |
 | On/off setting | `Switch` | "Lock …", "Enabled", "Send WhatsApp", preferences. |
-| Pick several / row selection / consent | `Checkbox` | Multi-select lists, table rows, "Remember me", "I understand …". 16px box, 12px tick; the label (`label` prop) gives the 40px tap row. |
+| Pick several / row selection / consent | `Checkbox` | Multi-select lists, table rows, "Remember me", "I understand …". 14px box, 10px tick (it dips on press and the tick pops in; owner 2026-11-24); an invisible 8px area around the box and the label (`label` prop, 40px row) keep it easy to tap. |
 | Text / number fields | `Input`, `Textarea`, `PasswordInput`, `Select`, `Combobox` | Never raw `<input>` / `<textarea>` / `<select>` (file, colour, range and radio inputs are the exceptions). They share one look (`fieldClasses()`: surface fill, `line-strong` border, blue border + ring on focus, red border on error); change it there, not per form. `leadingIcon` puts an icon inside; `density="compact"` (Input, PasswordInput, Select) is the dense field of multi-column forms such as registration. |
 | Formatted text (messages, announcements, help articles) | `TextEditor`; show the result with `FormattedText` | Toolbar over a `Textarea`, stores readable text, never HTML. Only where the output is displayed through `FormattedText`, `markdownToPlainText`/`markdownToWhatsApp` or the email renderer, or readers see raw `**`. Everything else stays `Textarea`. |
 | Showing text someone typed | `LinkedText` (`components/ui/FormattedText.tsx`) | Chat, feedback, notes: addresses become underlined links and nothing else changes. `onColour` on a coloured surface like your own chat bubble. Never `dangerouslySetInnerHTML` or a local URL regex. |

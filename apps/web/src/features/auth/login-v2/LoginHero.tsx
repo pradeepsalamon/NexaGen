@@ -45,7 +45,7 @@ const rise = {
 /** "Live chess coaching academy" pill. */
 function AcademyBadge() {
   return (
-    <p className="inline-flex items-center gap-2 rounded-full border border-login-gold/45 bg-login-hero-2/40 px-3 py-1 text-xs font-medium text-login-gold-ink">
+    <p className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-login-gold/45 bg-login-hero-2/40 px-3 py-1 text-xs font-medium text-login-gold-ink">
       <Crown aria-hidden="true" className="size-4 text-login-hero-gold" strokeWidth={2.25} />
       Live chess coaching academy
     </p>
@@ -86,7 +86,7 @@ export function LoginHeroTop({ className, copy }: { className?: string; copy: Au
           >
             <Logo mobileSize={36} size={48} />
           </Link>
-          <div className="hidden md:block">
+          <div className="login-v2-badge hidden md:block">
             <AcademyBadge />
           </div>
         </div>
@@ -107,8 +107,9 @@ export function LoginHeroTop({ className, copy }: { className?: string; copy: Au
         </div>
         <p
           className={cn(
-            "login-v2-serif text-[2.125rem] font-semibold leading-[1.08] tracking-[-0.01em] sm:text-5xl",
-            "lg:text-[2.75rem] xl:text-[3.5rem]"
+            // Balanced lines: never "with" alone on a line beside the narrower desktop hero.
+            "login-v2-serif text-balance text-[2.125rem] font-semibold leading-[1.08] tracking-[-0.01em] sm:text-5xl",
+            "lg:text-[2.375rem] xl:text-[2.75rem] min-[1440px]:text-[3.25rem] 2xl:text-[3.5rem]"
           )}
         >
           {copy.lead}{" "}
@@ -167,12 +168,13 @@ export function LoginHeroBottom({ className }: { className?: string }) {
         {TRUST.map(({ Icon, lines }, index) => (
           <li
             className={cn(
-              "flex w-1/2 items-center gap-3 pr-4 sm:w-auto sm:pr-5",
-              index > 0 && "sm:border-l sm:border-login-on-hero/20 sm:pl-5"
+              // Tighter from `lg` so the row stays one line inside the hero's curve.
+              "flex w-1/2 items-center gap-3 pr-4 sm:w-auto sm:pr-5 lg:gap-2 lg:pr-3 2xl:gap-3 2xl:pr-5",
+              index > 0 && "sm:border-l sm:border-login-on-hero/20 sm:pl-5 lg:pl-3 2xl:pl-5"
             )}
             key={lines.join(" ")}
           >
-            <Icon aria-hidden="true" className="size-6 shrink-0 text-login-hero-gold" strokeWidth={2.25} />
+            <Icon aria-hidden="true" className="size-6 shrink-0 text-login-hero-gold lg:size-5 2xl:size-6" strokeWidth={2.25} />
             <span className="text-[0.8125rem] leading-snug text-login-on-hero-muted">
               {lines[0]}
               {lines[1] ? (

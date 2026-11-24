@@ -106,7 +106,7 @@ function FooterLinks() {
   ];
 
   return (
-    <footer className="flex justify-center text-sm text-app-muted lg:justify-end">
+    <footer className="flex justify-center border-t border-app-border pt-3 text-sm text-app-muted">
       <nav aria-label="Legal and help">
         <ul className="flex items-center">
           {links.map((link, index) => (
@@ -151,21 +151,20 @@ export function AuthFrame({ children }: { children: ReactNode }) {
 
           <div className="login-v2-form-side relative flex flex-col lg:col-start-2 lg:row-span-2 lg:row-start-1">
             <FormSideDecor />
-            <div className="relative z-10 flex flex-1 flex-col px-4 pb-6 pt-8 sm:px-8 lg:px-8 lg:pb-3 lg:pt-4 xl:px-12">
-              <div className="flex flex-1 items-center justify-center">{children}</div>
-              <div className="mx-auto mt-8 w-full max-w-md lg:mt-2 lg:max-w-none">
-                <FooterLinks />
-              </div>
+            {/* The same gap on every side of the card (--auth-gap); from `lg` the card fills
+                the form side, so it never changes size or place between pages. */}
+            <div className="relative z-10 flex flex-1 flex-col p-[var(--auth-gap)]">
+              <Card className="flex flex-1 flex-col px-5 pb-3 pt-6 sm:px-8 sm:pt-8 lg:px-8 lg:pt-5">
+                <div className="flex flex-1 flex-col items-center justify-center">{children}</div>
+                <div className="mt-6 lg:mt-3">
+                  <FooterLinks />
+                </div>
+              </Card>
             </div>
           </div>
 
-          <LoginHeroBottom
-            className={cn(
-              "login-v2-hero-mobile-bottom relative z-10 px-4 pb-8 pt-10 sm:px-8 lg:col-start-1 lg:row-start-2 lg:px-12 lg:pb-8 lg:pr-[22%] lg:pt-12 xl:px-16",
-              // A short desktop screen has no room under the knight: the row would sit on it.
-              "[@media(min-width:1024px)_and_(max-height:760px)]:hidden"
-            )}
-          />
+          {/* `login-v2-trust`: hidden where the desktop hero has no room for it (login-v2.css). */}
+          <LoginHeroBottom className="login-v2-hero-mobile-bottom login-v2-trust relative z-10 px-4 pb-8 pt-10 sm:px-8 lg:col-start-1 lg:row-start-2 lg:px-12 lg:pb-8 lg:pr-[14%] lg:pt-12 xl:px-16" />
         </div>
       </div>
     </MotionConfig>
@@ -173,19 +172,19 @@ export function AuthFrame({ children }: { children: ReactNode }) {
 }
 
 /**
- * The page's card inside `AuthFrame`, in the app's own look (surface, fields, blue primary
- * button), so the sign-in forms match the rest of the app. It fades in when a page opens;
- * the frame around it stays still. `wide`: the two-column registration form.
+ * A page's content inside the frame's card (the app's own look: surface, fields, blue
+ * primary button). The card itself belongs to `AuthFrame` and stays still; only this fades
+ * in when a page opens. `wide`: the two-column registration form.
  */
 export function AuthCard({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
   return (
     <motion.div
       animate={{ opacity: 1, y: 0 }}
       className={cn("w-full", wide ? "max-w-2xl" : "max-w-md")}
-      initial={{ opacity: 0, y: 12 }}
-      transition={{ duration: 0.35, ease: "easeOut" }}
+      initial={{ opacity: 0, y: 8 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
     >
-      <Card className={cn("p-5 sm:p-8", wide && "lg:px-6 lg:py-5")}>{children}</Card>
+      {children}
     </motion.div>
   );
 }

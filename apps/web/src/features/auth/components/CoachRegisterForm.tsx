@@ -325,8 +325,7 @@ export function CoachRegisterForm() {
           />
           Our team reviews every application. You will be notified by email.
         </p>
-        {/* From `lg` it sits under the page heading instead (RegisterPageClient). */}
-        <LoginPrompt className="lg:hidden" />
+        <LoginPrompt />
       </div>
     </form>
   );
