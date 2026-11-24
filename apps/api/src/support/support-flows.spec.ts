@@ -304,6 +304,14 @@ describe("free demo booking", () => {
     expect(prompt.replies[0].body).toContain("booking a free demo class");
   });
 
+  it("explains a tap on an earlier message's button while waiting for a typed answer", () => {
+    // Owner's test 2026-11-24: "Edit details", then "Book demo" on the old summary.
+    const next = transitionSupport(at("DEMO_STUDENT", { category: "COURSE" }), tap("confirm.send"), ctx);
+    expect(next.state).toBe("DEMO_STUDENT");
+    expect(next.replies.map(supportReplyText)[0]).toBe("That button is from an earlier message. Please type your answer instead.");
+    expect(transitionSupport(at("DEMO_STUDENT", { category: "COURSE" }), text("A"), ctx).replies.map(supportReplyText)[0]).toMatch(/^Please reply with a name/);
+  });
+
   describe("with the academy's real demo times", () => {
     const slots: SupportTransitionContext = {
       ...ctx,

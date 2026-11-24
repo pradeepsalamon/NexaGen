@@ -43,7 +43,9 @@ contact's open ticket for the same category from the last 7 days) and hands the
 conversation to staff (`WAITING_AGENT`: the bot goes quiet; only `MENU` brings
 it back). **AGENT / human / person** or menu option 6 hands off at once.
 `BACK`, `CANCEL`, `MENU`/`0`, `STOP`/`START` work everywhere; three replies the
-bot can't use add "reply AGENT". After 30 idle minutes mid-form it asks
+bot can't use add "reply AGENT"; a tap on an earlier message's button while the bot
+waits for typed text (a name, age, time) is answered "That button is from an earlier
+message" and the question again. After 30 idle minutes mid-form it asks
 "Continue or start again?"; a bot conversation idle for 24 h closes and the
 next message starts fresh. Numbers, titles and a few keywords ("refund",
 "paid twice") pick menu options. Card numbers (Luhn) and codes after
