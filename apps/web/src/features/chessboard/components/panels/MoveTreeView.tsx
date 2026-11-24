@@ -1,5 +1,6 @@
 "use client";
 
+import { scrollWithinNearest } from "@/lib/scrollWithin";
 import { Fragment, useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { ArrowUpToLine, CornerUpLeft, GitBranch, Highlighter, Trash2 } from "lucide-react";
 import {
@@ -91,7 +92,7 @@ export function MoveTreeView({
       : undefined;
 
   useEffect(() => {
-    activeRef.current?.scrollIntoView({ block: "nearest" });
+    scrollWithinNearest(activeRef.current);
   }, [cursor]);
 
   const moveButton = (node: MoveTreeNode, path: MoveTreePath, depth: number, showNumber: boolean, main: boolean) => {
