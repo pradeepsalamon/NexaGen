@@ -105,6 +105,28 @@ describe("FeedbackService", () => {
     service = module.get(FeedbackService);
   });
 
+  it("shows a coach only forms with at least 3 responses about them, and counts the rest as withheld (review G1)", async () => {
+    asRole(UserRole.COACH, COACH_ID);
+    const p = prisma as unknown as Record<string, Record<string, jest.Mock>>;
+    p.user.findUniqueOrThrow = jest.fn().mockResolvedValue({ firstName: "Maya", lastName: "Rao" });
+    p.feedbackResponse.groupBy = jest.fn().mockResolvedValue([
+      { _count: { _all: 2 }, formId: "form-small" },
+      { _count: { _all: 3 }, formId: "form-big" }
+    ]);
+    p.feedbackAnswer = { groupBy: jest.fn().mockResolvedValue([]) };
+    const summarize = jest
+      .spyOn(service as unknown as { summarizeCoaches: (...args: unknown[]) => Promise<unknown[]> }, "summarizeCoaches")
+      .mockResolvedValue([{ averageRating: null, coachId: COACH_ID, responseCount: 0 }]);
+
+    const result = await service.getMyFeedback(ACCESS_TOKEN);
+
+    expect(result.withheldCount).toBe(2);
+    expect(prisma.feedbackResponse.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ formId: { in: ["form-big"] } }) })
+    );
+    expect(summarize).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ formId: { in: ["form-big"] } }));
+  });
+
   it("gives a coach no class and no time of day on an anonymous response (review G1)", () => {
     const row = {
       answers: [],

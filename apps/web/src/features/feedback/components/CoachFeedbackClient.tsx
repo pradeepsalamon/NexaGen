@@ -1,5 +1,6 @@
 "use client";
 
+import { COACH_FEEDBACK_MIN_RESPONSES } from "@nexa-chess/types";
 import { MessageSquareHeart } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
@@ -11,6 +12,11 @@ import { useMyFeedbackQuery } from "../hooks/useFeedbackApi";
 import { FeedbackResponseCard } from "./FeedbackResponseCard";
 import { RatingBreakdown } from "./RatingBreakdown";
 import { StarRatingDisplay } from "./StarRating";
+
+/** Why some responses aren't shown yet: a form appears once enough students answered it. */
+function withheldNote(count: number) {
+  return `${count} more response${count === 1 ? "" : "s"} will appear once their form has ${COACH_FEEDBACK_MIN_RESPONSES} answers, so no one can be singled out.`;
+}
 
 /** A coach's own ratings. Every response here is anonymous by design. */
 export function CoachFeedbackClient() {
@@ -32,12 +38,17 @@ export function CoachFeedbackClient() {
         <WidgetError onRetry={() => refetch()} />
       ) : data.summary.responseCount === 0 ? (
         <EmptyState
-          description="Once students rate your classes, your average and their comments will appear here."
+          description={
+            data.withheldCount > 0
+              ? withheldNote(data.withheldCount)
+              : "Once students rate your classes, your average and their comments will appear here."
+          }
           icon={MessageSquareHeart}
           title="No feedback yet"
         />
       ) : (
         <div className="space-y-5">
+          {data.withheldCount > 0 ? <p className="text-sm text-app-muted">{withheldNote(data.withheldCount)}</p> : null}
           <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-[20rem_minmax(0,1fr)]">
             <Card className="grid content-start gap-4 p-5">
               <p className="text-xs font-semibold text-app-muted">Your rating</p>

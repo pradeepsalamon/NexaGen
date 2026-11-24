@@ -8,6 +8,7 @@ import {
 import { JwtService } from "@nestjs/jwt";
 import {
   averageRating,
+  COACH_FEEDBACK_MIN_RESPONSES,
   FEEDBACK_RATING_MAX,
   feedbackQuestionSchema,
   type CoachRatingSummary,
@@ -214,15 +215,31 @@ export class FeedbackService {
       select: { firstName: true, lastName: true }
     });
 
-    // Coaches only ever see forms the admin opened up to them, and anonymously.
-    const visible: Prisma.FeedbackResponseWhereInput = {
+    // Coaches only ever see forms the admin opened up to them, anonymously, and
+    // only a form with enough responses that one can't be told apart (review G1).
+    const shown: Prisma.FeedbackResponseWhereInput = {
       coachId: user.id,
       form: { showToCoach: true },
       status: FeedbackResponseStatus.SUBMITTED
     };
+    const perForm = await this.prisma.feedbackResponse.groupBy({
+      by: ["formId"],
+      where: shown,
+      _count: { _all: true }
+    });
+    const eligibleFormIds = perForm
+      .filter((g) => g._count._all >= COACH_FEEDBACK_MIN_RESPONSES)
+      .map((g) => g.formId);
+    const withheldCount = perForm
+      .filter((g) => g._count._all < COACH_FEEDBACK_MIN_RESPONSES)
+      .reduce((sum, g) => sum + g._count._all, 0);
+    const visible: Prisma.FeedbackResponseWhereInput = { ...shown, formId: { in: eligibleFormIds } };
 
     const [[summary], questionGroups, recent] = await Promise.all([
-      this.summarizeCoaches([{ id: user.id, name: fullName(coach) }], { form: { showToCoach: true } }),
+      this.summarizeCoaches([{ id: user.id, name: fullName(coach) }], {
+        form: { showToCoach: true },
+        formId: { in: eligibleFormIds }
+      }),
       this.prisma.feedbackAnswer.groupBy({
         by: ["questionId", "questionLabel"],
         where: { ratingValue: { not: null }, response: visible },
@@ -245,7 +262,8 @@ export class FeedbackService {
         averageRating: Math.round((g._avg.ratingValue ?? 0) * 10) / 10,
         count: g._count.ratingValue
       })),
-      recent: recent.map((row) => this.toResponseDto(row, true))
+      recent: recent.map((row) => this.toResponseDto(row, true)),
+      withheldCount
     };
   }
 
