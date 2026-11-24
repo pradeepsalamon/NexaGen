@@ -45,7 +45,9 @@ it back). **AGENT / human / person** or menu option 6 hands off at once.
 `BACK`, `CANCEL`, `MENU`/`0`, `STOP`/`START` work everywhere; three replies the
 bot can't use add "reply AGENT"; a tap on an earlier message's button while the bot
 waits for typed text (a name, age, time) is answered "That button is from an earlier
-message" and the question again. After 30 idle minutes mid-form it asks
+message" and the question again; a Cancel button cancels from any message, and
+a name step never takes a question as a name ("fees", anything ending in "?"): it
+sends the saved answer if one matches, else asks for the name again. After 30 idle minutes mid-form it asks
 "Continue or start again?"; a bot conversation idle for 24 h closes and the
 next message starts fresh. Numbers, titles and a few keywords ("refund",
 "paid twice") pick menu options. Card numbers (Luhn) and codes after

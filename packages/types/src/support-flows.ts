@@ -576,6 +576,8 @@ export function supportOptCommand(text: string | null | undefined): "START" | "S
 }
 
 function globalCommand(input: SupportInput): GlobalCommand | null {
+  // A Cancel button cancels wherever the chat is, even on an earlier message.
+  if (input.kind === "reply") return input.id === "confirm.cancel" ? "CANCEL" : null;
   if (input.kind !== "text") return null;
   return GLOBAL_WORDS[normalizeSupportText(input.text)] ?? null;
 }
@@ -588,6 +590,10 @@ const MENU_KEYWORDS: { category: SupportCategory; words: string[] }[] = [
   { category: "CLASS", words: ["class", "reschedule", "missed"] },
   { category: "TECH", words: ["login", "log in", "sign in", "password", "app", "not working"] }
 ];
+
+/** A whole message that is one of these is a topic, never a name ("fees"). */
+const MENU_TOPIC_WORDS = new Set(MENU_KEYWORDS.flatMap((entry) => entry.words));
+const QUESTION_NOT_NAME = "That looks like a question, not a name. Reply MENU to ask it, or type the name.";
 
 /** A main-menu option picked exactly: a tapped row, its number or its title. */
 function menuChoice(input: SupportInput, menu: SupportMenuEntry[]): SupportCategory | null {
@@ -1011,6 +1017,17 @@ export function transitionSupport(
     withWarning(result(courseMenuState(), [...intro, ...answerReplies(answer)]));
   // No exact keyword: maybe a spelling slip. The bot asks rather than answers.
   const typedSuggestion = input.kind === "text" && !typedAnswer ? suggestSupportAnswer(input.text, ctx.answers) : null;
+  // Name steps: a saved answer's keyword or a topic word ("fees") is a question, not a name.
+  // The saved answer (if any) is sent and the form stays where it was.
+  const questionInsteadOfName = (): SupportTransitionResult | null => {
+    if (input.kind !== "text") return null;
+    const question = questionFor(current.state, draft, ctx);
+    if (typedAnswer) return withWarning(result(current, [...answerReplies(typedAnswer), question]));
+    if (input.text.trim().endsWith("?") || MENU_TOPIC_WORDS.has(normalizeSupportText(input.text))) {
+      return withWarning(result(current, [{ body: QUESTION_NOT_NAME, kind: "text" }, question]));
+    }
+    return null;
+  };
   const suggested = (answer: SupportBotAnswer, intro: SupportReply[] = []): SupportTransitionResult =>
     withWarning(
       result(
@@ -1245,6 +1262,8 @@ export function transitionSupport(
 
     case "DEMO_STUDENT":
     case "DEMO_PARENT": {
+      const notName = questionInsteadOfName();
+      if (notName) return notName;
       const name = input.kind === "text" ? input.text.trim().replace(/\s+/g, " ") : "";
       const limits = current.state === "DEMO_STUDENT" ? SUPPORT_INPUT_LIMITS.studentName : SUPPORT_INPUT_LIMITS.parentName;
       if (name.length < limits.min || name.length > limits.max) {
@@ -1344,6 +1363,8 @@ export function transitionSupport(
     }
 
     case "ASK_STUDENT": {
+      const notName = questionInsteadOfName();
+      if (notName) return notName;
       const name = input.kind === "text" ? input.text.trim().replace(/\s+/g, " ") : "";
       const { max, min } = SUPPORT_INPUT_LIMITS.studentName;
       if (name.length < min || name.length > max) {
