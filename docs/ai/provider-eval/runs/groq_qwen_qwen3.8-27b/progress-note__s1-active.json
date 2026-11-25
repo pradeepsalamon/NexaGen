@@ -1,0 +1,97 @@
+{
+  "feature": "Monthly progress note",
+  "item": "s1-active",
+  "model": "groq/qwen/qwen3.8-27b",
+  "startedAt": "2026-11-25T21:07:43.829Z",
+  "task": "progress-note",
+  "checks": {
+    "json": true,
+    "notation": false,
+    "numbersNotInInput": []
+  },
+  "ok": true,
+  "output": {
+    "note": "Your child was a joy to have in class this month, consistently raising a hand to answer questions first. They showed great improvement in their puzzle-solving skills, raising their rating from 1180 to 1240. In their games, they won five out of nine matches, which is a solid result for their level. However, they often rush their moves during play, which leads to leaving pieces undefended in the middlegame. They also need to be more careful about back-rank weaknesses to protect their king. For next month, we will focus on slowing down to check for loose pieces before making each move.",
+    "focusNextMonth": [
+      "Checking for undefended pieces",
+      "Improving back-rank safety",
+      "Slowing down move selection"
+    ]
+  },
+  "ms": 12435,
+  "usage": {
+    "calls": 1,
+    "completion": 177,
+    "prompt": 294,
+    "reasoning": 0,
+    "total": 471
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:07:43.843Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `qwen/qwen3.8-27b` in organization `org_[redacted]` service tier `on_demand` on output tokens per minute (OTPM): Limit 1000, Used 862, Requested 294. Please try again in 9.36s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "10",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "992",
+            "x-ratelimit-remaining-tokens": "6020",
+            "x-ratelimit-reset-requests": "11m31.2s",
+            "x-ratelimit-reset-tokens": "14.85s"
+          },
+          "ms": 14,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:07:56.264Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "991",
+            "x-ratelimit-remaining-tokens": "6752",
+            "x-ratelimit-reset-requests": "12m57.599s",
+            "x-ratelimit-reset-tokens": "57.239s"
+          },
+          "ms": 420,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4600,
+        "messages": [
+          {
+            "content": "You write a chess academy's monthly progress note to a parent about their child.\nYou get the month's numbers and the coach's note. Write 4 to 6 warm, honest sentences in simple English:\nwhat went well, what to work on, and one concrete suggestion for next month. Call the student 'your child'.\nUse only the facts given; never invent a number, a game or an event. No chess notation.\nReturn only JSON: {\"note\": \"...\", \"focusNextMonth\": [\"1 to 3 short items\"]}",
+            "role": "system"
+          },
+          {
+            "content": "{\"month\":\"October\",\"ageGroup\":\"10-12\",\"level\":\"Intermediate\",\"classes\":{\"held\":8,\"attended\":7},\"homework\":{\"given\":6,\"done\":5},\"puzzles\":{\"attempted\":110,\"solved\":82,\"ratingStart\":1180,\"ratingEnd\":1240},\"puzzleStormBest\":18,\"games\":{\"played\":9,\"won\":5,\"lost\":3,\"drawn\":1},\"commonMistakes\":[\"leaves pieces undefended in the middlegame\",\"forgets to make room for the king (back-rank weakness)\"],\"topicsCovered\":[\"forks\",\"pins and skewers\",\"back-rank mate\"],\"coachNote\":\"very active in class, answers first, but rushes moves in games\"}",
+            "role": "user"
+          }
+        ],
+        "model": "qwen/qwen3.8-27b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\n  \"note\": \"Your child was a joy to have in class this month, consistently raising a hand to answer questions first. They showed great improvement in their puzzle-solving skills, raising their rating from 1180 to 1240. In their games, they won five out of nine matches, which is a solid result for their level. However, they often rush their moves during play, which leads to leaving pieces undefended in the middlegame. They also need to be more careful about back-rank weaknesses to protect their king. For next month, we will focus on slowing down to check for loose pieces before making each move.\",\n  \"focusNextMonth\": [\n    \"Checking for undefended pieces\",\n    \"Improving back-rank safety\",\n    \"Slowing down move selection\"\n  ]\n}",
+        "finishReason": "stop",
+        "ms": 420,
+        "providerModel": "qwen/qwen3.8-27b",
+        "reasoning": null,
+        "usage": {
+          "queue_time": 0.049804091,
+          "prompt_tokens": 294,
+          "prompt_time": 0.020638939,
+          "completion_tokens": 177,
+          "completion_time": 0.336847125,
+          "total_tokens": 471,
+          "total_time": 0.357486064
+        }
+      }
+    }
+  ]
+}

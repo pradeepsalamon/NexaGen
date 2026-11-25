@@ -1,0 +1,100 @@
+{
+  "feature": "Game review comment (AI play review)",
+  "item": "game-legal",
+  "model": "groq/qwen/qwen3.8-27b",
+  "startedAt": "2026-11-25T21:07:00.285Z",
+  "task": "game-review",
+  "checks": {
+    "inventedMoves": []
+  },
+  "ok": true,
+  "output": "You played a solid opening with your early development, but the engine flagged a critical error on move 5 where you played Bxd1 instead of the much better dxe5. That blunder allowed your opponent to deliver a quick checkmate, so it is vital to always calculate the consequences of opening your lines before committing to a move. Try practising identifying tactical threats and checking for immediate checks or captures before you make your move in similar positions.",
+  "ms": 37321,
+  "usage": {
+    "calls": 1,
+    "completion": 91,
+    "prompt": 314,
+    "reasoning": 0,
+    "total": 405
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:07:00.299Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `qwen/qwen3.8-27b` in organization `org_[redacted]` service tier `on_demand` on output tokens per minute (OTPM): Limit 1000, Used 1000, Requested 292. Please try again in 17.52s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "18",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "996",
+            "x-ratelimit-remaining-tokens": "1918",
+            "x-ratelimit-reset-requests": "5m45.6s",
+            "x-ratelimit-reset-tokens": "45.615s"
+          },
+          "ms": 13,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:07:20.324Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `qwen/qwen3.8-27b` in organization `org_[redacted]` service tier `on_demand` on output tokens per minute (OTPM): Limit 1000, Used 666, Requested 576. Please try again in 14.52s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "15",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "996",
+            "x-ratelimit-remaining-tokens": "4588",
+            "x-ratelimit-reset-requests": "5m45.6s",
+            "x-ratelimit-reset-tokens": "25.59s"
+          },
+          "ms": 25,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:07:37.606Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "995",
+            "x-ratelimit-remaining-tokens": "6250",
+            "x-ratelimit-reset-requests": "7m12s",
+            "x-ratelimit-reset-tokens": "13.125s"
+          },
+          "ms": 280,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4400,
+        "messages": [
+          {
+            "content": "You are a friendly chess coach writing to a young student about their own play. You get the positions, the moves (the student's own moves start with *) and what a chess engine found. Write 3 to 5 short sentences: one thing they did well, the most important lesson from the engine's findings (name the better move when given), and one concrete thing to practise. Use only the facts given; never invent moves or evaluations. Plain language, no headings, no lists, no emojis.",
+            "role": "system"
+          },
+          {
+            "content": "{\"accuracy\":74,\"findings\":[{\"better\":\"Nc6\",\"kind\":\"INACCURACY\",\"motif\":null,\"moveNumber\":4,\"played\":\"g6\",\"segment\":0},{\"better\":\"dxe5\",\"kind\":\"BLUNDER\",\"motif\":null,\"moveNumber\":5,\"played\":\"Bxd1\",\"segment\":0}],\"kind\":\"Own game\",\"segments\":[{\"label\":null,\"moves\":[\"e4\",\"*e5\",\"Bc4\",\"*d6\",\"Nf3\",\"*Bg4\",\"Nc3\",\"*g6\",\"Nxe5\",\"*Bxd1\",\"Bxf7+\",\"*Ke7\",\"Nd5#\"],\"playerSide\":\"black\",\"result\":\"1-0\",\"startFen\":\"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\"}]}",
+            "role": "user"
+          }
+        ],
+        "model": "qwen/qwen3.8-27b",
+        "temperature": 0.4
+      },
+      "response": {
+        "content": "You played a solid opening with your early development, but the engine flagged a critical error on move 5 where you played Bxd1 instead of the much better dxe5. That blunder allowed your opponent to deliver a quick checkmate, so it is vital to always calculate the consequences of opening your lines before committing to a move. Try practising identifying tactical threats and checking for immediate checks or captures before you make your move in similar positions.",
+        "finishReason": "stop",
+        "ms": 280,
+        "providerModel": "qwen/qwen3.8-27b",
+        "reasoning": null,
+        "usage": {
+          "queue_time": 0.051854976,
+          "prompt_tokens": 314,
+          "prompt_time": 0.021369543,
+          "completion_tokens": 91,
+          "completion_time": 0.172762211,
+          "total_tokens": 405,
+          "total_time": 0.194131754
+        }
+      }
+    }
+  ]
+}

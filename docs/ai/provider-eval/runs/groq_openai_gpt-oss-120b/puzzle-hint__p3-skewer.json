@@ -1,0 +1,95 @@
+{
+  "feature": "Puzzle hint",
+  "item": "p3-skewer",
+  "model": "groq/openai/gpt-oss-120b",
+  "startedAt": "2026-11-25T21:07:59.377Z",
+  "task": "puzzle-hint",
+  "checks": {
+    "json": true,
+    "givesAway": false
+  },
+  "ok": true,
+  "output": {
+    "hint1": "Look at the diagonal from your bishop toward the black king.",
+    "hint2": "A bishop check will force the king to move and expose the queen behind it."
+  },
+  "ms": 5096,
+  "usage": {
+    "calls": 1,
+    "completion": 302,
+    "prompt": 260,
+    "reasoning": 257,
+    "total": 562
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:07:59.391Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7071, Requested 1193. Please try again in 1.98s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "2",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "988",
+            "x-ratelimit-remaining-tokens": "929",
+            "x-ratelimit-reset-requests": "17m16.8s",
+            "x-ratelimit-reset-tokens": "53.032s"
+          },
+          "ms": 13,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:08:04.472Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "987",
+            "x-ratelimit-remaining-tokens": "533",
+            "x-ratelimit-reset-requests": "18m43.2s",
+            "x-ratelimit-reset-tokens": "56.002s"
+          },
+          "ms": 1080,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4300,
+        "messages": [
+          {
+            "content": "You help a child who is stuck on a chess puzzle.\nYou get the position (FEN), the side to move, the solution and the theme.\nWrite two hints: the first gentle (what to look at), the second stronger (the idea), each one short sentence.\nNever give the solution move, never name the square the piece moves to, and never write chess notation.\nReturn only JSON: {\"hint1\": \"...\", \"hint2\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"fen\":\"6q1/8/8/3k4/8/1P6/4B3/7K w - - 0 1\",\"sideToMove\":\"white\",\"solution\":[\"Bc4+\",\"Ke5\",\"Bxg8\"],\"theme\":\"skewer (king and queen)\"}",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-120b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"hint1\":\"Look at the diagonal from your bishop toward the black king.\",\"hint2\":\"A bishop check will force the king to move and expose the queen behind it.\"}",
+        "finishReason": "stop",
+        "ms": 1080,
+        "providerModel": "openai/gpt-oss-120b",
+        "reasoning": "We need to produce two hints: first gentle (what to look at), second stronger (the idea). No solution move, no square naming, no notation. Must be short sentence each. Return JSON compact.\n\nWe have position: White pieces: King h1, Bishop e2, pawn b3. Black: King d5, queen g8. White to move. Theme: skewer (king and queen). So hint1: look at line between your bishop and black king? Actually bishop can give check that forces king to move exposing queen. So gentle: \"Notice how your bishop can attack the black king along a diagonal.\" Hint2: \"A checking move that forces the king to move and reveals the queen behind it.\" Must avoid naming squares or notation. Avoid \"Bc4+\" etc. So second hint: \"Give check with the bishop to make the king move and uncover the queen for capture.\" Ensure no notation. Provide JSON.\n\nCheck constraints: no naming squares. So avoid \"c4\" etc. Use generic terms. Provide short sentences.\n\nLet's craft:\n\nhint1: \"Look at the diagonal from your bishop toward the black king.\"\nhint2: \"A bishop check will force the king to move and expose the queen behind it.\"\n\nReturn JSON.",
+        "usage": {
+          "queue_time": 0.354541576,
+          "prompt_tokens": 260,
+          "prompt_time": 0.084426503,
+          "completion_tokens": 302,
+          "completion_time": 0.629703113,
+          "total_tokens": 562,
+          "total_time": 0.714129616,
+          "completion_tokens_details": {
+            "reasoning_tokens": 257
+          }
+        }
+      }
+    }
+  ]
+}

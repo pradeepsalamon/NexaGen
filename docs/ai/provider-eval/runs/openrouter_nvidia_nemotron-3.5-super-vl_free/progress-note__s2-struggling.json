@@ -1,0 +1,89 @@
+{
+  "feature": "Monthly progress note",
+  "item": "s2-struggling",
+  "model": "openrouter/nvidia/nemotron-3.5-super-vl:free",
+  "startedAt": "2026-11-25T21:16:23.608Z",
+  "task": "progress-note",
+  "checks": {
+    "json": true,
+    "notation": false,
+    "numbersNotInInput": []
+  },
+  "ok": true,
+  "output": {
+    "note": "Your child attended 4 of 8 classes this month and knows the opening rules well. They solved 20 out of 31 puzzles, which is good progress. We would love to see more homework completed and more participation in class, since your child is quiet and benefits from encouragement. One thing to work on is not moving the queen out too early. For next month, please try to bring your child to more classes so they can keep growing in confidence.",
+    "focusNextMonth": [
+      "Attend more classes",
+      "Complete more homework",
+      "Keep the queen back at the start of games"
+    ]
+  },
+  "ms": 9360,
+  "usage": {
+    "calls": 1,
+    "completion": 1295,
+    "prompt": 276,
+    "reasoning": 1166,
+    "total": 1571
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:16:32.968Z",
+          "limits": {},
+          "ms": 9359,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4600,
+        "messages": [
+          {
+            "content": "You write a chess academy's monthly progress note to a parent about their child.\nYou get the month's numbers and the coach's note. Write 4 to 6 warm, honest sentences in simple English:\nwhat went well, what to work on, and one concrete suggestion for next month. Call the student 'your child'.\nUse only the facts given; never invent a number, a game or an event. No chess notation.\nReturn only JSON: {\"note\": \"...\", \"focusNextMonth\": [\"1 to 3 short items\"]}",
+            "role": "system"
+          },
+          {
+            "content": "{\"month\":\"October\",\"ageGroup\":\"7-9\",\"level\":\"Beginner\",\"classes\":{\"held\":8,\"attended\":4},\"homework\":{\"given\":6,\"done\":1},\"puzzles\":{\"attempted\":31,\"solved\":20,\"ratingStart\":950,\"ratingEnd\":930},\"puzzleStormBest\":6,\"games\":{\"played\":2,\"won\":0,\"lost\":2,\"drawn\":0},\"commonMistakes\":[\"moves the queen out too early\"],\"topicsCovered\":[\"how the pieces move\",\"check and checkmate\",\"opening principles\"],\"coachNote\":\"quiet in class, needs encouragement, knows the opening rules well\"}",
+            "role": "user"
+          }
+        ],
+        "model": "nvidia/nemotron-3.5-super-vl:free",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"note\": \"Your child attended 4 of 8 classes this month and knows the opening rules well. They solved 20 out of 31 puzzles, which is good progress. We would love to see more homework completed and more participation in class, since your child is quiet and benefits from encouragement. One thing to work on is not moving the queen out too early. For next month, please try to bring your child to more classes so they can keep growing in confidence.\", \"focusNextMonth\": [\"Attend more classes\", \"Complete more homework\", \"Keep the queen back at the start of games\"]}",
+        "finishReason": "stop",
+        "ms": 9359,
+        "providerModel": "nvidia/nemotron-3.5-super-vl:free",
+        "reasoning": "The user wants a JSON response with a progress note for a chess academy parent. Constraints:\n- 4 to 6 warm, honest sentences in simple English\n- Cover: what went well, what to work on, one concrete suggestion for next month\n- Call the student 'your child'\n- Use only facts given; never invent a number, game, or event\n- No chess notation\n- Return only JSON: {\"note\": \"...\", \"focusNextMonth\": [\"1 to 3 short items\"]}\n\nFacts given:\n- Month: October\n- Age group: 7-9\n- Level: Beginner\n- Classes held: 8, attended: 4\n- Homework given: 6, done: 1\n- Puzzles attempted: 31, solved: 20, rating start 950, end 930\n- Puzzle storm best: 6\n- Games played: 2, won 0, lost 2, drawn 0\n- Common mistakes: moves the queen out too early\n- Topics covered: how pieces move, check and checkmate, opening principles\n- Coach note: quiet in class, needs encouragement, knows opening rules well\n\nNeed to be warm, honest, simple English. 4-6 sentences. Must not invent numbers. Can mention attended 4 of 8 classes? That's a fact. Can mention solved 20 of 31 puzzles? That's a fact. Can mention puzzle rating went from 950 to 930? That's a fact but might be negative; should be honest but warm. Can mention knows opening rules well. Can mention quiet in class, needs encouragement. Can mention common mistake: queen out too early. Suggestion for next month: concrete, based on facts. Maybe \"attend more classes\" or \"do more homework\" or \"practice not moving the queen out too early\". Since classes held 8 attended 4, suggestion could be to attend more classes next month. Or complete more homework. One concrete suggestion.\n\nLet's draft sentences:\n\n1. Your child attended 4 of 8 classes in October and knows the opening rules well. (Fact: attended 4 of 8, knows opening rules well)\n2. They solved 20 out of 31 puzzles, which shows good effort. (Fact)\n3. We would like to see your child complete more homework and speak up more in class, since they are quiet and need encouragement. (Fact: homework done 1 of 6, coach note quiet/needs encouragement)\n4. A focus for next month is to avoid moving the queen out too early in games. (Fact: common mistake)\n5. Please try to bring your child to more classes so they can keep building confidence. (Concrete suggestion based on attendance)\n\nThat's 5 sentences. Warm, honest, simple. No invented numbers. No chess notation. Calls student 'your child'.\n\nCheck: \"moves the queen out too early\" - is that chess notation? No, it's plain English description. Fine.\n\nfocusNextMonth: array of 1 to 3 short items. Could be:\n- Attend more classes\n- Complete more homework\n- Keep the queen back at the start of games\n\nOr just 1-3 items. Let's do 3 short items.\n\nJSON format exactly. No extra text.\n\nNeed to ensure note is a single string with sentences. Could include \\n? Probably just a string with spaces. Let's make it one paragraph string.\n\nLet's count sentences:\n1. Your child attended 4 of 8 classes this month and knows the opening rules well.\n2. They solved 20 out of 31 puzzles, which is good progress.\n3. We would love to see more homework completed and more participation in class, since your child is quiet and benefits from encouragement.\n4. One thing to work on is not moving the queen out too early.\n5. For next month, please try to bring your child to more classes so they can keep growing in confidence.\n\nThat's 5 sentences. Good.\n\nWait, \"this month\" vs \"October\"? The prompt says month is October but doesn't require naming it. Using \"this month\" is fine and doesn't invent anything.\n\nCheck facts:\n- attended 4 of 8 classes: yes.\n- knows opening rules well: from coach note.\n- solved 20 out of 31 puzzles: yes.\n- homework done 1 of 6: implied by \"more homework completed\".\n- quiet and needs encouragement: coach note.\n- common mistake: queen out too early.\n- suggestion: bring to more classes. Based on attendance 4/8.\n\nAll good.\n\nJSON:\n{\n  \"note\": \"Your child attended 4 of 8 classes this month and knows the opening rules well. They solved 20 out of 31 puzzles, which is good progress. We would love to see more homework completed and more participation in class, since your child is quiet and benefits from encouragement. One thing to work on is not moving the queen out too early. For next month, please try to bring your child to more classes so they can keep growing in confidence.\",\n  \"focusNextMonth\": [\"Attend more classes\", \"Complete more homework\", \"Keep the queen back at the start of games\"]\n}\n\nIs \"Keep the queen back at the start of games\" too close to chess notation? No, it's plain English. Is it inventing? It's derived from common mistake. Fine.\n\nMake sure no extra keys. Return only JSON.",
+        "usage": {
+          "prompt_tokens": 276,
+          "completion_tokens": 1295,
+          "total_tokens": 1571,
+          "cost": 0,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0,
+            "upstream_inference_prompt_cost": 0,
+            "upstream_inference_completions_cost": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 1166,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      }
+    }
+  ]
+}

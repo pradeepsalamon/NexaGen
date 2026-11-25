@@ -1,0 +1,18 @@
+{
+  "id": "coach-feedback",
+  "about": "Turns a coach's quick feedback-form ratings and rough notes into a short message for the parent (synthetic; ratings 1-5).",
+  "items": [
+    {
+      "id": "f1-english-notes",
+      "context": "after 4 classes",
+      "ratings": { "focus": 4, "tactics": 3, "endgames": 2, "homework": 5, "behaviour": 5 },
+      "coachNotes": "good kid. does all homework. weak in K+P endings, loses won games. needs to practise opposition. tactics ok but misses checks for opponent"
+    },
+    {
+      "id": "f2-tanglish-notes",
+      "context": "after 4 classes",
+      "ratings": { "focus": 2, "tactics": 4, "endgames": 3, "homework": 2, "behaviour": 3 },
+      "coachNotes": "class la romba distract aagudhu, camera off pannidraan. tactics nalla pannuraan, forks fast ah paakuraan. homework 2 dhaan pannaan. parents konjam check pannunga"
+    }
+  ]
+}

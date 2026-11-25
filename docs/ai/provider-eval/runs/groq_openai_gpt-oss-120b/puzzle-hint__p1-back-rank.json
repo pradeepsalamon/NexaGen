@@ -1,0 +1,95 @@
+{
+  "feature": "Puzzle hint",
+  "item": "p1-back-rank",
+  "model": "groq/openai/gpt-oss-120b",
+  "startedAt": "2026-11-25T21:07:49.665Z",
+  "task": "puzzle-hint",
+  "checks": {
+    "json": true,
+    "givesAway": false
+  },
+  "ok": true,
+  "output": {
+    "hint1": "Notice how the black king has no safe squares on its back rank.",
+    "hint2": "A rook check on the back rank will force checkmate."
+  },
+  "ms": 8742,
+  "usage": {
+    "calls": 1,
+    "completion": 262,
+    "prompt": 250,
+    "reasoning": 219,
+    "total": 512
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:07:49.680Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7311, Requested 1426. Please try again in 5.5275s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "6",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "990",
+            "x-ratelimit-remaining-tokens": "689",
+            "x-ratelimit-reset-requests": "14m24s",
+            "x-ratelimit-reset-tokens": "54.832s"
+          },
+          "ms": 15,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:07:58.407Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "989",
+            "x-ratelimit-remaining-tokens": "574",
+            "x-ratelimit-reset-requests": "15m50.4s",
+            "x-ratelimit-reset-tokens": "55.695s"
+          },
+          "ms": 727,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4300,
+        "messages": [
+          {
+            "content": "You help a child who is stuck on a chess puzzle.\nYou get the position (FEN), the side to move, the solution and the theme.\nWrite two hints: the first gentle (what to look at), the second stronger (the idea), each one short sentence.\nNever give the solution move, never name the square the piece moves to, and never write chess notation.\nReturn only JSON: {\"hint1\": \"...\", \"hint2\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"fen\":\"6k1/5ppp/8/8/8/8/r4PPP/3R2K1 w - - 0 1\",\"sideToMove\":\"white\",\"solution\":[\"Rd8#\"],\"theme\":\"back-rank mate\"}",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-120b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"hint1\":\"Notice how the black king has no safe squares on its back rank.\",\"hint2\":\"A rook check on the back rank will force checkmate.\"}",
+        "finishReason": "stop",
+        "ms": 727,
+        "providerModel": "openai/gpt-oss-120b",
+        "reasoning": "We need to produce two hints, gentle and stronger, short sentences, no solution move, no square naming, no notation. Provide JSON compact.\n\nPosition: White: king g1, rook d1, pawns g2 h2. Black: king g8, rook a2, pawns f7 g7 h7. White to move, back-rank mate. Hint1: look at the black king's limited escape squares. Hint2: delivering a rook check on the eighth rank will be decisive. Must avoid naming squares. Can't use notation like Rd8. So phrase: \"Consider a rook move that attacks the black king along the back rank.\" That's okay.\n\nMake sure no square names like g8, etc. Avoid naming squares. Could say \"the black king is trapped on its back rank\". That's okay. Provide JSON.\n\nLet's craft:\n\nhint1: \"Notice how the black king has no safe squares on its back rank.\"\nhint2: \"A rook check on the back rank will force checkmate.\"\n\nCheck no notation. Good.\n\nReturn JSON compact.",
+        "usage": {
+          "queue_time": 0.158053337,
+          "prompt_tokens": 250,
+          "prompt_time": 0.012173131,
+          "completion_tokens": 262,
+          "completion_time": 0.541136229,
+          "total_tokens": 512,
+          "total_time": 0.55330936,
+          "completion_tokens_details": {
+            "reasoning_tokens": 219
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+{
+  "feature": "Support bot saved-answer pick",
+  "item": "q4-account-data",
+  "model": "groq/qwen/qwen3.8-27b",
+  "startedAt": "2026-11-25T21:08:50.091Z",
+  "task": "support-pick",
+  "checks": {
+    "correct": true,
+    "expected": null,
+    "json": true,
+    "picked": null
+  },
+  "ok": true,
+  "output": {
+    "answerId": null,
+    "reason": "Personal attendance record"
+  },
+  "ms": 4145,
+  "usage": {
+    "calls": 1,
+    "completion": 15,
+    "prompt": 489,
+    "reasoning": 0,
+    "total": 504
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:08:50.104Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `qwen/qwen3.8-27b` in organization `org_[redacted]` service tier `on_demand` on output tokens per minute (OTPM): Limit 1000, Used 441, Requested 576. Please try again in 1.02s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "2",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "982",
+            "x-ratelimit-remaining-tokens": "6115",
+            "x-ratelimit-reset-requests": "25m55.199s",
+            "x-ratelimit-reset-tokens": "26.46s"
+          },
+          "ms": 13,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:08:54.236Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "981",
+            "x-ratelimit-remaining-tokens": "5867",
+            "x-ratelimit-reset-requests": "27m21.6s",
+            "x-ratelimit-reset-tokens": "40.08s"
+          },
+          "ms": 131,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4150,
+        "messages": [
+          {
+            "content": "You sort WhatsApp messages for a chess academy's support desk.\nYou get the academy's saved answers and one message from a parent (English, Tamil or a mix).\nPick the one saved answer that fully answers the message, or null when none does.\nQuestions about one child's own records (attendance, fees paid, progress) always get null: a person answers those.\nReturn only JSON: {\"answerId\": \"A1\" or null, \"reason\": \"a few words\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"message\":\"Can you tell me how many classes my daughter attended in October?\",\"savedAnswers\":[{\"id\":\"A1\",\"text\":\"Group classes are Rs 2,500 a month or Rs 6,900 for three months. You can pay by UPI, card or net banking from the Payments page in the app.\",\"title\":\"Fees and payment\"},{\"id\":\"A2\",\"text\":\"Each batch has fixed days and times, shown on the Classes page. To change your batch timing, ask your coach or write to us here.\",\"title\":\"Class timings\"},{\"id\":\"A3\",\"text\":\"Every class has a recap and homework in the app. If you miss a class, you can join one make-up class in the same week in another batch of the same level; ask your coach to add you.\",\"title\":\"Missed a class\"},{\"id\":\"A4\",\"text\":\"You can book a free 30-minute demo class for your child. Reply DEMO and we will send you the available times.\",\"title\":\"Free demo class\"},{\"id\":\"A5\",\"text\":\"Open the app, go to Classes and press Join on today's class, ten minutes before it starts. Use Chrome on a laptop or the latest browser on a phone, and allow the camera and microphone.\",\"title\":\"Joining a live class\"},{\"id\":\"A6\",\"text\":\"Fees are refunded for classes not yet held if you write to us within 7 days of paying.\",\"title\":\"Refunds\"},{\"id\":\"A7\",\"text\":\"We teach Beginner, Intermediate and Advanced batches. A coach checks your child's level in the demo class.\",\"title\":\"Levels\"},{\"id\":\"A8\",\"text\":\"We hold an online tournament every month. Every player gets a certificate in the app after the tournament.\",\"title\":\"Tournaments and certificates\"}]}",
+            "role": "user"
+          }
+        ],
+        "model": "qwen/qwen3.8-27b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"answerId\": null, \"reason\": \"Personal attendance record\"}",
+        "finishReason": "stop",
+        "ms": 131,
+        "providerModel": "qwen/qwen3.8-27b",
+        "reasoning": null,
+        "usage": {
+          "queue_time": 0.053416149,
+          "prompt_tokens": 489,
+          "prompt_time": 0.03471659,
+          "completion_tokens": 15,
+          "completion_time": 0.028700794,
+          "total_tokens": 504,
+          "total_time": 0.063417384
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "feature": "Chess facts answer",
+  "item": "c1-en-passant",
+  "model": "local/qwen2.5:3b",
+  "startedAt": "2026-11-25T21:05:21.821Z",
+  "task": "chess-facts",
+  "checks": {
+    "json": true,
+    "mentions": false
+  },
+  "ok": true,
+  "output": {
+    "answer": "En passant is a special move in chess where you can capture an opponent's pawn that passed through your square during its first move."
+  },
+  "ms": 44225,
+  "usage": {
+    "calls": 1,
+    "completion": 34,
+    "prompt": 67,
+    "reasoning": 0,
+    "total": 101
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:06:06.045Z",
+          "limits": {},
+          "ms": 44223,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 250,
+        "messages": [
+          {
+            "content": "You answer a chess question from a child or a parent at a chess academy.\nAnswer correctly in 1 to 3 short sentences of simple English. If you are not sure, say so.\nReturn only JSON: {\"answer\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "What is en passant?",
+            "role": "user"
+          }
+        ],
+        "model": "qwen2.5:3b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "seed": 7,
+        "temperature": 0
+      },
+      "response": {
+        "content": "{ \"answer\": \"En passant is a special move in chess where you can capture an opponent's pawn that passed through your square during its first move.\" }",
+        "finishReason": "stop",
+        "ms": 44223,
+        "providerModel": "qwen2.5:3b",
+        "reasoning": null,
+        "usage": {
+          "prompt_tokens": 67,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 34,
+          "total_tokens": 101
+        }
+      }
+    }
+  ]
+}

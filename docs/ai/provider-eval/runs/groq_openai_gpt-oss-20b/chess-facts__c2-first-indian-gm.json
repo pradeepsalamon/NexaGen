@@ -1,0 +1,56 @@
+{
+  "feature": "Chess facts answer",
+  "item": "c2-first-indian-gm",
+  "model": "groq/openai/gpt-oss-20b",
+  "startedAt": "2026-11-25T21:12:05.644Z",
+  "task": "chess-facts",
+  "error": "HTTP 400: {\"error\":{\"message\":\"Failed to validate JSON. Please adjust your prompt. See 'failed_generation' for more details.\",\"type\":\"invalid_request_error\",\"code\":\"json_validate_failed\",\"failed_generation\":\"\"}}\n",
+  "ok": false,
+  "ms": 4625,
+  "usage": {
+    "calls": 0,
+    "completion": 0,
+    "prompt": 0,
+    "reasoning": 0,
+    "total": 0
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:12:10.269Z",
+          "error": "{\"error\":{\"message\":\"Failed to validate JSON. Please adjust your prompt. See 'failed_generation' for more details.\",\"type\":\"invalid_request_error\",\"code\":\"json_validate_failed\",\"failed_generation\":\"\"}}\n",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "975",
+            "x-ratelimit-remaining-tokens": "7399",
+            "x-ratelimit-reset-requests": "36m0s",
+            "x-ratelimit-reset-tokens": "4.507s"
+          },
+          "ms": 4625,
+          "status": 400
+        }
+      ],
+      "error": "HTTP 400: {\"error\":{\"message\":\"Failed to validate JSON. Please adjust your prompt. See 'failed_generation' for more details.\",\"type\":\"invalid_request_error\",\"code\":\"json_validate_failed\",\"failed_generation\":\"\"}}\n",
+      "request": {
+        "max_tokens": 4250,
+        "messages": [
+          {
+            "content": "You answer a chess question from a child or a parent at a chess academy.\nAnswer correctly in 1 to 3 short sentences of simple English. If you are not sure, say so.\nReturn only JSON: {\"answer\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "Who was India's first grandmaster, and in which year?",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-20b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      }
+    }
+  ]
+}

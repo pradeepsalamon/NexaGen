@@ -1,0 +1,92 @@
+{
+  "feature": "Tamil translation of a review",
+  "item": "t1-legal",
+  "model": "groq/openai/gpt-oss-20b",
+  "startedAt": "2026-11-25T21:07:04.061Z",
+  "task": "translate-ta",
+  "checks": {
+    "json": true,
+    "tamilShare": 70
+  },
+  "ok": true,
+  "output": "நீங்கள் நல்ல தொடக்கம் செய்தீர்கள், உங்கள் bishop-ஐ விரைவில் வெளியே கொண்டு வந்து knight-ஐ pin செய்தீர்கள். முக்கிய பாடம் 5-வது நகர்வில்: நீங்கள் bishop-ஐ கொண்டு queen-ஐ எடுத்தீர்கள், ஆனால் engine-ல் பார்க்கும்போது pawn-ஐ கொண்டு knight-ஐ எடுத்தது மிகவும் சிறந்தது, ஏனெனில் queen-ஐ வெல்வதால் White உங்களை checkmate செய்ய முடிந்தது. பெரிய துண்டை பிடிக்கும்முன், எதிரியின் அடுத்த நகர்வை, குறிப்பாக checks-ஐ, எப்போதும் பார்க்கவும். இந்த வாரம் checkmate patterns-ல் ஐந்து புதிர்களைப் பயிற்சி செய்யுங்கள்.",
+  "ms": 5520,
+  "usage": {
+    "calls": 1,
+    "completion": 1029,
+    "prompt": 265,
+    "reasoning": 859,
+    "total": 1294
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:07:04.074Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-20b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7423, Requested 778. Please try again in 1.5075s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "2",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "994",
+            "x-ratelimit-remaining-tokens": "577",
+            "x-ratelimit-reset-requests": "8m38.4s",
+            "x-ratelimit-reset-tokens": "55.672s"
+          },
+          "ms": 13,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:07:09.581Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "993",
+            "x-ratelimit-remaining-tokens": "268",
+            "x-ratelimit-reset-requests": "10m4.8s",
+            "x-ratelimit-reset-tokens": "57.99s"
+          },
+          "ms": 1507,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 5200,
+        "messages": [
+          {
+            "content": "You translate a chess coach's short comment for a child and their parent in Tamil Nadu.\nTranslate into simple, natural spoken-style Tamil in Tamil script. Keep the meaning exactly; add nothing.\nChess piece names and words like checkmate may stay in English (in Tamil letters or English letters) as Tamil chess players say them.\nReturn only JSON: {\"tamil\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "You started well by bringing your bishop out early and pinning the knight. The big lesson is move 5: you took the queen with your bishop, but the engine shows that taking the knight with your pawn was much better, because winning the queen let White checkmate you. Before you grab a big piece, always check what your opponent can do next, especially checks. Practise this with five puzzles on checkmate patterns this week.",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-20b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"tamil\":\"நீங்கள் நல்ல தொடக்கம் செய்தீர்கள், உங்கள் bishop-ஐ விரைவில் வெளியே கொண்டு வந்து knight-ஐ pin செய்தீர்கள். முக்கிய பாடம் 5-வது நகர்வில்: நீங்கள் bishop-ஐ கொண்டு queen-ஐ எடுத்தீர்கள், ஆனால் engine-ல் பார்க்கும்போது pawn-ஐ கொண்டு knight-ஐ எடுத்தது மிகவும் சிறந்தது, ஏனெனில் queen-ஐ வெல்வதால் White உங்களை checkmate செய்ய முடிந்தது. பெரிய துண்டை பிடிக்கும்முன், எதிரியின் அடுத்த நகர்வை, குறிப்பாக checks-ஐ, எப்போதும் பார்க்கவும். இந்த வாரம் checkmate patterns-ல் ஐந்து புதிர்களைப் பயிற்சி செய்யுங்கள்.\"}",
+        "finishReason": "stop",
+        "ms": 1507,
+        "providerModel": "openai/gpt-oss-20b",
+        "reasoning": "We need to translate into simple natural spoken-style Tamil in Tamil script. Keep meaning exactly; add nothing. Chess piece names and words like checkmate may stay in English (in Tamil letters or English letters) as Tamil chess players say them. So we keep \"bishop\", \"knight\", \"queen\", \"pawn\", \"checkmate\" maybe in English. But we can also write them in Tamil letters? The instruction: \"Chess piece names and words like checkmate may stay in English (in Tamil letters or English letters) as Tamil chess players say them.\" So we can keep them in English letters. So we can write \"bishop\", \"knight\", \"queen\", \"pawn\", \"checkmate\". We need to translate the rest into Tamil. Use simple spoken style. Provide JSON with key \"tamil\" and value string. Ensure JSON is compact. Let's craft translation.\n\nOriginal: \"You started well by bringing your bishop out early and pinning the knight. The big lesson is move 5: you took the queen with your bishop, but the engine shows that taking the knight with your pawn was much better, because winning the queen let White checkmate you. Before you grab a big piece, always check what your opponent can do next, especially checks. Practise this with five puzzles on checkmate patterns this week.\"\n\nTranslate:\n\n\"You started well by bringing your bishop out early and pinning the knight.\" -> \"நீங்கள் நல்ல தொடக்கம் செய்தீர்கள், உங்கள் bishop-ஐ விரைவில் வெளியே கொண்டு வந்து knight-ஐ pin செய்தீர்கள்.\"\n\nBut we need simple spoken style. Use \"நீங்கள்\" or \"நீ\" maybe. Use \"நீங்கள்\" is formal. For child and parent, maybe \"நீ\" is fine. But we can use \"நீங்கள்\" to be polite. Let's use \"நீங்கள்\". \"நீங்கள் நல்ல தொடக்கம் செய்தீர்கள், உங்கள் bishop-ஐ விரைவில் வெளியே கொண்டு வந்து knight-ஐ pin செய்தீர்கள்.\"\n\n\"The big lesson is move 5: you took the queen with your bishop, but the engine shows that taking the knight with your pawn was much better, because winning the queen let White checkmate you.\" -> \"முக்கிய பாடம் 5-வது நகர்வில்: நீங்கள் bishop-ஐ கொண்டு queen-ஐ எடுத்தீர்கள், ஆனால் engine-ல் பார்க்கும்போது pawn-ஐ கொண்டு knight-ஐ எடுத்தது மிகவும் சிறந்தது, ஏனெனில் queen-ஐ வெல்வதால் White உங்களை checkmate செய்ய முடிந்தது.\"\n\n\"Before you grab a big piece, always check what your opponent can do next, especially checks.\" -> \"பெரிய துண்டை பிடிக்கும்முன், எதிரியின் அடுத்த நகர்வை, குறிப்பாக checks-ஐ, எப்போதும் பார்க்கவும்.\"\n\n\"Practise this with five puzzles on checkmate patterns this week.\" -> \"இந்த வாரம் checkmate patterns-ல் ஐந்து புதிர்களைப் பயிற்சி செய்யுங்கள்.\"\n\nWe need to keep \"bishop\", \"knight\", \"queen\", \"pawn\", \"checkmate\", \"checks\" maybe in English. Use Tamil script for rest. Ensure no extra punctuation? It's okay. Provide JSON.\n\nLet's produce:\n\n{\"tamil\":\"நீங்கள் நல்ல தொடக்கம் செய்தீர்கள், உங்கள் bishop-ஐ விரைவில் வெளியே கொண்டு வந்து knight-ஐ pin செய்தீர்கள். முக்கிய பாடம் 5-வது நகர்வில்: நீங்கள் bishop-ஐ கொண்டு queen-ஐ எடுத்தீர்கள், ஆனால் engine-ல் பார்க்கும்போது pawn-ஐ கொண்டு knight-ஐ எடுத்தது மிகவும் சிறந்தது, ஏனெனில் queen-ஐ வெல்வதால் White உங்களை checkmate செய்ய முடிந்தது. பெரிய துண்டை பிடிக்கும்முன், எதிரியின் அடுத்த நகர்வை, குறிப்பாக checks-ஐ, எப்போதும் பார்க்கவும். இந்த வாரம் checkmate patterns-ல் ஐந்து புதிர்களைப் பயிற்சி செய்யுங்கள்.\"}\n\nCheck JSON validity: key \"tamil\" string. No line breaks. Ensure no stray quotes. The string contains Tamil characters and English words. Should be fine.",
+        "usage": {
+          "queue_time": 0.366092513,
+          "prompt_tokens": 265,
+          "prompt_time": 0.015665655,
+          "completion_tokens": 1029,
+          "completion_time": 1.110030743,
+          "total_tokens": 1294,
+          "total_time": 1.125696398,
+          "completion_tokens_details": {
+            "reasoning_tokens": 859
+          }
+        }
+      }
+    }
+  ]
+}

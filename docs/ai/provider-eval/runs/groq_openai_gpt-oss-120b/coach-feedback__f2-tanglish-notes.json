@@ -1,0 +1,78 @@
+{
+  "feature": "Coach feedback message",
+  "item": "f2-tanglish-notes",
+  "model": "groq/openai/gpt-oss-120b",
+  "startedAt": "2026-11-25T21:08:09.793Z",
+  "task": "coach-feedback",
+  "checks": {
+    "json": true
+  },
+  "ok": true,
+  "output": {
+    "message": "Your child is showing good tactical skill and can spot forks quickly, which is encouraging. However, they are often distracted during lessons and keep their camera off, which affects their focus. Their work on endgames is moderate, and they have only been completing about half of the homework assignments. I would appreciate it if you could check in at home to help improve their concentration and homework completion."
+  },
+  "ms": 1274,
+  "usage": {
+    "calls": 1,
+    "completion": 444,
+    "prompt": 275,
+    "reasoning": 354,
+    "total": 719
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:08:11.067Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "985",
+            "x-ratelimit-remaining-tokens": "155",
+            "x-ratelimit-reset-requests": "21m36s",
+            "x-ratelimit-reset-tokens": "58.837s"
+          },
+          "ms": 1274,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4500,
+        "messages": [
+          {
+            "content": "You turn a chess coach's quick feedback form into a short message to the student's parent.\nYou get ratings from 1 to 5 and the coach's rough notes (they may mix Tamil and English).\nWrite 3 to 5 polite, encouraging and honest sentences in simple English from the coach. Call the student 'your child'.\nKeep every point the coach made and add nothing new. No chess notation.\nReturn only JSON: {\"message\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"context\":\"after 4 classes\",\"ratings\":{\"focus\":2,\"tactics\":4,\"endgames\":3,\"homework\":2,\"behaviour\":3},\"coachNotes\":\"class la romba distract aagudhu, camera off pannidraan. tactics nalla pannuraan, forks fast ah paakuraan. homework 2 dhaan pannaan. parents konjam check pannunga\"}",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-120b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"message\":\"Your child is showing good tactical skill and can spot forks quickly, which is encouraging. However, they are often distracted during lessons and keep their camera off, which affects their focus. Their work on endgames is moderate, and they have only been completing about half of the homework assignments. I would appreciate it if you could check in at home to help improve their concentration and homework completion.\"}",
+        "finishReason": "stop",
+        "ms": 1274,
+        "providerModel": "openai/gpt-oss-120b",
+        "reasoning": "We need to produce a short message to the student's parent, 3-5 polite encouraging honest sentences, simple English, from the coach. Include every point the coach made, no new info. Points: focus rating 2, tactics 4, endgames 3, homework 2, behaviour 3. Coach notes: \"class la romba distract aagudhu, camera off pannidraan. tactics nalla pannuraan, forks fast ah paakuraan. homework 2 dhaan pannaan. parents konjam check pannunga\". Means: In class, very distracted, camera off. Tactics are good, sees forks quickly. Homework only does 2 (maybe rating 2). Parents please check a bit.\n\nWe need to incorporate these points: low focus, camera off, good tactics, quick at forks, low homework completion, ask parents to check. Also mention endgames rating 3 maybe. Provide 3-5 sentences.\n\nLet's craft 4 sentences.\n\nSentence 1: After four classes, your child is showing good tactical skill and can spot forks quickly, which is encouraging.\n\nSentence 2: However, they are often distracted during lessons and keep their camera off, which affects their focus.\n\nSentence 3: Their work on endgames is moderate, and they have only been completing about half of the homework assignments.\n\nSentence 4: I would appreciate it if you could check in at home to help improve their concentration and homework completion.\n\nMake sure we keep all points: focus low, tactics good, endgames moderate, homework low, behaviour moderate (maybe mention behaviour). Already covered.\n\nNow output JSON: {\"message\":\"...\"} with compact formatting.\n\nCheck JSON validity: need escape quotes properly.\n\nLet's craft final.",
+        "usage": {
+          "queue_time": 0.3165667,
+          "prompt_tokens": 275,
+          "prompt_time": 0.025177599,
+          "completion_tokens": 444,
+          "completion_time": 0.917269179,
+          "total_tokens": 719,
+          "total_time": 0.942446778,
+          "completion_tokens_details": {
+            "reasoning_tokens": 354
+          }
+        }
+      }
+    }
+  ]
+}

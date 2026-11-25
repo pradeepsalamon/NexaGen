@@ -1,0 +1,93 @@
+{
+  "feature": "Coach feedback message",
+  "item": "f2-tanglish-notes",
+  "model": "groq/openai/gpt-oss-20b",
+  "startedAt": "2026-11-25T21:07:53.485Z",
+  "task": "coach-feedback",
+  "checks": {
+    "json": true
+  },
+  "ok": true,
+  "output": {
+    "message": "Your child was quite distracted during the class, so we will keep the camera off next time. The tactics are good and your child is spotting forks quickly. Homework will be limited to two tasks. Please check in a bit to support them."
+  },
+  "ms": 7679,
+  "usage": {
+    "calls": 1,
+    "completion": 364,
+    "prompt": 275,
+    "reasoning": 303,
+    "total": 639
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:07:53.500Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-20b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7516, Requested 1021. Please try again in 4.0275s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "5",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "986",
+            "x-ratelimit-remaining-tokens": "484",
+            "x-ratelimit-reset-requests": "20m9.6s",
+            "x-ratelimit-reset-tokens": "56.37s"
+          },
+          "ms": 15,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:08:01.164Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "985",
+            "x-ratelimit-remaining-tokens": "115",
+            "x-ratelimit-reset-requests": "21m36s",
+            "x-ratelimit-reset-tokens": "59.137s"
+          },
+          "ms": 664,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4500,
+        "messages": [
+          {
+            "content": "You turn a chess coach's quick feedback form into a short message to the student's parent.\nYou get ratings from 1 to 5 and the coach's rough notes (they may mix Tamil and English).\nWrite 3 to 5 polite, encouraging and honest sentences in simple English from the coach. Call the student 'your child'.\nKeep every point the coach made and add nothing new. No chess notation.\nReturn only JSON: {\"message\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"context\":\"after 4 classes\",\"ratings\":{\"focus\":2,\"tactics\":4,\"endgames\":3,\"homework\":2,\"behaviour\":3},\"coachNotes\":\"class la romba distract aagudhu, camera off pannidraan. tactics nalla pannuraan, forks fast ah paakuraan. homework 2 dhaan pannaan. parents konjam check pannunga\"}",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-20b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"message\":\"Your child was quite distracted during the class, so we will keep the camera off next time. The tactics are good and your child is spotting forks quickly. Homework will be limited to two tasks. Please check in a bit to support them.\"}",
+        "finishReason": "stop",
+        "ms": 664,
+        "providerModel": "openai/gpt-oss-20b",
+        "reasoning": "We need to produce a JSON with message. The message should be 3-5 polite, encouraging and honest sentences in simple English from the coach. Use the ratings and coach notes. Keep every point the coach made and add nothing new. No chess notation. Use compact JSON formatting. Ensure valid JSON.\n\nWe have ratings: focus 2, tactics 4, endgames 3, homework 2, behaviour 3. Coach notes: \"class la romba distract aagudhu, camera off pannidraan. tactics nalla pannuraan, forks fast ah paakuraan. homework 2 dhaan pannaan. parents konjam check pannunga\"\n\nWe need to incorporate all points: class was very distracting, camera off will be turned off. Tactics are good, forks are seen quickly. Homework only 2 will be done. Parents should check a bit.\n\nWe need 3-5 sentences. Let's craft:\n\n\"Your child was quite distracted during the class, so we will keep the camera off next time. The tactics are good and your child is spotting forks quickly. Homework will be limited to two tasks. Please check in a bit to support them.\"\n\nThat's 4 sentences. Ensure polite, encouraging, honest. Use simple English. No chess notation. Use \"your child\" as requested.\n\nReturn JSON: {\"message\":\"...\"} with compact formatting. Ensure no line breaks? JSON can have line breaks but compact means minimal whitespace. We'll produce single line.\n\nLet's produce.",
+        "usage": {
+          "queue_time": 0.24184026,
+          "prompt_tokens": 275,
+          "prompt_time": 0.020469839,
+          "completion_tokens": 364,
+          "completion_time": 0.386141539,
+          "total_tokens": 639,
+          "total_time": 0.406611378,
+          "completion_tokens_details": {
+            "reasoning_tokens": 303
+          }
+        }
+      }
+    }
+  ]
+}

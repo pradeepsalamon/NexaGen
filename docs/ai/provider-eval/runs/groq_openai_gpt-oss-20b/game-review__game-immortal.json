@@ -1,0 +1,88 @@
+{
+  "feature": "Game review comment (AI play review)",
+  "item": "game-immortal",
+  "model": "groq/openai/gpt-oss-20b",
+  "startedAt": "2026-11-25T21:06:55.420Z",
+  "task": "game-review",
+  "checks": {
+    "inventedMoves": []
+  },
+  "ok": true,
+  "output": "You did a great job opening the game with a strong attack and keeping the pressure on your opponent. The engine shows that at moves 18 and 19 you should have played Re1 instead of Bd6 and e5, which would have kept the attack more effective. Practice moving your rooks to open files early and avoid blocking your own pieces so you can keep the pressure on. This will help you maintain the initiative in future games.",
+  "ms": 8641,
+  "usage": {
+    "calls": 1,
+    "completion": 376,
+    "prompt": 496,
+    "reasoning": 279,
+    "total": 872
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:06:55.434Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-20b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7703, Requested 1009. Please try again in 5.34s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "6",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "995",
+            "x-ratelimit-remaining-tokens": "297",
+            "x-ratelimit-reset-requests": "7m12s",
+            "x-ratelimit-reset-tokens": "57.772s"
+          },
+          "ms": 13,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:07:04.061Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "994",
+            "x-ratelimit-remaining-tokens": "358",
+            "x-ratelimit-reset-requests": "8m38.4s",
+            "x-ratelimit-reset-tokens": "57.315s"
+          },
+          "ms": 625,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4400,
+        "messages": [
+          {
+            "content": "You are a friendly chess coach writing to a young student about their own play. You get the positions, the moves (the student's own moves start with *) and what a chess engine found. Write 3 to 5 short sentences: one thing they did well, the most important lesson from the engine's findings (name the better move when given), and one concrete thing to practise. Use only the facts given; never invent moves or evaluations. Plain language, no headings, no lists, no emojis.",
+            "role": "system"
+          },
+          {
+            "content": "{\"accuracy\":84,\"findings\":[{\"better\":\"Re1\",\"kind\":\"BLUNDER\",\"motif\":null,\"moveNumber\":18,\"played\":\"Bd6\",\"segment\":0},{\"better\":\"Re1\",\"kind\":\"BLUNDER\",\"motif\":null,\"moveNumber\":19,\"played\":\"e5\",\"segment\":0}],\"kind\":\"Own game\",\"segments\":[{\"label\":null,\"moves\":[\"*e4\",\"e5\",\"*f4\",\"exf4\",\"*Bc4\",\"Qh4+\",\"*Kf1\",\"b5\",\"*Bxb5\",\"Nf6\",\"*Nf3\",\"Qh6\",\"*d3\",\"Nh5\",\"*Nh4\",\"Qg5\",\"*Nf5\",\"c6\",\"*g4\",\"Nf6\",\"*Rg1\",\"cxb5\",\"*h4\",\"Qg6\",\"*h5\",\"Qg5\",\"*Qf3\",\"Ng8\",\"*Bxf4\",\"Qf6\",\"*Nc3\",\"Bc5\",\"*Nd5\",\"Qxb2\",\"*Bd6\",\"Bxg1\",\"*e5\",\"Qxa1+\",\"*Ke2\",\"Na6\",\"*Nxg7+\",\"Kd8\",\"*Qf6+\",\"Nxf6\",\"*Be7#\"],\"playerSide\":\"white\",\"result\":\"1-0\",\"startFen\":\"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\"}]}",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-20b",
+        "temperature": 0.4
+      },
+      "response": {
+        "content": "You did a great job opening the game with a strong attack and keeping the pressure on your opponent. The engine shows that at moves 18 and 19 you should have played Re1 instead of Bd6 and e5, which would have kept the attack more effective. Practice moving your rooks to open files early and avoid blocking your own pieces so you can keep the pressure on. This will help you maintain the initiative in future games.",
+        "finishReason": "stop",
+        "ms": 625,
+        "providerModel": "openai/gpt-oss-20b",
+        "reasoning": "We need to write 3-5 short sentences. Provide one thing they did well, the most important lesson from engine's findings (name better move when given), and one concrete thing to practice. Use only facts given. Moves: student moves start with *. So we have two blunders: move 18: played Bd6, better Re1. move 19: played e5, better Re1. Wait both better Re1? Actually engine says better Re1 for both. So the lesson: instead of Bd6 and e5, they should have played Re1. So we can say: you did well with ... maybe the early attack, or the combination? They won the game. So highlight something: e.g., you were good at creating threats early. Provide concrete practice: practice developing rooks to open files and avoid moving pieces that block. Let's craft 3-5 sentences.\n\nWe must not invent moves or evaluations. Use plain language, no headings, no lists, no emojis.\n\nLet's produce 4 sentences: first: you did well with early attack and creating threats. second: engine shows that instead of Bd6 and e5 you should have played Re1, which would have kept the attack stronger. third: practice moving rooks to open lines early and avoid blocking your own pieces. Maybe fourth: keep an eye on piece coordination.\n\nLet's craft.",
+        "usage": {
+          "queue_time": 0.154837547,
+          "prompt_tokens": 496,
+          "prompt_time": 0.030019532,
+          "completion_tokens": 376,
+          "completion_time": 0.417244901,
+          "total_tokens": 872,
+          "total_time": 0.447264433,
+          "completion_tokens_details": {
+            "reasoning_tokens": 279
+          }
+        }
+      }
+    }
+  ]
+}

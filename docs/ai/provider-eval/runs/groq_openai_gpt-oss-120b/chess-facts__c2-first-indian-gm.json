@@ -1,0 +1,94 @@
+{
+  "feature": "Chess facts answer",
+  "item": "c2-first-indian-gm",
+  "model": "groq/openai/gpt-oss-120b",
+  "startedAt": "2026-11-25T21:08:43.485Z",
+  "task": "chess-facts",
+  "checks": {
+    "json": true,
+    "mentions": true
+  },
+  "ok": true,
+  "output": {
+    "answer": "India's first grandmaster was Viswanathan Anand, who earned the title in 1988."
+  },
+  "ms": 3410,
+  "usage": {
+    "calls": 1,
+    "completion": 154,
+    "prompt": 162,
+    "reasoning": 117,
+    "total": 316
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:08:43.498Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 6957, Requested 1095. Please try again in 389.999999ms. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "1",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "979",
+            "x-ratelimit-remaining-tokens": "1043",
+            "x-ratelimit-reset-requests": "30m14.4s",
+            "x-ratelimit-reset-tokens": "52.177s"
+          },
+          "ms": 13,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:08:46.895Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "978",
+            "x-ratelimit-remaining-tokens": "107",
+            "x-ratelimit-reset-requests": "31m40.8s",
+            "x-ratelimit-reset-tokens": "59.197s"
+          },
+          "ms": 395,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4250,
+        "messages": [
+          {
+            "content": "You answer a chess question from a child or a parent at a chess academy.\nAnswer correctly in 1 to 3 short sentences of simple English. If you are not sure, say so.\nReturn only JSON: {\"answer\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "Who was India's first grandmaster, and in which year?",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-120b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"answer\":\"India's first grandmaster was Viswanathan Anand, who earned the title in 1988.\"}",
+        "finishReason": "stop",
+        "ms": 395,
+        "providerModel": "openai/gpt-oss-120b",
+        "reasoning": "We need to answer: India's first grandmaster was Viswanathan Anand? Actually first Indian GM was Dibyendu Barua? Wait: Viswanathan Anand became GM in 1988, but first Indian GM was Dibyendu Barua? Let's recall: The first Indian GM was Viswanathan Anand? I think Anand became GM in 1988, and he was the first Indian to achieve the title. Yes, Anand was the first Indian GM, achieving the title in 1988. So answer: Viswanathan Anand, 1988. Provide JSON.",
+        "usage": {
+          "queue_time": 0.053782114,
+          "prompt_tokens": 162,
+          "prompt_time": 0.007239586,
+          "completion_tokens": 154,
+          "completion_time": 0.321757584,
+          "total_tokens": 316,
+          "total_time": 0.32899717,
+          "completion_tokens_details": {
+            "reasoning_tokens": 117
+          }
+        }
+      }
+    }
+  ]
+}

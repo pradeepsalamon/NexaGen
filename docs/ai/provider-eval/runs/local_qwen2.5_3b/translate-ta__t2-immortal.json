@@ -1,0 +1,67 @@
+{
+  "feature": "Tamil translation of a review",
+  "item": "t2-immortal",
+  "model": "local/qwen2.5:3b",
+  "startedAt": "2026-11-25T21:25:35.598Z",
+  "task": "translate-ta",
+  "checks": {
+    "json": true,
+    "tamilShare": 100
+  },
+  "ok": true,
+  "output": "சுடும் வேலமாக சோக்கினாரேன் மற்றும் சூட்டியை தோற்று சொல்ல விளையாட்டத்தை முடிந்தது என்பது சுடு வேலமாக இருந்தது. இந்த இந்திய சோக் சேக்கம் இருந்தது என்பது என் மனிதன் மற்றும் மாணவன் அறிவித்தன. இந்த வாய்ப்பு இன்று மாறிலி நோக்கம் இருந்தது என் மனிதன் மற்றும் மாணவன் அறிவித்தன. மேலும் மாறிலி நோக்கம் என் மனிதன் மற்றும் மாணவன் அறிவித்தன. இந்த வாய்ப்பு இன்று மாறிலி நோக்கம் இருந்தது என் மனிதன் மற்றும் மாணவன் அறிவித்தன.",
+  "ms": 89532,
+  "usage": {
+    "calls": 1,
+    "completion": 452,
+    "prompt": 160,
+    "reasoning": 0,
+    "total": 612
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:27:05.130Z",
+          "limits": {},
+          "ms": 89532,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 1200,
+        "messages": [
+          {
+            "content": "You translate a chess coach's short comment for a child and their parent in Tamil Nadu.\nTranslate into simple, natural spoken-style Tamil in Tamil script. Keep the meaning exactly; add nothing.\nChess piece names and words like checkmate may stay in English (in Tamil letters or English letters) as Tamil chess players say them.\nReturn only JSON: {\"tamil\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "You played very bravely and attacked the black king from the start. The engine did not like move 18, where giving up your rook was risky, and keeping it with a calm rook move was stronger. Your attack still worked because your pieces worked together near the king. This week, practise counting attackers and defenders before you sacrifice a piece.",
+            "role": "user"
+          }
+        ],
+        "model": "qwen2.5:3b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "seed": 7,
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"tamil\": \"சுடும் வேலமாக சோக்கினாரேன் மற்றும் சூட்டியை தோற்று சொல்ல விளையாட்டத்தை முடிந்தது என்பது சுடு வேலமாக இருந்தது. இந்த இந்திய சோக் சேக்கம் இருந்தது என்பது என் மனிதன் மற்றும் மாணவன் அறிவித்தன. இந்த வாய்ப்பு இன்று மாறிலி நோக்கம் இருந்தது என் மனிதன் மற்றும் மாணவன் அறிவித்தன. மேலும் மாறிலி நோக்கம் என் மனிதன் மற்றும் மாணவன் அறிவித்தன. இந்த வாய்ப்பு இன்று மாறிலி நோக்கம் இருந்தது என் மனிதன் மற்றும் மாணவன் அறிவித்தன.\"}",
+        "finishReason": "stop",
+        "ms": 89532,
+        "providerModel": "qwen2.5:3b",
+        "reasoning": null,
+        "usage": {
+          "prompt_tokens": 160,
+          "prompt_tokens_details": {
+            "cached_tokens": 84
+          },
+          "completion_tokens": 452,
+          "total_tokens": 612
+        }
+      }
+    }
+  ]
+}

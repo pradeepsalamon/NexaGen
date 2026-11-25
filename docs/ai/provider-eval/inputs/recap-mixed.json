@@ -1,0 +1,28 @@
+{
+  "id": "recap-mixed",
+  "language": "Tamil-English mix (Latin script, as English speech recognition writes it)",
+  "about": "Synthetic 20-minute class, coach speech only, pseudonymised (S1-S4). Topic: pins and skewers. Tamil words written in English letters the way an English recogniser mishears them, mixed with English chess terms.",
+  "minutes": 20,
+  "lines": [
+    "Vanakkam everyone, ellarum vandhachaa? S1 vandhachu, S2 vandhachu, S4 innum varala. Okay paravaillai, naama start pannalam. Ellarum unga mic mute pannunga please, background la sound varudhu.",
+    "Last class naama fork pathi paathom, one piece rendu pieces ah attack panradhu. Inniku topic pin. Pin na enna? Oru piece ah attack pannum bodhu, adhu pinnadi oru periya piece irukkum. So andha munnadi irukra piece move panna mudiyaadhu, illa move pannina pinnadi irukra periya piece poyidum. Andha munnadi piece ah naama pinned piece nu solrom.",
+    "Pin panna mudiyra pieces moonu dhaan. Bishop, rook, queen. Yen? Because ivanga dhaan straight line la, long distance la move panranga. Knight jump pannum, king and pawn ku long range illa. So knight pin panna mudiyaadhu. Idha nyabagam vechukonga, line pieces mattum dhaan pin pannum.",
+    "Rendu type of pin irukku. First, absolute pin. Pinnadi king irundha, andha pinned piece move panradhe illegal. Rules la allowed illa, because king check la poyidum. Second, relative pin. Pinnadi queen illa rook irundha, move panna mudiyum, aana move pannina periya piece ah loose pannuvom. So relative pin la move pannalaam, but adhu nalla idea illa.",
+    "Board la paarunga. Black king e8 la irukku, black knight d7 la, illa illa sorry, knight e7 la. White bishop... no, idhu rook dhaan, white rook e1 la. Ippo e file la rook, knight, king ellam same line. Knight move pannina king ku check varum. So knight absolute pin. Idhula white enna pannanum? Pinned piece ah innum attack pannanum. Oru pawn vechu andha knight ah attack pannina, adhu escape panna mudiyaadhu.",
+    "Idhu dhaan important rule, kavanama kelunga. Pinned piece ah attack pannunga, more and more attackers kondu vaanga. Pinned piece odadhu, so adhu oru easy target. Pin pannitu wait pannadheenga, immediately attack add pannunga.",
+    "S2 kekkuraanga, sir pinned piece check kudukka mudiyuma? Nalla question. Absolute pin la irukra piece move panna mudiyaadhu, so adhu check kudukka mudiyaadhu andha move la. Aana adhu innum squares ah control pannudhu nu sila books solluvaanga, careful ah irukkanum. Ippodhaiku simple ah remember pannunga, absolute pin la andha piece freeze aayiduchu.",
+    "Opening la romba common pin oru irukku. Bishop vandhu knight ah pin pannum, knight pinnadi queen illa king irukkum. Neenga black ah irundha, unga knight pinnadi queen irundha, andha bishop varumbodhu careful ah irunga. Sometimes bishop ah oru pawn vechu kelappi viradalam, kelvi kekkuradhu maadhiri, 'are you going to take or go back?'",
+    "Okay ippo pin la irundhu escape panradhu eppadi. Moonu vazhi. One, pin panra piece ah capture pannunga, mudinja. Two, pinnadi irukra periya piece ah move pannunga, appo pin break aayidum. Three, rendukum naduvula innoru piece kondu vaanga, protect pannunga. Idhula best edhu nu position paathu decide pannanum.",
+    "Sari, puriyudhaa? Yaaravadhu doubt irundha chat la podunga. S3 'yes sir' nu podraanga, super.",
+    "Ippo second topic, skewer. Skewer na pin oda opposite. Pin la munnadi chinna piece, pinnadi periya piece. Skewer la munnadi periya piece, pinnadi chinna piece. Periya piece attack aagudhu, adhu move pannudhu, apram pinnadi irukra piece ah naama edukkurom. Kebab stick maadhiri, rendu pieces um ore line la korthu vechirukku, adhanala dhaan skewer nu per.",
+    "Most common skewer king and queen. Rook illa bishop check kudukkudhu, king move pannanum, apram pinnadi irukra queen ah capture pannurom. Endgame la idhu romba nadakkum, especially rook endgame la, king and rook ore line la irundha careful.",
+    "Skewer kandupidikka oru trick. Unga opponent oda king and queen, illa king and rook, ore line la, ore diagonal la irukka nu check pannunga. Rendu pieces ore line la irundha, andha line la unga bishop illa rook vara mudiyuma nu paarunga. Ore line la rendu periya pieces irundha, adhu oru gift.",
+    "S4 ippo dhaan vandhaanga, welcome. Naama pin and skewer pathi pesitu irukkom, S1 kitta notes kelunga apram.",
+    "Defend panradhu eppadi? Unga king and queen ah ore line la vekkaadheenga, especially opponent oda rook illa bishop open line la irundha. Every move ku munnadi, en king um queen um ore line la irukka nu check pannunga. Idhu oru simple habit, aana neraya games save pannum.",
+    "Oru chinna quiz. Pin la pinnadi irukradhu periya piece ah chinna piece ah? Correct, periya piece. Skewer la? Pinnadi chinna piece. Super, S2 and S3 rendu perum correct ah sonninga.",
+    "Summary pannalam. Pin na munnadi irukra piece move panna mudiyaadhu, pinnadi periya piece irukradhala. Absolute pin la pinnadi king, move illegal. Relative pin la move pannalaam but loss. Pinned piece ah attack pannunga. Skewer la munnadi periya piece, adhu move aana pinnadi irukradha edukkalaam. Line pieces mattum dhaan pin and skewer pannum.",
+    "Homework, assignment la pathu pin puzzles and anju skewer puzzles irukku. Saturday kulla mudinga. Oru puzzle thappa pochuna, adhu pin ah skewer ah nu yosichu paarunga, appo dhaan puriyum.",
+    "Games la, every move ku munnadi oru question kelunga: en pieces ah yaaravadhu pin panna mudiyuma? Indha oru question pothum.",
+    "Sari, inniku avalavu dhaan. Next class discovered attack paakalam. Ellarukum thanks, bye bye, take care. S4, next time konjam early ah vaanga."
+  ]
+}

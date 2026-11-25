@@ -1,0 +1,99 @@
+{
+  "feature": "Monthly progress note",
+  "item": "s2-struggling",
+  "model": "groq/openai/gpt-oss-120b",
+  "startedAt": "2026-11-25T21:07:41.555Z",
+  "task": "progress-note",
+  "checks": {
+    "json": true,
+    "notation": false,
+    "numbersNotInInput": []
+  },
+  "ok": true,
+  "output": {
+    "note": "Your child knows the basic opening rules well and has been able to solve many of the puzzles we worked on. They attempted a good number of puzzles this month, showing strong effort in practice. In class they have been quiet and could benefit from a little more encouragement to share their ideas. A common mistake we have seen is moving the queen out too early, which can lead to losing material. For next month, try a short daily exercise of keeping the queen protected for a few moves.",
+    "focusNextMonth": [
+      "Practice queen safety with a short daily exercise",
+      "Encourage your child to share ideas in class"
+    ]
+  },
+  "ms": 8110,
+  "usage": {
+    "calls": 1,
+    "completion": 908,
+    "prompt": 344,
+    "reasoning": 775,
+    "total": 1252
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:07:41.570Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7140, Requested 1277. Please try again in 3.1275s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "4",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "991",
+            "x-ratelimit-remaining-tokens": "860",
+            "x-ratelimit-reset-requests": "12m57.599s",
+            "x-ratelimit-reset-tokens": "53.55s"
+          },
+          "ms": 15,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:07:49.665Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "990",
+            "x-ratelimit-remaining-tokens": "385",
+            "x-ratelimit-reset-requests": "14m24s",
+            "x-ratelimit-reset-tokens": "57.112s"
+          },
+          "ms": 2095,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4600,
+        "messages": [
+          {
+            "content": "You write a chess academy's monthly progress note to a parent about their child.\nYou get the month's numbers and the coach's note. Write 4 to 6 warm, honest sentences in simple English:\nwhat went well, what to work on, and one concrete suggestion for next month. Call the student 'your child'.\nUse only the facts given; never invent a number, a game or an event. No chess notation.\nReturn only JSON: {\"note\": \"...\", \"focusNextMonth\": [\"1 to 3 short items\"]}",
+            "role": "system"
+          },
+          {
+            "content": "{\"month\":\"October\",\"ageGroup\":\"7-9\",\"level\":\"Beginner\",\"classes\":{\"held\":8,\"attended\":4},\"homework\":{\"given\":6,\"done\":1},\"puzzles\":{\"attempted\":31,\"solved\":20,\"ratingStart\":950,\"ratingEnd\":930},\"puzzleStormBest\":6,\"games\":{\"played\":2,\"won\":0,\"lost\":2,\"drawn\":0},\"commonMistakes\":[\"moves the queen out too early\"],\"topicsCovered\":[\"how the pieces move\",\"check and checkmate\",\"opening principles\"],\"coachNote\":\"quiet in class, needs encouragement, knows the opening rules well\"}",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-120b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"note\":\"Your child knows the basic opening rules well and has been able to solve many of the puzzles we worked on. They attempted a good number of puzzles this month, showing strong effort in practice. In class they have been quiet and could benefit from a little more encouragement to share their ideas. A common mistake we have seen is moving the queen out too early, which can lead to losing material. For next month, try a short daily exercise of keeping the queen protected for a few moves.\",\"focusNextMonth\":[\"Practice queen safety with a short daily exercise\",\"Encourage your child to share ideas in class\"]}",
+        "finishReason": "stop",
+        "ms": 2095,
+        "providerModel": "openai/gpt-oss-120b",
+        "reasoning": "We need to write a note: 4-6 warm, honest sentences in simple English: what went well, what to work on, and one concrete suggestion for next month. Use only facts given; never invent numbers, games, events. No chess notation. Call the student 'your child'. Provide JSON with \"note\": \"...\", \"focusNextMonth\": [\"...\",\"...\"] (1 to 3 short items). Must be compact JSON, valid.\n\nWe have data: month October, age group 7-9, level Beginner, classes held 8, attended 4, homework given 6, done 1, puzzles attempted 31 solved 20 rating start 950 end 930, puzzleStormBest 6, games played 2, won 0, lost 2, drawn 0, common mistakes: moves the queen out too early, topics covered: how the pieces move, check and checkmate, opening principles, coach note: quiet in class, needs encouragement, knows the opening rules well.\n\nWe need to mention what went well: knows opening rules well, covered topics, solved many puzzles (20 solved out of 31 attempted). Also maybe attendance? Attended 4 out of 8 classes, but that's not great. But we can say they participated in puzzles. Also they attempted many puzzles.\n\nWhat to work on: need to be more active in class, need encouragement, avoid moving queen too early, improve attendance, complete homework.\n\nConcrete suggestion: practice keeping queen safe by playing a simple queen safety exercise at home, or set a goal to complete at least one homework assignment per week, or encourage them to speak up in class.\n\nWe need 4-6 sentences. Let's craft 5 sentences.\n\nSentence 1: Your child knows the basic opening rules well and has been able to solve many of the puzzles we worked on. (facts: knows opening rules, solved 20 puzzles.)\n\nSentence 2: They attempted a good number of puzzles this month, showing strong effort in practice. (facts: attempted 31.)\n\nSentence 3: In class they have been quiet and could benefit from a little more encouragement to share their ideas. (coach note.)\n\nSentence 4: A common mistake we have seen is moving the queen out too early, which can lead to losing material. (common mistake.)\n\nSentence 5: For next month, try a short daily exercise of keeping the queen protected for a few moves, and encourage your child to speak up in class when they see a good move. (concrete suggestion: daily exercise, speak up.)\n\nBut we need one concrete suggestion, not two. So maybe combine: \"Try a short daily exercise of keeping the queen protected for a few moves.\" That's the suggestion. The encouragement to speak up is more of a recommendation but could be considered suggestion. But we need 1-3 short items in focusNextMonth array. So we can list: \"Practice queen safety with a short daily exercise\", \"Encourage your child to share ideas in class\". That's two items.\n\nMake note: 4-6 sentences, warm, honest.\n\nNow JSON: {\"note\":\"Your child knows the basic opening rules well and has been able to solve many of the puzzles we worked on. They attempted a good number of puzzles this month, showing strong effort in practice. In class they have been quiet and could benefit from a little more encouragement to share their ideas. A common mistake we have seen is moving the queen out too early, which can lead to losing material. For next month, try a short daily exercise of keeping the queen protected for a few moves.\",\"focusNextMonth\":[\"Practice queen safety with a short daily exercise\",\"Encourage your child to share ideas in class\"]}\n\nCheck JSON compact, valid. Ensure no extra line breaks. Provide only JSON.",
+        "usage": {
+          "queue_time": 0.1558221,
+          "prompt_tokens": 344,
+          "prompt_time": 0.015030788,
+          "completion_tokens": 908,
+          "completion_time": 1.9081563689999999,
+          "total_tokens": 1252,
+          "total_time": 1.923187157,
+          "completion_tokens_details": {
+            "reasoning_tokens": 775
+          }
+        }
+      }
+    }
+  ]
+}

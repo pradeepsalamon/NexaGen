@@ -1,0 +1,76 @@
+{
+  "feature": "Chess facts answer",
+  "item": "c5-castle-after-king-moved",
+  "model": "groq/qwen/qwen3.8-27b",
+  "startedAt": "2026-11-25T21:09:01.976Z",
+  "task": "chess-facts",
+  "checks": {
+    "json": true,
+    "mentions": true
+  },
+  "ok": true,
+  "output": {
+    "answer": "No, you cannot castle. Once your king moves, you lose the right to castle forever."
+  },
+  "ms": 120,
+  "usage": {
+    "calls": 1,
+    "completion": 25,
+    "prompt": 86,
+    "reasoning": 0,
+    "total": 111
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:09:02.096Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "975",
+            "x-ratelimit-remaining-tokens": "5866",
+            "x-ratelimit-reset-requests": "36m0s",
+            "x-ratelimit-reset-tokens": "41.94s"
+          },
+          "ms": 120,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4250,
+        "messages": [
+          {
+            "content": "You answer a chess question from a child or a parent at a chess academy.\nAnswer correctly in 1 to 3 short sentences of simple English. If you are not sure, say so.\nReturn only JSON: {\"answer\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "My king moved one square and then went back to its first square. Can I still castle?",
+            "role": "user"
+          }
+        ],
+        "model": "qwen/qwen3.8-27b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"answer\": \"No, you cannot castle. Once your king moves, you lose the right to castle forever.\"}",
+        "finishReason": "stop",
+        "ms": 120,
+        "providerModel": "qwen/qwen3.8-27b",
+        "reasoning": null,
+        "usage": {
+          "queue_time": 0.051907867,
+          "prompt_tokens": 86,
+          "prompt_time": 0.005656303,
+          "completion_tokens": 25,
+          "completion_time": 0.050672482,
+          "total_tokens": 111,
+          "total_time": 0.056328785
+        }
+      }
+    }
+  ]
+}

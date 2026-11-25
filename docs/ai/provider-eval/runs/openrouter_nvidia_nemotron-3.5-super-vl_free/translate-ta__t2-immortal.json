@@ -1,0 +1,81 @@
+{
+  "feature": "Tamil translation of a review",
+  "item": "t2-immortal",
+  "model": "openrouter/nvidia/nemotron-3.5-super-vl:free",
+  "startedAt": "2026-11-25T21:15:44.340Z",
+  "task": "translate-ta",
+  "checks": {
+    "json": true,
+    "tamilShare": 100
+  },
+  "ok": true,
+  "output": "நீ தைரியமாக விளையாடினாய், தொடக்கத்திலேயே கருப்பு கிங்-ஐ தாக்கினாய். எஞ்சின் 18வது நகர்வை ஒப்புக்கவில்லை. அங்கு ரூக்-ஐ தியாகம் செய்ய ஆபத்து, ரூக்-ஐ வைத்திருக்க சும்மா ரூக் நகர்வு செய்வது வலிமை. உன் தாக்குதல் இன்னும் வேலை செய்தது, ஏனெனில் உன் காய்கள் கிங் அருகில் ஒன்றாக செயல்பட்டன. இந்த வாரம், ஒரு காயை தியாகம் செய்யும் முன், தாக்குபவர்கள் மற்றும் காப்பாளர்களை எண்ண பயிற்சி செய்.",
+  "ms": 30178,
+  "usage": {
+    "calls": 1,
+    "completion": 4111,
+    "prompt": 167,
+    "reasoning": 3936,
+    "total": 4278
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:16:14.518Z",
+          "limits": {},
+          "ms": 30178,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 5200,
+        "messages": [
+          {
+            "content": "You translate a chess coach's short comment for a child and their parent in Tamil Nadu.\nTranslate into simple, natural spoken-style Tamil in Tamil script. Keep the meaning exactly; add nothing.\nChess piece names and words like checkmate may stay in English (in Tamil letters or English letters) as Tamil chess players say them.\nReturn only JSON: {\"tamil\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "You played very bravely and attacked the black king from the start. The engine did not like move 18, where giving up your rook was risky, and keeping it with a calm rook move was stronger. Your attack still worked because your pieces worked together near the king. This week, practise counting attackers and defenders before you sacrifice a piece.",
+            "role": "user"
+          }
+        ],
+        "model": "nvidia/nemotron-3.5-super-vl:free",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"tamil\": \"நீ தைரியமாக விளையாடினாய், தொடக்கத்திலேயே கருப்பு கிங்-ஐ தாக்கினாய். எஞ்சின் 18வது நகர்வை ஒப்புக்கவில்லை. அங்கு ரூக்-ஐ தியாகம் செய்ய ஆபத்து, ரூக்-ஐ வைத்திருக்க சும்மா ரூக் நகர்வு செய்வது வலிமை. உன் தாக்குதல் இன்னும் வேலை செய்தது, ஏனெனில் உன் காய்கள் கிங் அருகில் ஒன்றாக செயல்பட்டன. இந்த வாரம், ஒரு காயை தியாகம் செய்யும் முன், தாக்குபவர்கள் மற்றும் காப்பாளர்களை எண்ண பயிற்சி செய்.\"}",
+        "finishReason": "stop",
+        "ms": 30178,
+        "providerModel": "nvidia/nemotron-3.5-super-vl:free",
+        "reasoning": "The user wants me to translate a chess coach's comment into simple, natural spoken-style Tamil in Tamil script. The audience is a child and their parent in Tamil Nadu. I need to keep the meaning exactly, add nothing. Chess piece names and words like checkmate can stay in English (in Tamil letters or English letters). Return only JSON: {\"tamil\": \"...\"}.\n\nLet me break down the source text:\n\n1. \"You played very bravely and attacked the black king from the start.\"\n2. \"The engine did not like move 18, where giving up your rook was risky, and keeping it with a calm rook move was stronger.\"\n3. \"Your attack still worked because your pieces worked together near the king.\"\n4. \"This week, practise counting attackers and defenders before you sacrifice a piece.\"\n\nKey terms:\n- bravely: தைரியமாக (thairiyamaga)\n- attacked: தாக்குதல் (thaakkuthal) / தாக்கினீர்கள்\n- black king: black king (can stay in English or transliterate) - \"black king\" is fine in English letters or Tamil script. Since they said chess piece names may stay in English in Tamil letters or English letters. I'll use English words in Tamil script or just English? \"in Tamil letters or English letters\" - so I can write \"black king\" as பிளாக் கிங் or just black king. For natural spoken Tamil, maybe transliterate: பிளாக் கிங். But \"king\" is often just \"king\" or \"கிங்\". Let's keep it simple and natural.\n- from the start: தொடக்கத்திலேயே (thodakkathilayey) / ஆரம்பத்திலிருந்தே\n- engine: எஞ்சின் (engine) - can stay as engine or எஞ்சின்\n- move 18: 18வது muv (move) - 18வது muv or 18வது நகர்வு. \"move\" can stay as muv.\n- giving up your rook: ரூக்-ti விட்டுக்கொடுப்பது / ரூக் தியாகம். \"rook\" can stay as ரூக்.\n- risky: ஆபத்தானது / ரிஸ்க் (risky)\n- keeping it: அதை வைத்திருப்பது\n- with a calm rook move: ரூக்-ஐ சந்தோஷமாக/மெதுவாக நகர்த்துவது? \"calm\" here means quiet/peaceful, not emotional. In chess, \"calm move\" means a quiet, non-forcing move. Maybe \"சமாளித்த ரூக் நகர்வு\" or just \"ரூக் நகர்வே வலிமையானது\". Let's think. \"keeping it with a calm rook move was stronger\" = keeping the rook with a quiet rook move was stronger. In Tamil chess context, \"calm\" might be \"மெல்லை\" or \"சமநிலை\". But natural spoken Tamil: \"ரூக்-ஐ வைத்திருக்க, ரூக்-ஐ மெதுவாக நகர்த்துவது வலிமையானது\" or \"ரூக்-ஐ விட்டுவிடாமல், ரூக்-ஐ சுமாராக நகர்த்துவது வலிமை\". Hmm.\n- Your attack still worked: உங்கள் தாக்குதல் இன்னும் வேலை செய்தது / உங்கள் தாக்குதல் வெற்றிகரமாக இருந்தது\n- because your pieces worked together near the king: உங்கள் காய்கள் ராஜரை சுற்றி ஒன்றாக செயல்பட்டனだから. \"pieces\" = காய்கள் (pieces) or chess pieces. \"worked together\" = ஒன்றாக செயல்பட்டன / ஒத்துழைத்தன.\n- This week: இந்த வாரம்\n- practise counting attackers and defenders: தாக்குபவர்கள் மற்றும் காப்பாளர்களை எண்ண பயிற்சி செய்யுங்கள். \"attackers\" = தாக்குபவர்கள், \"defenders\" = காப்பாளர்கள் / பாதுகாப்பவர்கள்.\n- before you sacrifice a piece: ஒரு காயை தியாகம் செய்யும் முன்.\n\nTone: simple, natural spoken-style Tamil. Addressing child and parent. In Tamil, we can use \"நீ\" (you - informal for child) or \"நீங்கள்\" (respectful). Since it's for child and parent, maybe use \"நீ\" for the child but parents are listening. The coach is talking to the child primarily. \"You played\" -> \"நீ தைரியமாக விளையாடினாய்\". But if addressing both, \"நீங்கள்\" might be safer, but for a child, \"நீ\" is natural. Let's use \"நீ\" (informal singular) as it's a coach talking to a student. Or use neutral. Let's see: \"நீ தைரியமாக விளையாடினாய், தொடக்கத்திலேயே கருப்பு கிங்-ஐ தாக்கினாய்.\" \n\nWait, \"black king\" - in Tamil chess, colors are often \"கருப்பு\" (black) and \"வெள்ளை\" (white). But they said chess piece names may stay in English. \"black king\" can be \"black king\" or \"கருப்பு கிங்\". Let's use \"கருப்பு கிங்\" or just \"black king\". I think transliterating \"black king\" as பிளாக் கிங் is unnatural. Better: \"கருப்பு கிங்\" or \"கருப்பு ராஜா\". But \"king\" in chess is often just \"king\". Let's use \"கருப்பு கிங்\" (black king) - mixing is fine. Or just \"black king\" in English letters inside Tamil sentence? The instruction says \"in Tamil letters or English letters\". So I can write \"black king\" in English script within the Tamil string? That might look odd but acceptable. However, for natural spoken Tamil, writing \"கருப்பு கிங்\" in Tamil script is better.\n\nLet's draft sentence by sentence.\n\nSentence 1: You played very bravely and attacked the black king from the start.\nநீ தைரியமாக விளையாடினாய், தொடக்கத்திலேயே கருப்பு கிங்-ஐ தாக்கினாய்.\nOr: தொடக்கத்திலிருந்தே.\n\"from the start\" = தொடக்கத்திலேயே.\n\nSentence 2: The engine did not like move 18, where giving up your rook was risky, and keeping it with a calm rook move was stronger.\nThis is complex. Let's simplify naturally.\nஎஞ்சின் 18வது muv-ஐ பிடிக்கவில்லை. அங்கு ரூக்-ஐ தியாகம் செய்ய ஆபத்து, ரூக்-ஐ வைத்திருக்க மெதுவான ரூக் muv செய்ய வலிமை.\nBut \"calm rook move\" - \"calm\" in chess means quiet/positional. In spoken Tamil, maybe \"சமாளிப்பு\" or just \"மெதுவான\". Or \"ரூக்-ஐ விட்டுவிடாமல், ரூக்-ஐ சுமாராக நகர்த்துவது வலிமையானது\". Let's try:\nஎஞ்சின் 18வது muv-ஐ இష்டப்படவில்லை. அங்கு ரூக்-ஐ தியாகம் செய்ய ஆபத்தானது; ரூக்-ஐ வைத்திருக்க, ரூக்-ஐ மெதுவாக நகர்த்துவது வலிமையானது.\n\"did not like\" = இష்டப்படவில்லை / ஒப்புக்கவில்லை. For engine, \"எஞ்சின் ஒப்புக்கவில்லை\" is okay.\n\nSentence 3: Your attack still worked because your pieces worked together near the king.\nஉங்கள் தாக்குதல் இன்னும் வேலை செய்தது, ஏனெனில் உங்கள் காய்கள் கிங்-ஐ சுற்றி ஒன்றாக செயல்பட்டன.\n\"worked together\" = ஒன்றாக செயல்பட்டன / ஒத்துழைத்தன. \"near the king\" = கிங்-ஐ சுற்றி / கிங் அருகில்.\n\nSentence 4: This week, practise counting attackers and defenders before you sacrifice a piece.\nஇந்த வாரம், ஒரு காயை தியாகம் செய்யும் முன், தாக்குபவர்கள் மற்றும் காப்பாளர்களை எண்ண பயிற்சி செய்யுங்கள்.\n\"practise\" = பயிற்சி செய்யுங்கள். \"counting attackers and defenders\" = தாக்குபவர்கள் மற்றும் காப்பாளர்களை எண்ணுதல். \"before you sacrifice a piece\" = ஒரு காயை தியாகம் செய்யும் முன்.\n\nLet's refine for natural spoken Tamil. Use \"நீ\" consistently? The last sentence \"செய்யுங்கள்\" is respectful/plural. If addressing child, \"செய்\" or \"செய்யு\". But since parent is also there, plural/respectful \"நீங்கள்\" form might be better. However, the source says \"You\" (singular). In Tamil, using \"நீங்கள்\" can address both or be respectful. Let's use \"நீ\" for the child but the verb forms can be slightly respectful? No, keep it simple. Let's use \"நீ\" forms but maybe the last sentence as advice can be \"செய்\". But \"practise\" is an instruction. Let's use \"நீ\" throughout for consistency as a coach to a student.\n\nRevised:\nநீ தைரியமாக விளையாடினாய், தொடக்கத்திலேயே கருப்பு கிங்-ஐ தாக்கினாய். எஞ்சின் 18வது muv-ஐ ஒப்புக்கவில்லை. அங்கு ரூக்-ஐ தியாகம் செய்ய ஆபத்து, ரூக்-ஐ வைத்திருக்க ரூக்-ஐ மெதுவாக நகர்த்துவது வலிமை. உங்கள் தாக்குதல் இன்னும் வேலை செய்தது, ஏனெனில் உங்கள் காய்கள் கிங் அருகில் ஒன்றாக செயல்பட்டன. இந்த வாரம், ஒரு காயை தியாகம் செய்யும் முன், தாக்குபவர்கள் மற்றும் காப்பாளர்களை எண்ண பயிற்சி செய்.\n\nWait, \"calm rook move\" - I used \"மெதுவாக\" (slowly). Is that accurate? \"Calm\" in chess means quiet, not aggressive. \"மெதுவாக\" means slowly. Maybe \"சமாளித்த\" or \"சமநிலை\". But natural spoken Tamil for a child: \"ரூக்-ஐ விட்டுவிடாமல், ரூக்-ஐ சுமாராக நகர்த்துவது வலிமை\". \"சுமாராக\" means just normally/quietly. Or \"மெல்லை\". Let's think of what a Tamil chess coach would say. They might say \"ரூக்-ஐ வைத்திருக்க, ரூக்-ஐ சும்மா நகர்த்துவது வலிமை\". \"சும்மா\" means quietly/just like that. That's very natural spoken Tamil. \"ரூக்-ஐ சும்மா நகர்த்துவது\" = making a quiet rook move.\n\nLet's use \"சும்மா\".\n\nAlso \"engine\" - \"எஞ்சின்\" is fine. \"move 18\" - \"18வது muv\" or \"18வது நகர்வு\". \"muv\" in Tamil script: muv. Let's write \"muv\" in English letters? The instruction says chess piece names and words like checkmate may stay in English (in Tamil letters or English letters). \"move\" is not a piece name but a chess term. It says \"Chess piece names and words like checkmate may stay in English\". So \"move\" could be transliterated or kept. To be safe, I can use \"நகர்வு\" (move) which is pure Tamil. But \"muv\" is commonly used. Let's use \"நகர்வு\" to be safe and natural? Actually, spoken Tamil chess players say \"muv\". But \"நகர்வு\" is understandable. Let's use \"18வது நகர்வு\". Hmm, but \"move 18\" is specific. \"18வது நகர்வு\" is fine.\n\n\"rook\" - ரூக். \"sacrifice\" - தியாகம். \"pieces\" - காய்கள் (chess pieces). \"attackers and defenders\" - தாக்குபவர்கள் மற்றும் காப்பாளர்கள். This is clear.\n\nLet's check \"The engine did not like move 18\". In Tamil: \"எஞ்சின் 18வது நகர்வை ஒப்புக்கவில்லை.\" Good.\n\n\"where giving up your rook was risky\" - \"உன் ரூக்-ஐ தியாகம் செய்ய ஆபத்தான இடம்\" or \"அங்கு ரூக்-ஐ தியாகம் செய்ய ஆபத்து\". Let's use \"அங்கு\".\n\n\"and keeping it with a calm rook move was stronger\" - \"மற்றும் அதை வைத்திருக்க சும்மா ரூக் நகர்வு செய்வது வலிமை.\" \"keeping it\" = keeping the rook. \"it\" refers to rook. So \"ரூக்-ஐ வைத்திருக்க சும்மா ரூக் நகர்வு செய்வது வலிமை.\"\n\n\"Your attack still worked because your pieces worked together near the king.\"\n\"உன் தாக்குதல் இன்னும் வேலை செய்தது, ஏனெனில் உன் காய்கள் கிங் அருகில் ஒன்றாக செயல்பட்டன.\"\n\n\"This week, practise counting attackers and defenders before you sacrifice a piece.\"\n\"இந்த வாரம், ஒரு காயை தியாகம் செய்யும் முன், தாக்குபவர்கள் மற்றும் காப்பாளர்களை எண்ண பயிற்சி செய்.\"\n\nLet's assemble:\n\n{\"tamil\": \"நீ தைரியமாக விளையாடினாய், தொடக்கத்திலேயே கருப்பு கிங்-ஐ தாக்கினாய். எஞ்சின் 18வது நகர்வை ஒப்புக்கவில்லை. அங்கு ரூக்-ஐ தியாகம் செய்ய ஆபத்து, ரூக்-ஐ வைத்திருக்க சும்மா ரூக் நகர்வு செய்வது வலிமை. உன் தாக்குதல் இன்னும் வேலை செய்தது, ஏனெனில் உன் காய்கள் கிங் அருகில் ஒன்றாக செயல்பட்டன. இந்த வாரம், ஒரு காயை தியாகம் செய்யும் முன், தாக்குபவர்கள் மற்றும் காப்பாளர்களை எண்ண பயிற்சி செய்.\"}\n\nCheck: Did I add anything? No. Meaning kept exactly? Let's verify each clause.\n\n1. You played very bravely -> நீ தைரியமாக விளையாடினாய். Good.\n2. and attacked the black king from the start. -> தொடக்கத்திலேயே கருப்பு கிங்-ஐ தாக்கினாய். Good.\n3. The engine did not like move 18 -> எஞ்சின் 18வது நகர்வை ஒப்புக்கவில்லை. Good.\n4. where giving up your rook was risky -> அங்கு ரூக்-ஐ தியாகம் செய்ய ஆபத்து. Good.\n5. and keeping it with a calm rook move was stronger. -> ரூக்-ஐ வைத்திருக்க சும்மா ரூக் நகர்வு செய்வது வலிமை. \"calm\" = சும்மா (quiet/just). Good enough.\n6. Your attack still worked -> உன் தாக்குதல் இன்னும் வேலை செய்தது. Good.\n7. because your pieces worked together near the king. -> ஏனெனில் உன் காய்கள் கிங் அருகில் ஒன்றாக செயல்பட்டன. Good.\n8. This week, practise counting attackers and defenders before you sacrifice a piece. -> இந்த வாரம், ஒரு காயை தியாகம் செய்யும் முன், தாக்குபவர்கள் மற்றும் காப்பாளர்களை எண்ண பயிற்சி செய். Good.\n\nTone: simple, natural spoken-style. Uses \"நீ\" (you informal). Since it's for child and parent, maybe the parent might find \"நீ\" odd if addressed to them, but it's clearly a coach's comment to the student. It's fine.\n\nCould use \"நீங்கள்\" to be safe for both. But \"நீ தைரியமாக விளையாடினாய்\" is very natural for a child. If I use \"நீங்கள்\", it becomes \"நீங்கள் தைரியமாக விளையாடினீர்கள்\". That's also fine and addresses both. However, the source says \"You\" singular. In Tamil translation for a child, \"நீ\" is expected. I'll stick with \"நீ\".\n\nOne thing: \"black king\" - I wrote \"கருப்பு கிங்\". Is \"கருப்பு\" natural for black in chess? Yes, \"கருப்பு\" and \"வெள்ளை\". Or \"கறுப்பு\". \"கருப்பு\" is fine.\n\n\"engine\" - \"எஞ்சின்\". Good.\n\n\"move\" - \"நகர்வு\". Good.\n\n\"rook\" - \"ரூக்\". Good.\n\n\"sacrifice\" - \"தியாகம்\". Good.\n\n\"pieces\" - \"காய்கள்\". In Tamil chess context, pieces are often called \"காய்கள்\" or \"மোহர்கள்\". \"காய்கள்\" is more common in spoken Tamil for chess pieces? Actually \"மোহர்கள்\" is also used. But \"காய்கள்\" is understood. Let's keep \"காய்கள்\".\n\n\"attackers and defenders\" - \"தாக்குபவர்கள் மற்றும் காப்பாளர்கள்\". Good.\n\nFinal check on JSON format. Only JSON, no markdown. Keys: \"tamil\". Value: string.\n\nMake sure to escape any quotes? There are no double quotes inside. Hyphens are fine. Tamil script is fine.\n\nLet's produce final.",
+        "usage": {
+          "prompt_tokens": 167,
+          "completion_tokens": 4111,
+          "total_tokens": 4278,
+          "cost": 0,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0,
+            "upstream_inference_prompt_cost": 0,
+            "upstream_inference_completions_cost": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 3936,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      }
+    }
+  ]
+}

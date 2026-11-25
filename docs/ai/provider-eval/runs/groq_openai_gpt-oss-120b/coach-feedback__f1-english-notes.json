@@ -1,0 +1,93 @@
+{
+  "feature": "Coach feedback message",
+  "item": "f1-english-notes",
+  "model": "groq/openai/gpt-oss-120b",
+  "startedAt": "2026-11-25T21:08:04.473Z",
+  "task": "coach-feedback",
+  "checks": {
+    "json": true
+  },
+  "ok": true,
+  "output": {
+    "message": "Your child is a good kid and always completes the homework, showing excellent behaviour. In class they stay focused (rating 4) and their tactics are okay, though they sometimes miss checking the opponent's moves. They are currently weak in king and pawn endgames and have lost games they were winning, so practicing opposition would help. Overall, with continued practice they can improve quickly."
+  },
+  "ms": 5320,
+  "usage": {
+    "calls": 1,
+    "completion": 392,
+    "prompt": 261,
+    "reasoning": 303,
+    "total": 653
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:08:04.488Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 6955, Requested 1194. Please try again in 1.1175s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "2",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "987",
+            "x-ratelimit-remaining-tokens": "1045",
+            "x-ratelimit-reset-requests": "18m43.2s",
+            "x-ratelimit-reset-tokens": "52.162s"
+          },
+          "ms": 15,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:08:09.793Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "986",
+            "x-ratelimit-remaining-tokens": "387",
+            "x-ratelimit-reset-requests": "20m9.6s",
+            "x-ratelimit-reset-tokens": "57.097s"
+          },
+          "ms": 1304,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4500,
+        "messages": [
+          {
+            "content": "You turn a chess coach's quick feedback form into a short message to the student's parent.\nYou get ratings from 1 to 5 and the coach's rough notes (they may mix Tamil and English).\nWrite 3 to 5 polite, encouraging and honest sentences in simple English from the coach. Call the student 'your child'.\nKeep every point the coach made and add nothing new. No chess notation.\nReturn only JSON: {\"message\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"context\":\"after 4 classes\",\"ratings\":{\"focus\":4,\"tactics\":3,\"endgames\":2,\"homework\":5,\"behaviour\":5},\"coachNotes\":\"good kid. does all homework. weak in K+P endings, loses won games. needs to practise opposition. tactics ok but misses checks for opponent\"}",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-120b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"message\":\"Your child is a good kid and always completes the homework, showing excellent behaviour. In class they stay focused (rating 4) and their tactics are okay, though they sometimes miss checking the opponent's moves. They are currently weak in king and pawn endgames and have lost games they were winning, so practicing opposition would help. Overall, with continued practice they can improve quickly.\"}",
+        "finishReason": "stop",
+        "ms": 1304,
+        "providerModel": "openai/gpt-oss-120b",
+        "reasoning": "We need to produce a short message to the student's parent, 3-5 sentences, polite, encouraging, honest, simple English, from the coach. Must keep every point the coach made and add nothing new. Points: good kid, does all homework, weak in K+P endings, loses won games, needs to practice opposition, tactics ok but misses checks for opponent. Also ratings: focus 4, tactics 3, endgames 2, homework 5, behaviour 5. Should incorporate these points. Must not add new info. Use 3-5 sentences. Ensure we mention each point. Let's craft 4 sentences.\n\nSentence1: \"Your child is a good kid and always completes the homework, showing excellent behaviour.\" (covers good kid, homework, behaviour)\n\nSentence2: \"In class they stay focused (rating 4) and their tactics are okay, though they sometimes miss checking the opponent's moves.\" (covers focus rating, tactics ok, misses checks)\n\nSentence3: \"They are currently weak in king and pawn endgames and have lost games they were winning, so practicing opposition would help.\" (covers weak K+P endings, loses won games, needs opposition)\n\nSentence4: \"Overall, with continued practice they can improve quickly.\" (general encouragement)\n\nMake sure we keep all points, no extra. Use simple English. Return JSON.\n\nCheck JSON: {\"message\":\"...\"} with proper escaping. Ensure no line breaks? It's okay. Provide compact JSON.\n\n",
+        "usage": {
+          "queue_time": 0.373172976,
+          "prompt_tokens": 261,
+          "prompt_time": 0.088936589,
+          "completion_tokens": 392,
+          "completion_time": 0.818443903,
+          "total_tokens": 653,
+          "total_time": 0.907380492,
+          "completion_tokens_details": {
+            "reasoning_tokens": 303
+          }
+        }
+      }
+    }
+  ]
+}

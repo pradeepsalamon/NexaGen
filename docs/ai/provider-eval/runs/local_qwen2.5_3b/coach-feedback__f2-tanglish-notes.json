@@ -1,0 +1,68 @@
+{
+  "feature": "Coach feedback message",
+  "item": "f2-tanglish-notes",
+  "model": "local/qwen2.5:3b",
+  "startedAt": "2026-11-25T21:29:17.378Z",
+  "task": "coach-feedback",
+  "checks": {
+    "json": true
+  },
+  "ok": true,
+  "output": {
+    "message": "Your child has shown improvement in some areas, such as tactics and endgames. However, there is room for improvement in focus and homework completion. It seems your child is easily distracted during classes. I recommend that you continue to support your child in these areas and encourage them to stay focused and complete their homework diligently. Thank you for your continued support."
+  },
+  "ms": 18780,
+  "usage": {
+    "calls": 1,
+    "completion": 76,
+    "prompt": 194,
+    "reasoning": 0,
+    "total": 270
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:29:36.158Z",
+          "limits": {},
+          "ms": 18780,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 500,
+        "messages": [
+          {
+            "content": "You turn a chess coach's quick feedback form into a short message to the student's parent.\nYou get ratings from 1 to 5 and the coach's rough notes (they may mix Tamil and English).\nWrite 3 to 5 polite, encouraging and honest sentences in simple English from the coach. Call the student 'your child'.\nKeep every point the coach made and add nothing new. No chess notation.\nReturn only JSON: {\"message\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"context\":\"after 4 classes\",\"ratings\":{\"focus\":2,\"tactics\":4,\"endgames\":3,\"homework\":2,\"behaviour\":3},\"coachNotes\":\"class la romba distract aagudhu, camera off pannidraan. tactics nalla pannuraan, forks fast ah paakuraan. homework 2 dhaan pannaan. parents konjam check pannunga\"}",
+            "role": "user"
+          }
+        ],
+        "model": "qwen2.5:3b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "seed": 7,
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"message\": \"Your child has shown improvement in some areas, such as tactics and endgames. However, there is room for improvement in focus and homework completion. It seems your child is easily distracted during classes. I recommend that you continue to support your child in these areas and encourage them to stay focused and complete their homework diligently. Thank you for your continued support.\"}",
+        "finishReason": "stop",
+        "ms": 18780,
+        "providerModel": "qwen2.5:3b",
+        "reasoning": null,
+        "usage": {
+          "prompt_tokens": 194,
+          "prompt_tokens_details": {
+            "cached_tokens": 112
+          },
+          "completion_tokens": 76,
+          "total_tokens": 270
+        }
+      }
+    }
+  ]
+}

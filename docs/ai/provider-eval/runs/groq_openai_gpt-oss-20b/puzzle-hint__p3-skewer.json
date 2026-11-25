@@ -1,0 +1,95 @@
+{
+  "feature": "Puzzle hint",
+  "item": "p3-skewer",
+  "model": "groq/openai/gpt-oss-20b",
+  "startedAt": "2026-11-25T21:07:46.919Z",
+  "task": "puzzle-hint",
+  "checks": {
+    "json": true,
+    "givesAway": false
+  },
+  "ok": true,
+  "output": {
+    "hint1": "Look for a diagonal that can give a check while exposing the queen.",
+    "hint2": "The idea is to force the king to move with a check, then capture the queen on the next move."
+  },
+  "ms": 5691,
+  "usage": {
+    "calls": 1,
+    "completion": 310,
+    "prompt": 260,
+    "reasoning": 257,
+    "total": 570
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:07:46.933Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-20b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7097, Requested 1289. Please try again in 2.895s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "3",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "988",
+            "x-ratelimit-remaining-tokens": "903",
+            "x-ratelimit-reset-requests": "17m16.8s",
+            "x-ratelimit-reset-tokens": "53.227s"
+          },
+          "ms": 14,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:07:52.610Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "987",
+            "x-ratelimit-remaining-tokens": "565",
+            "x-ratelimit-reset-requests": "18m43.2s",
+            "x-ratelimit-reset-tokens": "55.762s"
+          },
+          "ms": 676,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4300,
+        "messages": [
+          {
+            "content": "You help a child who is stuck on a chess puzzle.\nYou get the position (FEN), the side to move, the solution and the theme.\nWrite two hints: the first gentle (what to look at), the second stronger (the idea), each one short sentence.\nNever give the solution move, never name the square the piece moves to, and never write chess notation.\nReturn only JSON: {\"hint1\": \"...\", \"hint2\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"fen\":\"6q1/8/8/3k4/8/1P6/4B3/7K w - - 0 1\",\"sideToMove\":\"white\",\"solution\":[\"Bc4+\",\"Ke5\",\"Bxg8\"],\"theme\":\"skewer (king and queen)\"}",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-20b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"hint1\":\"Look for a diagonal that can give a check while exposing the queen.\",\"hint2\":\"The idea is to force the king to move with a check, then capture the queen on the next move.\"}",
+        "finishReason": "stop",
+        "ms": 676,
+        "providerModel": "openai/gpt-oss-20b",
+        "reasoning": "We need to produce two hints: first gentle, second stronger. Must not give solution move, not name square, not write chess notation. So we can't say \"Bc4+\" or \"Bxg8\" or \"Ke5\". We must give hints about what to look at and the idea. The theme is skewer (king and queen). So hint1: \"Look for a line that puts the king in check while threatening the queen.\" hint2: \"Find a move that forces the king to move and then captures the queen.\" But we must not mention squares or notation. Also we must not mention the solution move. So we can say: \"Notice a diagonal that can deliver a check and expose the queen.\" \"The key is to give a check that forces the king to move, then capture the queen.\" That should be fine.\n\nReturn JSON: {\"hint1\":\"...\",\"hint2\":\"...\"} Ensure compact JSON. No newlines. Use double quotes. Ensure no trailing spaces. Let's craft.\n\nhint1: \"Look for a diagonal that can give a check while exposing the queen.\" hint2: \"The idea is to force the king to move with a check, then capture the queen on the next move.\" That is good.\n\nReturn JSON.",
+        "usage": {
+          "queue_time": 0.314812465,
+          "prompt_tokens": 260,
+          "prompt_time": 0.012799171,
+          "completion_tokens": 310,
+          "completion_time": 0.331931068,
+          "total_tokens": 570,
+          "total_time": 0.344730239,
+          "completion_tokens_details": {
+            "reasoning_tokens": 257
+          }
+        }
+      }
+    }
+  ]
+}

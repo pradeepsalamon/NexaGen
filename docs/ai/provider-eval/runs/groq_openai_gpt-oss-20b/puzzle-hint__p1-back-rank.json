@@ -1,0 +1,95 @@
+{
+  "feature": "Puzzle hint",
+  "item": "p1-back-rank",
+  "model": "groq/openai/gpt-oss-20b",
+  "startedAt": "2026-11-25T21:07:33.241Z",
+  "task": "puzzle-hint",
+  "checks": {
+    "json": true,
+    "givesAway": false
+  },
+  "ok": true,
+  "output": {
+    "hint1": "Look for a way to cut off the king's escape squares.",
+    "hint2": "Place the rook on the back rank to block the king's escape and deliver mate."
+  },
+  "ms": 8098,
+  "usage": {
+    "calls": 1,
+    "completion": 798,
+    "prompt": 250,
+    "reasoning": 751,
+    "total": 1048
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:07:33.257Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-20b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7346, Requested 1279. Please try again in 4.6875s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "5",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "990",
+            "x-ratelimit-remaining-tokens": "654",
+            "x-ratelimit-reset-requests": "14m24s",
+            "x-ratelimit-reset-tokens": "55.095s"
+          },
+          "ms": 16,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:07:41.338Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "989",
+            "x-ratelimit-remaining-tokens": "313",
+            "x-ratelimit-reset-requests": "15m50.4s",
+            "x-ratelimit-reset-tokens": "57.652s"
+          },
+          "ms": 1080,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4300,
+        "messages": [
+          {
+            "content": "You help a child who is stuck on a chess puzzle.\nYou get the position (FEN), the side to move, the solution and the theme.\nWrite two hints: the first gentle (what to look at), the second stronger (the idea), each one short sentence.\nNever give the solution move, never name the square the piece moves to, and never write chess notation.\nReturn only JSON: {\"hint1\": \"...\", \"hint2\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"fen\":\"6k1/5ppp/8/8/8/8/r4PPP/3R2K1 w - - 0 1\",\"sideToMove\":\"white\",\"solution\":[\"Rd8#\"],\"theme\":\"back-rank mate\"}",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-20b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"hint1\":\"Look for a way to cut off the king's escape squares.\",\"hint2\":\"Place the rook on the back rank to block the king's escape and deliver mate.\"}",
+        "finishReason": "stop",
+        "ms": 1080,
+        "providerModel": "openai/gpt-oss-20b",
+        "reasoning": "We need to produce two hints: first gentle, second stronger. Must not give solution move, not name square, not write chess notation. So we can't say \"Rd8\" or \"d8\". We must describe idea. The puzzle: white to move, back-rank mate. The board: white king g1, rook h2, pawns g2 h2? Wait board: \"6k1/5ppp/8/8/8/8/r4PPP/3R2K1 w - - 0 1\". Let's decode: rank8: 6k1 => squares a8 empty, b8 empty, c8 empty, d8 empty, e8 empty, f8 empty, g8 black king, h8 empty. rank7: 5ppp => a7 empty, b7 empty, c7 empty, d7 empty, e7 empty, f7 black pawn, g7 black pawn, h7 black pawn. rank6: 8 empty. rank5: 8 empty. rank4: 8 empty. rank3: r4PPP => a3 black rook, b3 empty, c3 empty, d3 empty, e3 empty, f3 white pawn, g3 white pawn, h3 white pawn. rank2: 3R2K1 => a2 empty, b2 empty, c2 empty, d2 white rook, e2 empty, f2 empty, g2 white king, h2 empty? Wait \"3R2K1\": 3 empty squares a2,b2,c2; R at d2; 2 empty squares e2,f2; K at g2; 1 empty at h2. So white king g2, rook d2, pawns f3,g3,h3. Black rook a3, king g8, pawns f7,g7,h7. White to move. The solution is Rd8# (white rook from d2 to d8 delivering mate). So hints: first gentle: \"Look for a way to cut off the king's escape squares.\" Second stronger: \"Use the rook to block the king's only line of defense while keeping the king safe.\" But must not mention squares or notation. So maybe: hint1: \"Notice how the king has only one line of escape.\" hint2: \"Move the rook to cut off that line and deliver mate.\" But we can't mention \"line\" maybe okay. But we must not mention squares. So we can say: \"The king is trapped on the back rank.\" \"Place the rook on the back rank to block the king's escape.\" That might be okay. But we must not mention \"back rank\" maybe okay. But we can mention \"back rank\" as theme. But we must not give solution move. So hint2: \"Position the rook on the back rank to block the king's escape and deliver mate.\" That is fine. But we must not mention \"Rd8\" or \"d8\". So we can say \"Put the rook on the back rank to block the king's escape.\" That is fine. But we must not mention squares. So we can say \"Place the rook on the back rank to block the king's escape.\" That is fine. But we must not mention \"back rank\" maybe okay. But we can mention \"back rank\" as theme. It's allowed. So final JSON: {\"hint1\":\"Look for a way to cut off the king's escape squares.\", \"hint2\":\"Place the rook on the back rank to block the king's escape and deliver mate.\"} Ensure JSON is compact. Let's produce.",
+        "usage": {
+          "queue_time": 0.154087578,
+          "prompt_tokens": 250,
+          "prompt_time": 0.055688501,
+          "completion_tokens": 798,
+          "completion_time": 0.835805706,
+          "total_tokens": 1048,
+          "total_time": 0.891494207,
+          "completion_tokens_details": {
+            "reasoning_tokens": 751
+          }
+        }
+      }
+    }
+  ]
+}

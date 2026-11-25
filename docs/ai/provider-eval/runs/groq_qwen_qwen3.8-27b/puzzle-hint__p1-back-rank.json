@@ -1,0 +1,92 @@
+{
+  "feature": "Puzzle hint",
+  "item": "p1-back-rank",
+  "model": "groq/qwen/qwen3.8-27b",
+  "startedAt": "2026-11-25T21:08:06.640Z",
+  "task": "puzzle-hint",
+  "checks": {
+    "json": true,
+    "givesAway": false
+  },
+  "ok": true,
+  "output": {
+    "hint1": "Look at the row of pawns blocking the king's escape route.",
+    "hint2": "Find a way to deliver check on the back rank where the king cannot move."
+  },
+  "ms": 25170,
+  "usage": {
+    "calls": 1,
+    "completion": 42,
+    "prompt": 169,
+    "reasoning": 0,
+    "total": 211
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:08:06.654Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `qwen/qwen3.8-27b` in organization `org_[redacted]` service tier `on_demand` on output tokens per minute (OTPM): Limit 1000, Used 805, Requested 576. Please try again in 22.86s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "23",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "990",
+            "x-ratelimit-remaining-tokens": "6967",
+            "x-ratelimit-reset-requests": "14m24s",
+            "x-ratelimit-reset-tokens": "48.3s"
+          },
+          "ms": 14,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:08:31.810Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "989",
+            "x-ratelimit-remaining-tokens": "7149",
+            "x-ratelimit-reset-requests": "15m50.4s",
+            "x-ratelimit-reset-tokens": "40.92s"
+          },
+          "ms": 156,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4300,
+        "messages": [
+          {
+            "content": "You help a child who is stuck on a chess puzzle.\nYou get the position (FEN), the side to move, the solution and the theme.\nWrite two hints: the first gentle (what to look at), the second stronger (the idea), each one short sentence.\nNever give the solution move, never name the square the piece moves to, and never write chess notation.\nReturn only JSON: {\"hint1\": \"...\", \"hint2\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"fen\":\"6k1/5ppp/8/8/8/8/r4PPP/3R2K1 w - - 0 1\",\"sideToMove\":\"white\",\"solution\":[\"Rd8#\"],\"theme\":\"back-rank mate\"}",
+            "role": "user"
+          }
+        ],
+        "model": "qwen/qwen3.8-27b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"hint1\": \"Look at the row of pawns blocking the king's escape route.\", \"hint2\": \"Find a way to deliver check on the back rank where the king cannot move.\"}",
+        "finishReason": "stop",
+        "ms": 156,
+        "providerModel": "qwen/qwen3.8-27b",
+        "reasoning": null,
+        "usage": {
+          "queue_time": 0.048517387,
+          "prompt_tokens": 169,
+          "prompt_time": 0.011524832,
+          "completion_tokens": 42,
+          "completion_time": 0.079929559,
+          "total_tokens": 211,
+          "total_time": 0.091454391
+        }
+      }
+    }
+  ]
+}

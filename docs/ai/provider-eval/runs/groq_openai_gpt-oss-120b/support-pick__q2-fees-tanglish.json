@@ -1,0 +1,97 @@
+{
+  "feature": "Support bot saved-answer pick",
+  "item": "q2-fees-tanglish",
+  "model": "groq/openai/gpt-oss-120b",
+  "startedAt": "2026-11-25T21:08:22.547Z",
+  "task": "support-pick",
+  "checks": {
+    "correct": true,
+    "expected": "A1",
+    "json": true,
+    "picked": "A1"
+  },
+  "ok": true,
+  "output": {
+    "answerId": "A1",
+    "reason": "fees info"
+  },
+  "ms": 5493,
+  "usage": {
+    "calls": 1,
+    "completion": 135,
+    "prompt": 565,
+    "reasoning": 114,
+    "total": 700
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:08:22.561Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 6649, Requested 1741. Please try again in 2.925s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "3",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "984",
+            "x-ratelimit-remaining-tokens": "1351",
+            "x-ratelimit-reset-requests": "23m2.4s",
+            "x-ratelimit-reset-tokens": "49.867s"
+          },
+          "ms": 14,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:08:28.040Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "983",
+            "x-ratelimit-remaining-tokens": "278",
+            "x-ratelimit-reset-requests": "24m28.8s",
+            "x-ratelimit-reset-tokens": "57.915s"
+          },
+          "ms": 479,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4150,
+        "messages": [
+          {
+            "content": "You sort WhatsApp messages for a chess academy's support desk.\nYou get the academy's saved answers and one message from a parent (English, Tamil or a mix).\nPick the one saved answer that fully answers the message, or null when none does.\nQuestions about one child's own records (attendance, fees paid, progress) always get null: a person answers those.\nReturn only JSON: {\"answerId\": \"A1\" or null, \"reason\": \"a few words\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"message\":\"fees evvalavu sir? monthly ah illa 3 month ah kattanuma?\",\"savedAnswers\":[{\"id\":\"A1\",\"text\":\"Group classes are Rs 2,500 a month or Rs 6,900 for three months. You can pay by UPI, card or net banking from the Payments page in the app.\",\"title\":\"Fees and payment\"},{\"id\":\"A2\",\"text\":\"Each batch has fixed days and times, shown on the Classes page. To change your batch timing, ask your coach or write to us here.\",\"title\":\"Class timings\"},{\"id\":\"A3\",\"text\":\"Every class has a recap and homework in the app. If you miss a class, you can join one make-up class in the same week in another batch of the same level; ask your coach to add you.\",\"title\":\"Missed a class\"},{\"id\":\"A4\",\"text\":\"You can book a free 30-minute demo class for your child. Reply DEMO and we will send you the available times.\",\"title\":\"Free demo class\"},{\"id\":\"A5\",\"text\":\"Open the app, go to Classes and press Join on today's class, ten minutes before it starts. Use Chrome on a laptop or the latest browser on a phone, and allow the camera and microphone.\",\"title\":\"Joining a live class\"},{\"id\":\"A6\",\"text\":\"Fees are refunded for classes not yet held if you write to us within 7 days of paying.\",\"title\":\"Refunds\"},{\"id\":\"A7\",\"text\":\"We teach Beginner, Intermediate and Advanced batches. A coach checks your child's level in the demo class.\",\"title\":\"Levels\"},{\"id\":\"A8\",\"text\":\"We hold an online tournament every month. Every player gets a certificate in the app after the tournament.\",\"title\":\"Tournaments and certificates\"}]}",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-120b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"answerId\":\"A1\",\"reason\":\"fees info\"}",
+        "finishReason": "stop",
+        "ms": 479,
+        "providerModel": "openai/gpt-oss-120b",
+        "reasoning": "We need to pick saved answer that fully answers the message. Message: \"fees evvalavu sir? monthly ah illa 3 month ah kattanuma?\" It's Tamil/English asking about fees: how much monthly or for 3 months. Saved answer A1: \"Group classes are Rs 2,500 a month or Rs 6,900 for three months. You can pay by UPI, card or net banking from the Payments page in the app.\" That fully answers. So answerId \"A1\". Reason: fees info. Return JSON.",
+        "usage": {
+          "queue_time": 0.159086699,
+          "prompt_tokens": 565,
+          "prompt_time": 0.02359913,
+          "completion_tokens": 135,
+          "completion_time": 0.282732281,
+          "total_tokens": 700,
+          "total_time": 0.306331411,
+          "completion_tokens_details": {
+            "reasoning_tokens": 114
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "feature": "Support bot saved-answer pick",
+  "item": "q1-join",
+  "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+  "startedAt": "2026-11-25T21:13:23.785Z",
+  "task": "support-pick",
+  "checks": {
+    "correct": true,
+    "expected": "A5",
+    "json": true,
+    "picked": "A5"
+  },
+  "ok": true,
+  "output": {
+    "answerId": "A5",
+    "reason": "Message asks how to join when class link fails; A5 gives step-by-step joining instructions via the app and browser requirements."
+  },
+  "ms": 5364,
+  "usage": {
+    "calls": 1,
+    "completion": 154,
+    "prompt": 507,
+    "reasoning": 114,
+    "total": 661
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:13:29.149Z",
+          "limits": {},
+          "ms": 5363,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4150,
+        "messages": [
+          {
+            "content": "You sort WhatsApp messages for a chess academy's support desk.\nYou get the academy's saved answers and one message from a parent (English, Tamil or a mix).\nPick the one saved answer that fully answers the message, or null when none does.\nQuestions about one child's own records (attendance, fees paid, progress) always get null: a person answers those.\nReturn only JSON: {\"answerId\": \"A1\" or null, \"reason\": \"a few words\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"message\":\"Today class link not working, how to join?\",\"savedAnswers\":[{\"id\":\"A1\",\"text\":\"Group classes are Rs 2,500 a month or Rs 6,900 for three months. You can pay by UPI, card or net banking from the Payments page in the app.\",\"title\":\"Fees and payment\"},{\"id\":\"A2\",\"text\":\"Each batch has fixed days and times, shown on the Classes page. To change your batch timing, ask your coach or write to us here.\",\"title\":\"Class timings\"},{\"id\":\"A3\",\"text\":\"Every class has a recap and homework in the app. If you miss a class, you can join one make-up class in the same week in another batch of the same level; ask your coach to add you.\",\"title\":\"Missed a class\"},{\"id\":\"A4\",\"text\":\"You can book a free 30-minute demo class for your child. Reply DEMO and we will send you the available times.\",\"title\":\"Free demo class\"},{\"id\":\"A5\",\"text\":\"Open the app, go to Classes and press Join on today's class, ten minutes before it starts. Use Chrome on a laptop or the latest browser on a phone, and allow the camera and microphone.\",\"title\":\"Joining a live class\"},{\"id\":\"A6\",\"text\":\"Fees are refunded for classes not yet held if you write to us within 7 days of paying.\",\"title\":\"Refunds\"},{\"id\":\"A7\",\"text\":\"We teach Beginner, Intermediate and Advanced batches. A coach checks your child's level in the demo class.\",\"title\":\"Levels\"},{\"id\":\"A8\",\"text\":\"We hold an online tournament every month. Every player gets a certificate in the app after the tournament.\",\"title\":\"Tournaments and certificates\"}]}",
+            "role": "user"
+          }
+        ],
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"answerId\": \"A5\", \"reason\": \"Message asks how to join when class link fails; A5 gives step-by-step joining instructions via the app and browser requirements.\"}",
+        "finishReason": "stop",
+        "ms": 5363,
+        "providerModel": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "reasoning": "The user is asking about a class link not working and how to join. This is a technical issue about joining a live class. Looking at the saved answers, A5 specifically addresses \"Joining a live class\" with instructions on how to join via the app, browser requirements, and timing. This directly answers the user's question about how to join when the link isn't working. The other answers are about fees, timings, missed classes, demo, refunds, levels, tournaments - none address the technical joining process. So A5 is the correct answer.",
+        "usage": {
+          "prompt_tokens": 507,
+          "completion_tokens": 154,
+          "total_tokens": 661,
+          "cost": 0,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0,
+            "upstream_inference_prompt_cost": 0,
+            "upstream_inference_completions_cost": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 114,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      }
+    }
+  ]
+}

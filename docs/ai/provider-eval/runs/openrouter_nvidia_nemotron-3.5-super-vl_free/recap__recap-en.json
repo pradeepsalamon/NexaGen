@@ -1,0 +1,96 @@
+{
+  "feature": "Class recap (English)",
+  "item": "recap-en",
+  "model": "openrouter/nvidia/nemotron-3.5-super-vl:free",
+  "startedAt": "2026-11-25T21:13:58.621Z",
+  "task": "recap",
+  "checks": {
+    "calls": 1,
+    "removedByCleaner": 0,
+    "tamilShare": 0
+  },
+  "ok": true,
+  "output": {
+    "keyPoints": [
+      "A fork wins material because the opponent can save only one attacked piece.",
+      "The knight is the strongest forker since it jumps and its attack cannot be answered by the target.",
+      "Pawn forks let you win a bigger piece for a cheap pawn.",
+      "Queen forks often use a check to hit a loose piece.",
+      "If your king and queen are on different square colours, one knight cannot fork both."
+    ],
+    "practice": [
+      "Solve the fifteen fork puzzles with knights and pawns before Saturday.",
+      "In your games, whenever the opponent's knight moves, ask which squares it can reach next.",
+      "Set up any puzzle you get wrong on a board and figure out why the fork works."
+    ],
+    "recap": "In this class you learned about the fork, when one piece attacks two or more enemy pieces at the same time. The knight is the best forker because it jumps and the attacked pieces cannot attack it back. You also saw pawn forks and queen forks, and how to defend by watching enemy knight jumps and keeping your pieces protected."
+  },
+  "ms": 9498,
+  "usage": {
+    "calls": 1,
+    "completion": 1469,
+    "prompt": 1869,
+    "reasoning": 1245,
+    "total": 3338
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:14:08.118Z",
+          "limits": {},
+          "ms": 9497,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4800,
+        "messages": [
+          {
+            "content": "You write a short recap of a chess class for the children who attended it.\nYou get a transcript of what the coach said.\nReturn only JSON: {\"recap\": \"3 to 5 sentences on what the class covered, speaking to the students as you\", \"keyPoints\": [\"3 to 5 short ideas the class taught\"], \"practice\": [\"1 to 3 things to practise at home\"]}\nRules:\n- Students appear as S1, S2 and so on. Never mention any student, by code or otherwise.\n- Do not write chess moves, squares or notation (such as e4, Nf3, Bxf7 or O-O). Describe the ideas in words.\n- Use only what the coach said. Do not invent topics.\n- The transcript comes from speech recognition: it may mix Tamil and English and contain mistakes. Write in simple English.",
+            "role": "system"
+          },
+          {
+            "content": "Hello everyone, good evening. Can you hear me? S1, I can see you but your camera is very dark, maybe turn on the light in your room. S2 is here, S3 is here. Okay, we will wait one more minute for the others. Meanwhile, open the board on your screen, you should see the starting position.\nOkay, let's start. Last week we finished the opening rules, centre, development, castling. Today's topic is very exciting, it is the fork. A fork is when one piece attacks two or more enemy pieces at the same time. The opponent can only move one of them, so you win the other one. This is the most common tactic in children's games, so if you learn to see forks, you will win a lot of material.\nAny piece can make a fork. The queen can fork, the pawn can fork, even the king can fork. But the champion of forks is the night, sorry, the knight. Why the knight? Because the knight jumps. It moves in an L shape, two squares one way and one square to the side, and it can jump over other pieces. And the knight attacks squares that the other pieces don't think about.\nHere is a very important idea. When a knight attacks a piece, that piece cannot attack the knight back. A queen can't attack a knight back from the square the knight attacks. A rook can't. Only another knight can. So a knight fork is very hard to defend, the only way is to move one piece and lose the other, or to capture the knight.\nLet me show you the most famous one, the royal fork. The knight gives check to the king and at the same time attacks the queen. The king must move, because it is check, and then you take the queen with the knight. When the fork includes a check, we call it a forcing fork, because the opponent has no time to save both.\nNow look at the board. I have put a white knight on the e5 square, black king on g8, black queen on d7. Where can the knight jump to attack both? Think for ten seconds. Don't type yet. Okay, now type in the chat. S2 says f7. Hmm, from f7 the knight attacks the king? Let's check. No, from f7 it attacks h8, h6, g5, e5, d6 and d8. Not the king. S3 says f6. From f6, yes, the knight attacks g8, the king, and d7, the queen. Excellent, S3, that is the royal fork.\nThe trick to find forks is this. Don't look at the knight first. Look at the enemy pieces first. Find two valuable pieces, the king and queen, the king and rook, the queen and rook, that are a knight jump away from the same empty square. Then ask, can my knight reach that square? We call this the fork square. Find the fork square, then bring the knight.\nSorry, someone is unmuted, I can hear a television. Please mute when you are not speaking. Thank you.\nSecond type of fork, the pawn fork. A pawn attacks two squares diagonally in front of it. If two enemy pieces are standing on those two squares, one pawn moves forward and attacks both. Pawn forks are very powerful because the pawn is the cheapest piece. Even if they take the pawn, you win a knight or a bishop for one pawn.\nIn the opening there is a classic pawn fork trick. Black puts the knight and the bishop next to each other on the sixth rank, side by side. Then white pushes a centre pawn, and suddenly both are attacked. So a tip for you when you play black, don't put your bishop and knight side by side in front of an enemy pawn that can move up.\nThird type, the queen fork. The queen moves in all directions, so she is a natural forker. Very often the queen gives a check and at the same time attacks a loose piece on the other side of the board. Loose piece means a piece that nobody is protecting. Remember the saying, loose pieces drop off. If a piece is not protected, it is a target for a fork.\nS1 is asking, sir what is the difference between a fork and a double attack? Very good question. A double attack is the general name, any time one move creates two threats. A fork is the case where one piece attacks two pieces. A double attack can also be one piece attacking a piece and threatening checkmate, or a discovered attack where two pieces make the two threats. So every fork is a double attack, but not every double attack is a fork.\nNow, how do you defend against forks? Number one, before every move, check the knight jumps. Where can the enemy knight go in one move, in two moves? If the knight can reach a square that attacks your king and queen, be careful. Number two, keep your pieces protected. A protected piece is much safer in a fork, because when they take it, you take back. Number three, don't put your king and queen on the same colour of square near an enemy knight.\nActually that third one is not exactly right, let me correct myself. A knight always jumps from a light square to a dark square or from dark to light. So the two pieces it forks are always on the same colour as each other. If your king and queen are on different colours, a single knight can never fork them. That is a nice trick to remember.\nLet's do one more exercise. Black knight on d4, white king on e1... wait, no, let me set it up properly. White king on g1, white rook on a1, white queen on d1. Black knight on d4. Is there a fork? Think. Yes, the knight jumps to c2 and attacks the queen on d1? No, from c2 it attacks a1, the rook, and e1, and a3, b4, d4, e3. So it forks the rook, but the queen is not attacked. Okay, so not a great fork. This is why we calculate carefully, don't just guess.\nS2 says the knight can go to e2 with check. Yes, from e2 the knight gives check to the king on g1, and it also attacks... c1, c3, d4, f4, g3. No queen there either. Good thinking though, checking moves first is always the right habit. Checks, captures, threats, in that order.\nOkay, let me summarise the class. A fork is one piece attacking two pieces. The knight is the best forker because it jumps and its attack can't be answered by the attacked pieces. Find the fork square by looking at the enemy pieces first. Pawn forks win a piece for a pawn. Queen forks often come with check. Loose pieces drop off. And to defend, always check the enemy knight jumps.\nHomework for this week. In your assignment there are fifteen fork puzzles, all with the knight or the pawn. Please solve all of them before Saturday. If you get one wrong, don't just click the next one, set it up on a board and see why the fork works.\nAlso, in your games this week, every time your opponent's knight moves, stop and ask yourself, which squares can it reach next? Just that one question. You will be surprised how many forks you avoid.\nAnd one fun challenge, S3 you will like this one. Try to find a fork where your knight attacks four pieces at the same time. It is possible. Bring it to the next class and show everyone.\nOkay, that's all for today. Next class is on Thursday, same time, and we will learn the pin. If anyone has a doubt, ask in the batch chat, I will answer. Bye everyone, good night, and S1, please fix the light in your room.",
+            "role": "user"
+          }
+        ],
+        "model": "nvidia/nemotron-3.5-super-vl:free",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"recap\": \"In this class you learned about the fork, when one piece attacks two or more enemy pieces at the same time. The knight is the best forker because it jumps and the attacked pieces cannot attack it back. You also saw pawn forks and queen forks, and how to defend by watching enemy knight jumps and keeping your pieces protected.\", \"keyPoints\": [\"A fork wins material because the opponent can save only one attacked piece.\", \"The knight is the strongest forker since it jumps and its attack cannot be answered by the target.\", \"Pawn forks let you win a bigger piece for a cheap pawn.\", \"Queen forks often use a check to hit a loose piece.\", \"If your king and queen are on different square colours, one knight cannot fork both.\"], \"practice\": [\"Solve the fifteen fork puzzles with knights and pawns before Saturday.\", \"In your games, whenever the opponent's knight moves, ask which squares it can reach next.\", \"Set up any puzzle you get wrong on a board and figure out why the fork works.\"]}",
+        "finishReason": "stop",
+        "ms": 9497,
+        "providerModel": "nvidia/nemotron-3.5-super-vl:free",
+        "reasoning": "The user wants a JSON recap of a chess class for children based on a transcript. I need to follow strict rules:\n\n1. Return only JSON: {\"recap\": \"3 to 5 sentences on what the class covered, speaking to the students as you\", \"keyPoints\": [\"3 to 5 short ideas the class taught\"], \"practice\": [\"1 to 3 things to practise at home\"]}\n2. Students appear as S1, S2 etc. Never mention any student by code or otherwise. So no S1, S2, S3 mentions.\n3. Do not write chess moves, squares or notation (e4, Nf3, Bxf7, O-O). Describe ideas in words.\n4. Use only what the coach said. Do not invent topics.\n5. Transcript may mix Tamil/English and contain mistakes. Write in simple English.\n\nLet's extract content from transcript:\n\nClass covered:\n- Fork definition: one piece attacks two or more enemy pieces at same time. Opponent can only move one, so you win the other.\n- Most common tactic in children's games.\n- Any piece can fork: queen, pawn, king. Knight is champion because it jumps in L shape, attacks squares others don't think about.\n- When knight attacks a piece, that piece cannot attack knight back (except another knight). Knight fork hard to defend.\n- Royal fork: knight gives check to king and attacks queen. King must move, then you take queen. Forcing fork because check.\n- Trick to find forks: look at enemy pieces first, find two valuable pieces a knight jump away from same empty square (fork square), then ask if knight can reach it.\n- Pawn fork: pawn attacks two squares diagonally in front. If two enemy pieces on those squares, pawn moves forward and attacks both. Powerful because pawn is cheapest.\n- Classic opening trick: don't put bishop and knight side by side in front of enemy pawn that can move up.\n- Queen fork: queen moves all directions, often gives check and attacks loose piece on other side. Loose pieces drop off.\n- Difference fork vs double attack: double attack is general name, any time one move creates two threats. Fork is one piece attacking two pieces. Every fork is double attack, not every double attack is fork.\n- Defend against forks: 1) before every move check enemy knight jumps (where can it go in one/two moves). 2) keep pieces protected. 3) knight jumps from light to dark or dark to light, so two pieces it forks are always on same colour. If king and queen on different colours, single knight can never fork them.\n- Exercise examples (but no notation/squares in output).\n- Homework: 15 fork puzzles (knight or pawn), solve before Saturday. If wrong, set up on board and see why.\n- In games: every time opponent's knight moves, stop and ask which squares it can reach next.\n- Fun challenge: find fork where knight attacks four pieces at same time.\n- Next class: pin.\n\nRecap: 3-5 sentences, speaking to students as \"you\". Simple English. No student codes. No notation.\n\nKey points: 3-5 short ideas.\n\nPractice: 1-3 things to practise at home.\n\nLet's draft:\n\nRecap:\n\"Today we learned about the fork, which is when one piece attacks two or more enemy pieces at the same time. The knight is the best forker because it jumps and the attacked pieces cannot attack it back. We also looked at pawn forks and queen forks, and how to defend by watching enemy knight jumps and keeping pieces protected.\"\n\nThat's 4 sentences. Good.\n\nKey points:\n- A fork wins material because the opponent can save only one attacked piece.\n- The knight is the strongest forker since it jumps and its attack cannot be answered by the target.\n- Pawn forks let you win a bigger piece for a cheap pawn.\n- Queen forks often use a check to hit a loose piece.\n- If your king and queen are on different square colours, one knight cannot fork both.\n\nThat's 5. Short ideas.\n\nPractice:\n- Solve the fifteen fork puzzles with knights and pawns before Saturday.\n- In your games, whenever the opponent's knight moves, ask which squares it can reach next.\n- Set up any puzzle you get wrong on a board and figure out why the fork works.\n\nThat's 3.\n\nCheck constraints:\n- JSON only. No markdown code fences? The user said \"Return only JSON\". I should output raw JSON.\n- No student codes. I didn't mention S1/S2/S3.\n- No chess moves/squares/notation. I didn't use e4, f7, etc. I mentioned \"square colours\" which is fine, not notation.\n- Simple English.\n- Only what coach said. I used homework, puzzles, next class pin, etc. All from transcript.\n\nLet's verify no notation slipped in: \"square colours\" is okay. \"fifteen fork puzzles\" okay. \"knights and pawns\" okay.\n\nJSON structure:\n{\n  \"recap\": \"...\",\n  \"keyPoints\": [...],\n  \"practice\": [...]\n}\n\nMake sure valid JSON, double quotes, no trailing commas.\n\nRecap sentences: speaking to students as \"you\". \"Today we learned...\" is fine. Maybe \"You learned...\" but \"we learned\" is okay too. Let's make it directly address them: \"In this class you learned about the fork, when one piece attacks two or more enemy pieces at the same time. The knight is the best forker because it jumps and the attacked pieces cannot attack it back. You also saw pawn forks and queen forks, and how to defend by watching enemy knight jumps and keeping your pieces protected.\" That's 3 sentences. Good.\n\nKey points: array of strings.\n\nPractice: array of strings.\n\nLet's finalize.",
+        "usage": {
+          "prompt_tokens": 1869,
+          "completion_tokens": 1469,
+          "total_tokens": 3338,
+          "cost": 0,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0,
+            "upstream_inference_prompt_cost": 0,
+            "upstream_inference_completions_cost": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 1245,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      }
+    }
+  ]
+}

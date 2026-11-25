@@ -1,0 +1,9 @@
+{
+  "id": "puzzle-hints",
+  "about": "Three simple puzzles written for this test (synthetic positions, checked with chess.js). The hint must point the student to the idea without giving the move away. The solution is sent so the model can aim the hint, as a hint feature would.",
+  "items": [
+    { "id": "p1-back-rank", "fen": "6k1/5ppp/8/8/8/8/r4PPP/3R2K1 w - - 0 1", "sideToMove": "white", "solution": ["Rd8#"], "theme": "back-rank mate", "rating": 700 },
+    { "id": "p2-knight-fork", "fen": "r3k3/pp3ppp/8/1N6/8/8/PP3PPP/6K1 w - - 0 1", "sideToMove": "white", "solution": ["Nc7+", "Kd7", "Nxa8"], "theme": "knight fork (king and rook)", "rating": 800 },
+    { "id": "p3-skewer", "fen": "6q1/8/8/3k4/8/1P6/4B3/7K w - - 0 1", "sideToMove": "white", "solution": ["Bc4+", "Ke5", "Bxg8"], "theme": "skewer (king and queen)", "rating": 1000 }
+  ]
+}

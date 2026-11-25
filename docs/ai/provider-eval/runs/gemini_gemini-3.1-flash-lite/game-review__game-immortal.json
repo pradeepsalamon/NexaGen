@@ -1,0 +1,59 @@
+{
+  "feature": "Game review comment (AI play review)",
+  "item": "game-immortal",
+  "model": "gemini/gemini-3.1-flash-lite",
+  "startedAt": "2026-11-25T21:06:45.208Z",
+  "task": "game-review",
+  "checks": {
+    "inventedMoves": []
+  },
+  "ok": true,
+  "output": "You played a very aggressive game and did a great job finding the final checkmate sequence to win. The engine suggests that you should have prioritized developing your rook with Re1 instead of moving your bishop and pawn in the middle of the game. Focusing on bringing your inactive pieces into the fight will make your attacks much stronger. To improve, practice identifying which of your pieces are not yet participating in the game before you start your next tactical sequence.",
+  "ms": 1884,
+  "usage": {
+    "calls": 1,
+    "completion": 88,
+    "prompt": 409,
+    "reasoning": 0,
+    "total": 497
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:06:47.092Z",
+          "limits": {},
+          "ms": 1882,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4400,
+        "messages": [
+          {
+            "content": "You are a friendly chess coach writing to a young student about their own play. You get the positions, the moves (the student's own moves start with *) and what a chess engine found. Write 3 to 5 short sentences: one thing they did well, the most important lesson from the engine's findings (name the better move when given), and one concrete thing to practise. Use only the facts given; never invent moves or evaluations. Plain language, no headings, no lists, no emojis.",
+            "role": "system"
+          },
+          {
+            "content": "{\"accuracy\":84,\"findings\":[{\"better\":\"Re1\",\"kind\":\"BLUNDER\",\"motif\":null,\"moveNumber\":18,\"played\":\"Bd6\",\"segment\":0},{\"better\":\"Re1\",\"kind\":\"BLUNDER\",\"motif\":null,\"moveNumber\":19,\"played\":\"e5\",\"segment\":0}],\"kind\":\"Own game\",\"segments\":[{\"label\":null,\"moves\":[\"*e4\",\"e5\",\"*f4\",\"exf4\",\"*Bc4\",\"Qh4+\",\"*Kf1\",\"b5\",\"*Bxb5\",\"Nf6\",\"*Nf3\",\"Qh6\",\"*d3\",\"Nh5\",\"*Nh4\",\"Qg5\",\"*Nf5\",\"c6\",\"*g4\",\"Nf6\",\"*Rg1\",\"cxb5\",\"*h4\",\"Qg6\",\"*h5\",\"Qg5\",\"*Qf3\",\"Ng8\",\"*Bxf4\",\"Qf6\",\"*Nc3\",\"Bc5\",\"*Nd5\",\"Qxb2\",\"*Bd6\",\"Bxg1\",\"*e5\",\"Qxa1+\",\"*Ke2\",\"Na6\",\"*Nxg7+\",\"Kd8\",\"*Qf6+\",\"Nxf6\",\"*Be7#\"],\"playerSide\":\"white\",\"result\":\"1-0\",\"startFen\":\"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\"}]}",
+            "role": "user"
+          }
+        ],
+        "model": "gemini-3.1-flash-lite",
+        "temperature": 0.4
+      },
+      "response": {
+        "content": "You played a very aggressive game and did a great job finding the final checkmate sequence to win. The engine suggests that you should have prioritized developing your rook with Re1 instead of moving your bishop and pawn in the middle of the game. Focusing on bringing your inactive pieces into the fight will make your attacks much stronger. To improve, practice identifying which of your pieces are not yet participating in the game before you start your next tactical sequence.",
+        "finishReason": "stop",
+        "ms": 1882,
+        "providerModel": "gemini-3.1-flash-lite",
+        "reasoning": null,
+        "usage": {
+          "completion_tokens": 88,
+          "prompt_tokens": 409,
+          "total_tokens": 497
+        }
+      }
+    }
+  ]
+}

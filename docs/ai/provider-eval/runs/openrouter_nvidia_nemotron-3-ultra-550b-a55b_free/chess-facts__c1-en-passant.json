@@ -1,0 +1,83 @@
+{
+  "feature": "Chess facts answer",
+  "item": "c1-en-passant",
+  "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+  "startedAt": "2026-11-25T21:13:48.798Z",
+  "task": "chess-facts",
+  "checks": {
+    "json": true,
+    "mentions": true
+  },
+  "ok": true,
+  "output": {
+    "answer": "En passant is a special pawn capture. If a pawn moves two squares forward from its starting position and lands beside an enemy pawn, that enemy pawn can capture it as if it had moved only one square. This capture must be done immediately on the next move."
+  },
+  "ms": 2791,
+  "usage": {
+    "calls": 1,
+    "completion": 93,
+    "prompt": 70,
+    "reasoning": 34,
+    "total": 163
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:13:51.589Z",
+          "limits": {},
+          "ms": 2791,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4250,
+        "messages": [
+          {
+            "content": "You answer a chess question from a child or a parent at a chess academy.\nAnswer correctly in 1 to 3 short sentences of simple English. If you are not sure, say so.\nReturn only JSON: {\"answer\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "What is en passant?",
+            "role": "user"
+          }
+        ],
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"answer\": \"En passant is a special pawn capture. If a pawn moves two squares forward from its starting position and lands beside an enemy pawn, that enemy pawn can capture it as if it had moved only one square. This capture must be done immediately on the next move.\"}",
+        "finishReason": "stop",
+        "ms": 2791,
+        "providerModel": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "reasoning": "The user is asking about \"en passant\" in chess. This is a special pawn capture rule. I need to explain it simply in 1-3 short sentences.",
+        "usage": {
+          "prompt_tokens": 70,
+          "completion_tokens": 93,
+          "total_tokens": 163,
+          "cost": 0,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0,
+            "upstream_inference_prompt_cost": 0,
+            "upstream_inference_completions_cost": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 34,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      }
+    }
+  ]
+}

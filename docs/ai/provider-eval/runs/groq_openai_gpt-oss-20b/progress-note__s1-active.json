@@ -1,0 +1,100 @@
+{
+  "feature": "Monthly progress note",
+  "item": "s1-active",
+  "model": "groq/openai/gpt-oss-20b",
+  "startedAt": "2026-11-25T21:07:23.359Z",
+  "task": "progress-note",
+  "checks": {
+    "json": true,
+    "notation": false,
+    "numbersNotInInput": []
+  },
+  "ok": true,
+  "output": {
+    "note": "Your child attended 7 of the 8 classes this month and was very active in class, answering questions first. They completed 5 of the 6 homework assignments and solved 82 of 110 puzzles, raising their rating from 1180 to 1240. In games, they played 9, winning 5, losing 3, and drawing 1, showing good progress. The coach noted that your child rushes moves in games and sometimes leaves pieces undefended or forgets to make room for the king. Next month, focus on taking a moment before each move to check for undefended pieces and back‑rank safety.",
+    "focusNextMonth": [
+      "Check for undefended pieces",
+      "Watch back‑rank safety",
+      "Take a pause before moving"
+    ]
+  },
+  "ms": 5930,
+  "usage": {
+    "calls": 1,
+    "completion": 474,
+    "prompt": 366,
+    "reasoning": 310,
+    "total": 840
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:07:23.374Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-20b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 6905, Requested 1395. Please try again in 2.25s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "3",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "992",
+            "x-ratelimit-remaining-tokens": "1095",
+            "x-ratelimit-reset-requests": "11m31.2s",
+            "x-ratelimit-reset-tokens": "51.787s"
+          },
+          "ms": 14,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:07:29.289Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "991",
+            "x-ratelimit-remaining-tokens": "371",
+            "x-ratelimit-reset-requests": "12m57.599s",
+            "x-ratelimit-reset-tokens": "57.217s"
+          },
+          "ms": 914,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4600,
+        "messages": [
+          {
+            "content": "You write a chess academy's monthly progress note to a parent about their child.\nYou get the month's numbers and the coach's note. Write 4 to 6 warm, honest sentences in simple English:\nwhat went well, what to work on, and one concrete suggestion for next month. Call the student 'your child'.\nUse only the facts given; never invent a number, a game or an event. No chess notation.\nReturn only JSON: {\"note\": \"...\", \"focusNextMonth\": [\"1 to 3 short items\"]}",
+            "role": "system"
+          },
+          {
+            "content": "{\"month\":\"October\",\"ageGroup\":\"10-12\",\"level\":\"Intermediate\",\"classes\":{\"held\":8,\"attended\":7},\"homework\":{\"given\":6,\"done\":5},\"puzzles\":{\"attempted\":110,\"solved\":82,\"ratingStart\":1180,\"ratingEnd\":1240},\"puzzleStormBest\":18,\"games\":{\"played\":9,\"won\":5,\"lost\":3,\"drawn\":1},\"commonMistakes\":[\"leaves pieces undefended in the middlegame\",\"forgets to make room for the king (back-rank weakness)\"],\"topicsCovered\":[\"forks\",\"pins and skewers\",\"back-rank mate\"],\"coachNote\":\"very active in class, answers first, but rushes moves in games\"}",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-20b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"note\":\"Your child attended 7 of the 8 classes this month and was very active in class, answering questions first. They completed 5 of the 6 homework assignments and solved 82 of 110 puzzles, raising their rating from 1180 to 1240. In games, they played 9, winning 5, losing 3, and drawing 1, showing good progress. The coach noted that your child rushes moves in games and sometimes leaves pieces undefended or forgets to make room for the king. Next month, focus on taking a moment before each move to check for undefended pieces and back‑rank safety.\",\"focusNextMonth\":[\"Check for undefended pieces\",\"Watch back‑rank safety\",\"Take a pause before moving\"]}",
+        "finishReason": "stop",
+        "ms": 914,
+        "providerModel": "openai/gpt-oss-20b",
+        "reasoning": "We need to produce JSON with note and focusNextMonth. Must use only facts given. Provide 4-6 warm, honest sentences in simple English. Use \"your child\". Provide one concrete suggestion for next month. Use only facts given. No chess notation. Provide JSON with compact formatting. Ensure valid JSON. Let's craft note:\n\nSentences: 4-6. Let's do 5 sentences.\n\nSentences:\n\n1. Your child attended 7 of the 8 classes this month and was very active in class, answering questions first.\n2. They completed 5 of the 6 homework assignments and solved 82 of 110 puzzles, raising their rating from 1180 to 1240.\n3. In games, they played 9, winning 5, losing 3, and drawing 1, showing good progress.\n4. The coach noted that your child rushes moves in games and sometimes leaves pieces undefended or forgets to make room for the king.\n5. Next month, focus on taking a moment before each move to check for undefended pieces and back‑rank safety.\n\nNow focusNextMonth: list of 1-3 short items. Let's include: \"Check for undefended pieces\", \"Watch back‑rank safety\", \"Take a pause before moving\".\n\nReturn JSON: {\"note\":\"...\",\"focusNextMonth\":[\"Check for undefended pieces\",\"Watch back‑rank safety\",\"Take a pause before moving\"]}\n\nMake sure note string uses double quotes escaped properly. Use compact JSON. Let's produce.",
+        "usage": {
+          "queue_time": 0.368764847,
+          "prompt_tokens": 366,
+          "prompt_time": 0.019091802,
+          "completion_tokens": 474,
+          "completion_time": 0.495958142,
+          "total_tokens": 840,
+          "total_time": 0.515049944,
+          "completion_tokens_details": {
+            "reasoning_tokens": 310
+          }
+        }
+      }
+    }
+  ]
+}

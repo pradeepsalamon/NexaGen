@@ -1,0 +1,70 @@
+{
+  "feature": "Puzzle hint",
+  "item": "p1-back-rank",
+  "model": "local/qwen2.5:3b",
+  "startedAt": "2026-11-25T21:28:16.587Z",
+  "task": "puzzle-hint",
+  "checks": {
+    "json": true,
+    "givesAway": false
+  },
+  "ok": true,
+  "output": {
+    "hint1": "Notice how the rook can reach the back rank to deliver checkmate.",
+    "hint2": "Focus on how the rook can be used to deliver checkmate on the back rank."
+  },
+  "ms": 17158,
+  "usage": {
+    "calls": 1,
+    "completion": 45,
+    "prompt": 161,
+    "reasoning": 0,
+    "total": 206
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:28:33.745Z",
+          "limits": {},
+          "ms": 17158,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 300,
+        "messages": [
+          {
+            "content": "You help a child who is stuck on a chess puzzle.\nYou get the position (FEN), the side to move, the solution and the theme.\nWrite two hints: the first gentle (what to look at), the second stronger (the idea), each one short sentence.\nNever give the solution move, never name the square the piece moves to, and never write chess notation.\nReturn only JSON: {\"hint1\": \"...\", \"hint2\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"fen\":\"6k1/5ppp/8/8/8/8/r4PPP/3R2K1 w - - 0 1\",\"sideToMove\":\"white\",\"solution\":[\"Rd8#\"],\"theme\":\"back-rank mate\"}",
+            "role": "user"
+          }
+        ],
+        "model": "qwen2.5:3b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "seed": 7,
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"hint1\": \"Notice how the rook can reach the back rank to deliver checkmate.\", \"hint2\": \"Focus on how the rook can be used to deliver checkmate on the back rank.\"}",
+        "finishReason": "stop",
+        "ms": 17158,
+        "providerModel": "qwen2.5:3b",
+        "reasoning": null,
+        "usage": {
+          "prompt_tokens": 161,
+          "prompt_tokens_details": {
+            "cached_tokens": 4
+          },
+          "completion_tokens": 45,
+          "total_tokens": 206
+        }
+      }
+    }
+  ]
+}

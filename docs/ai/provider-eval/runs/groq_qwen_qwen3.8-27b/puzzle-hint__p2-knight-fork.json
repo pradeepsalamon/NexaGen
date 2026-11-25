@@ -1,0 +1,77 @@
+{
+  "feature": "Puzzle hint",
+  "item": "p2-knight-fork",
+  "model": "groq/qwen/qwen3.8-27b",
+  "startedAt": "2026-11-25T21:08:31.811Z",
+  "task": "puzzle-hint",
+  "checks": {
+    "json": true,
+    "givesAway": false
+  },
+  "ok": true,
+  "output": {
+    "hint1": "Look for a way to attack two important enemy pieces at the same time.",
+    "hint2": "Find a square where your knight can threaten both the king and the rook."
+  },
+  "ms": 158,
+  "usage": {
+    "calls": 1,
+    "completion": 43,
+    "prompt": 184,
+    "reasoning": 0,
+    "total": 227
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:08:31.969Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "988",
+            "x-ratelimit-remaining-tokens": "6943",
+            "x-ratelimit-reset-requests": "17m16.8s",
+            "x-ratelimit-reset-tokens": "43.32s"
+          },
+          "ms": 158,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4300,
+        "messages": [
+          {
+            "content": "You help a child who is stuck on a chess puzzle.\nYou get the position (FEN), the side to move, the solution and the theme.\nWrite two hints: the first gentle (what to look at), the second stronger (the idea), each one short sentence.\nNever give the solution move, never name the square the piece moves to, and never write chess notation.\nReturn only JSON: {\"hint1\": \"...\", \"hint2\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"fen\":\"r3k3/pp3ppp/8/1N6/8/8/PP3PPP/6K1 w - - 0 1\",\"sideToMove\":\"white\",\"solution\":[\"Nc7+\",\"Kd7\",\"Nxa8\"],\"theme\":\"knight fork (king and rook)\"}",
+            "role": "user"
+          }
+        ],
+        "model": "qwen/qwen3.8-27b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"hint1\": \"Look for a way to attack two important enemy pieces at the same time.\", \"hint2\": \"Find a square where your knight can threaten both the king and the rook.\"}",
+        "finishReason": "stop",
+        "ms": 158,
+        "providerModel": "qwen/qwen3.8-27b",
+        "reasoning": null,
+        "usage": {
+          "queue_time": 0.049942301,
+          "prompt_tokens": 184,
+          "prompt_time": 0.012370538,
+          "completion_tokens": 43,
+          "completion_time": 0.081898265,
+          "total_tokens": 227,
+          "total_time": 0.094268803
+        }
+      }
+    }
+  ]
+}

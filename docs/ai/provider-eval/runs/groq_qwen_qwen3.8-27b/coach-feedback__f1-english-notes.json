@@ -1,0 +1,75 @@
+{
+  "feature": "Coach feedback message",
+  "item": "f1-english-notes",
+  "model": "groq/qwen/qwen3.8-27b",
+  "startedAt": "2026-11-25T21:08:37.171Z",
+  "task": "coach-feedback",
+  "checks": {
+    "json": true
+  },
+  "ok": true,
+  "output": {
+    "message": "Your child is a wonderful student who completes all homework and behaves excellently in class. They are very focused and have a good grasp of tactics, though they sometimes miss checks from the opponent. We are working on their endgame skills, specifically how to handle king and pawn endings, as they occasionally lose won games. Practising the concept of opposition will help them improve in this area."
+  },
+  "ms": 251,
+  "usage": {
+    "calls": 1,
+    "completion": 87,
+    "prompt": 181,
+    "reasoning": 0,
+    "total": 268
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:08:37.422Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "986",
+            "x-ratelimit-remaining-tokens": "6933",
+            "x-ratelimit-reset-requests": "20m9.6s",
+            "x-ratelimit-reset-tokens": "43.44s"
+          },
+          "ms": 251,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4500,
+        "messages": [
+          {
+            "content": "You turn a chess coach's quick feedback form into a short message to the student's parent.\nYou get ratings from 1 to 5 and the coach's rough notes (they may mix Tamil and English).\nWrite 3 to 5 polite, encouraging and honest sentences in simple English from the coach. Call the student 'your child'.\nKeep every point the coach made and add nothing new. No chess notation.\nReturn only JSON: {\"message\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"context\":\"after 4 classes\",\"ratings\":{\"focus\":4,\"tactics\":3,\"endgames\":2,\"homework\":5,\"behaviour\":5},\"coachNotes\":\"good kid. does all homework. weak in K+P endings, loses won games. needs to practise opposition. tactics ok but misses checks for opponent\"}",
+            "role": "user"
+          }
+        ],
+        "model": "qwen/qwen3.8-27b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\n  \"message\": \"Your child is a wonderful student who completes all homework and behaves excellently in class. They are very focused and have a good grasp of tactics, though they sometimes miss checks from the opponent. We are working on their endgame skills, specifically how to handle king and pawn endings, as they occasionally lose won games. Practising the concept of opposition will help them improve in this area.\"\n}",
+        "finishReason": "stop",
+        "ms": 251,
+        "providerModel": "qwen/qwen3.8-27b",
+        "reasoning": null,
+        "usage": {
+          "queue_time": 0.048487415,
+          "prompt_tokens": 181,
+          "prompt_time": 0.012582064,
+          "completion_tokens": 87,
+          "completion_time": 0.172282715,
+          "total_tokens": 268,
+          "total_time": 0.184864779
+        }
+      }
+    }
+  ]
+}

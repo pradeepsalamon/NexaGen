@@ -1,0 +1,94 @@
+{
+  "feature": "Chess facts answer",
+  "item": "c3-promote-king",
+  "model": "groq/openai/gpt-oss-120b",
+  "startedAt": "2026-11-25T21:08:46.896Z",
+  "task": "chess-facts",
+  "checks": {
+    "json": true,
+    "mentions": true
+  },
+  "ok": true,
+  "output": {
+    "answer": "No, a pawn cannot promote to a king; it can only become a queen, rook, bishop, or knight."
+  },
+  "ms": 4581,
+  "usage": {
+    "calls": 1,
+    "completion": 84,
+    "prompt": 158,
+    "reasoning": 44,
+    "total": 242
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:08:46.908Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 6820, Requested 1334. Please try again in 1.155s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "2",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "978",
+            "x-ratelimit-remaining-tokens": "1180",
+            "x-ratelimit-reset-requests": "31m40.8s",
+            "x-ratelimit-reset-tokens": "51.15s"
+          },
+          "ms": 12,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:08:51.477Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "977",
+            "x-ratelimit-remaining-tokens": "886",
+            "x-ratelimit-reset-requests": "33m7.2s",
+            "x-ratelimit-reset-tokens": "53.355s"
+          },
+          "ms": 566,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4250,
+        "messages": [
+          {
+            "content": "You answer a chess question from a child or a parent at a chess academy.\nAnswer correctly in 1 to 3 short sentences of simple English. If you are not sure, say so.\nReturn only JSON: {\"answer\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "Can a pawn promote to a king?",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-120b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"answer\":\"No, a pawn cannot promote to a king; it can only become a queen, rook, bishop, or knight.\"}",
+        "finishReason": "stop",
+        "ms": 566,
+        "providerModel": "openai/gpt-oss-120b",
+        "reasoning": "We need to answer: \"Can a pawn promote to a king?\" Answer: No, pawn can only promote to queen, rook, bishop, or knight. Provide JSON with answer field. Ensure valid JSON compact.",
+        "usage": {
+          "queue_time": 0.36958359,
+          "prompt_tokens": 158,
+          "prompt_time": 0.006292429,
+          "completion_tokens": 84,
+          "completion_time": 0.174136488,
+          "total_tokens": 242,
+          "total_time": 0.180428917,
+          "completion_tokens_details": {
+            "reasoning_tokens": 44
+          }
+        }
+      }
+    }
+  ]
+}

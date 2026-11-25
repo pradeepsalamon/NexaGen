@@ -1,0 +1,78 @@
+{
+  "feature": "Coach feedback message",
+  "item": "f1-english-notes",
+  "model": "groq/openai/gpt-oss-20b",
+  "startedAt": "2026-11-25T21:07:52.611Z",
+  "task": "coach-feedback",
+  "checks": {
+    "json": true
+  },
+  "ok": true,
+  "output": {
+    "message": "Your child is a good kid and does all homework. They are weak in king and pawn endings and sometimes lose games they have already won. They need to practise opposition to improve those endings. Their tactics are okay but they often miss checks on the opponent."
+  },
+  "ms": 870,
+  "usage": {
+    "calls": 1,
+    "completion": 460,
+    "prompt": 261,
+    "reasoning": 396,
+    "total": 721
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:07:53.481Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "986",
+            "x-ratelimit-remaining-tokens": "83",
+            "x-ratelimit-reset-requests": "20m9.6s",
+            "x-ratelimit-reset-tokens": "59.377s"
+          },
+          "ms": 870,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4500,
+        "messages": [
+          {
+            "content": "You turn a chess coach's quick feedback form into a short message to the student's parent.\nYou get ratings from 1 to 5 and the coach's rough notes (they may mix Tamil and English).\nWrite 3 to 5 polite, encouraging and honest sentences in simple English from the coach. Call the student 'your child'.\nKeep every point the coach made and add nothing new. No chess notation.\nReturn only JSON: {\"message\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"context\":\"after 4 classes\",\"ratings\":{\"focus\":4,\"tactics\":3,\"endgames\":2,\"homework\":5,\"behaviour\":5},\"coachNotes\":\"good kid. does all homework. weak in K+P endings, loses won games. needs to practise opposition. tactics ok but misses checks for opponent\"}",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-20b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"message\":\"Your child is a good kid and does all homework. They are weak in king and pawn endings and sometimes lose games they have already won. They need to practise opposition to improve those endings. Their tactics are okay but they often miss checks on the opponent.\"}",
+        "finishReason": "stop",
+        "ms": 870,
+        "providerModel": "openai/gpt-oss-20b",
+        "reasoning": "We need to produce a JSON with a message string. The message should be 3-5 polite, encouraging, honest sentences in simple English from the coach. Use the coach's points: good kid, does all homework, weak in K+P endings, loses won games, needs to practise opposition, tactics ok but misses checks for opponent. Also mention ratings? The instructions: \"Keep every point the coach made and add nothing new.\" So we must include all points. We can incorporate ratings maybe but not necessary. But we should keep all points. We need 3-5 sentences. Let's craft 4 sentences.\n\nSentences:\n\n1. Your child is a good kid and does all homework.\n2. They are weak in king and pawn endings and sometimes lose games they have already won.\n3. They need to practise opposition to improve those endings.\n4. Their tactics are okay but they often miss checks on the opponent.\n\nWe need to keep polite, encouraging. Maybe add \"Keep up the good work\" but that might add new content? It's encouraging but not new point. It's okay? The instruction: \"Keep every point the coach made and add nothing new.\" Adding \"Keep up the good work\" might be considered new content. Might be okay as it's encouraging but not a new point. But to be safe, avoid adding new content. So just use the points.\n\nWe need 3-5 sentences. We have 4 sentences. Good.\n\nReturn JSON: {\"message\":\"...\"} with compact formatting. Ensure no line breaks inside string? JSON string can contain line breaks but better to keep single line. Use escape for quotes. We'll produce:\n\n{\"message\":\"Your child is a good kid and does all homework. They are weak in king and pawn endings and sometimes lose games they have already won. They need to practise opposition to improve those endings. Their tactics are okay but they often miss checks on the opponent.\"}\n\nCheck JSON validity. Yes.",
+        "usage": {
+          "queue_time": 0.366765503,
+          "prompt_tokens": 261,
+          "prompt_time": 0.014845113,
+          "completion_tokens": 460,
+          "completion_time": 0.472613507,
+          "total_tokens": 721,
+          "total_time": 0.48745862,
+          "completion_tokens_details": {
+            "reasoning_tokens": 396
+          }
+        }
+      }
+    }
+  ]
+}

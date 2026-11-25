@@ -1,0 +1,83 @@
+{
+  "feature": "Chess facts answer",
+  "item": "c2-first-indian-gm",
+  "model": "openrouter/nvidia/nemotron-3.5-super-vl:free",
+  "startedAt": "2026-11-25T21:17:52.180Z",
+  "task": "chess-facts",
+  "checks": {
+    "json": true,
+    "mentions": true
+  },
+  "ok": true,
+  "output": {
+    "answer": "Viswanathan Anand was India's first grandmaster. He earned the title in 1988."
+  },
+  "ms": 1963,
+  "usage": {
+    "calls": 1,
+    "completion": 187,
+    "prompt": 78,
+    "reasoning": 157,
+    "total": 265
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:17:54.143Z",
+          "limits": {},
+          "ms": 1963,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4250,
+        "messages": [
+          {
+            "content": "You answer a chess question from a child or a parent at a chess academy.\nAnswer correctly in 1 to 3 short sentences of simple English. If you are not sure, say so.\nReturn only JSON: {\"answer\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "Who was India's first grandmaster, and in which year?",
+            "role": "user"
+          }
+        ],
+        "model": "nvidia/nemotron-3.5-super-vl:free",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"answer\": \"Viswanathan Anand was India's first grandmaster. He earned the title in 1988.\"}",
+        "finishReason": "stop",
+        "ms": 1963,
+        "providerModel": "nvidia/nemotron-3.5-super-vl:free",
+        "reasoning": "The user is asking a factual chess question: Who was India's first grandmaster, and in which year?\n\nI need to answer correctly in 1 to 3 short sentences of simple English. Return only JSON: {\"answer\": \"...\"}.\n\nFact: Viswanathan Anand is India's first grandmaster. He became a Grandmaster in 1988.\n\nLet me verify: Viswanathan Anand became India's first Grandmaster in 1988 at the age of 18. Yes.\n\nSimple English: \"Viswanathan Anand was India's first grandmaster. He earned the title in 1988.\"\n\nThat's 2 sentences. Simple English. JSON format.\n\nNeed to ensure only JSON is returned, no extra text.",
+        "usage": {
+          "prompt_tokens": 78,
+          "completion_tokens": 187,
+          "total_tokens": 265,
+          "cost": 0,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0,
+            "upstream_inference_prompt_cost": 0,
+            "upstream_inference_completions_cost": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 157,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      }
+    }
+  ]
+}

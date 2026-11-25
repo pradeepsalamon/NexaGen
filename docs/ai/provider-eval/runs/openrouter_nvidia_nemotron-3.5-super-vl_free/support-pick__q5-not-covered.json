@@ -1,0 +1,86 @@
+{
+  "feature": "Support bot saved-answer pick",
+  "item": "q5-not-covered",
+  "model": "openrouter/nvidia/nemotron-3.5-super-vl:free",
+  "startedAt": "2026-11-25T21:17:48.341Z",
+  "task": "support-pick",
+  "checks": {
+    "correct": true,
+    "expected": null,
+    "json": true,
+    "picked": null
+  },
+  "ok": true,
+  "output": {
+    "answerId": null,
+    "reason": "No saved answer mentions carrom or Rubik's cube"
+  },
+  "ms": 2253,
+  "usage": {
+    "calls": 1,
+    "completion": 288,
+    "prompt": 509,
+    "reasoning": 264,
+    "total": 797
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:17:50.594Z",
+          "limits": {},
+          "ms": 2253,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4150,
+        "messages": [
+          {
+            "content": "You sort WhatsApp messages for a chess academy's support desk.\nYou get the academy's saved answers and one message from a parent (English, Tamil or a mix).\nPick the one saved answer that fully answers the message, or null when none does.\nQuestions about one child's own records (attendance, fees paid, progress) always get null: a person answers those.\nReturn only JSON: {\"answerId\": \"A1\" or null, \"reason\": \"a few words\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"message\":\"Do you also teach carrom or Rubik's cube?\",\"savedAnswers\":[{\"id\":\"A1\",\"text\":\"Group classes are Rs 2,500 a month or Rs 6,900 for three months. You can pay by UPI, card or net banking from the Payments page in the app.\",\"title\":\"Fees and payment\"},{\"id\":\"A2\",\"text\":\"Each batch has fixed days and times, shown on the Classes page. To change your batch timing, ask your coach or write to us here.\",\"title\":\"Class timings\"},{\"id\":\"A3\",\"text\":\"Every class has a recap and homework in the app. If you miss a class, you can join one make-up class in the same week in another batch of the same level; ask your coach to add you.\",\"title\":\"Missed a class\"},{\"id\":\"A4\",\"text\":\"You can book a free 30-minute demo class for your child. Reply DEMO and we will send you the available times.\",\"title\":\"Free demo class\"},{\"id\":\"A5\",\"text\":\"Open the app, go to Classes and press Join on today's class, ten minutes before it starts. Use Chrome on a laptop or the latest browser on a phone, and allow the camera and microphone.\",\"title\":\"Joining a live class\"},{\"id\":\"A6\",\"text\":\"Fees are refunded for classes not yet held if you write to us within 7 days of paying.\",\"title\":\"Refunds\"},{\"id\":\"A7\",\"text\":\"We teach Beginner, Intermediate and Advanced batches. A coach checks your child's level in the demo class.\",\"title\":\"Levels\"},{\"id\":\"A8\",\"text\":\"We hold an online tournament every month. Every player gets a certificate in the app after the tournament.\",\"title\":\"Tournaments and certificates\"}]}",
+            "role": "user"
+          }
+        ],
+        "model": "nvidia/nemotron-3.5-super-vl:free",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"answerId\": null, \"reason\": \"No saved answer mentions carrom or Rubik's cube\"}",
+        "finishReason": "stop",
+        "ms": 2253,
+        "providerModel": "nvidia/nemotron-3.5-super-vl:free",
+        "reasoning": "The user wants me to sort a WhatsApp message for a chess academy's support desk.\nMessage: \"Do you also teach carrom or Rubik's cube?\"\nSaved answers: A1-A8, all about chess academy operations (fees, timings, missed class, demo, joining live class, refunds, levels, tournaments).\nNone of the saved answers mention carrom or Rubik's cube. The academy teaches chess (implied by levels, tournaments, etc.).\nThe question asks if they teach other games. None of the answers address this.\nTherefore, answerId should be null.\nReason: a few words explaining none of the saved answers cover carrom or Rubik's cube.\nReturn only JSON.\n\nLet's verify constraints:\n- Pick one saved answer that fully answers the message, or null when none does.\n- Questions about one child's own records always get null (not applicable here).\n- Return only JSON: {\"answerId\": \"A1\" or null, \"reason\": \"a few words\"}\n\nSo output: {\"answerId\": null, \"reason\": \"No saved answer mentions carrom or Rubik's cube\"}\n\nMake sure it's valid JSON only, no markdown code blocks unless implied? The user said \"Return only JSON\". I'll output raw JSON.",
+        "usage": {
+          "prompt_tokens": 509,
+          "completion_tokens": 288,
+          "total_tokens": 797,
+          "cost": 0,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0,
+            "upstream_inference_prompt_cost": 0,
+            "upstream_inference_completions_cost": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 264,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      }
+    }
+  ]
+}

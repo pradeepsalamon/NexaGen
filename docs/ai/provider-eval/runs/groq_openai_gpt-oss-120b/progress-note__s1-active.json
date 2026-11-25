@@ -1,0 +1,100 @@
+{
+  "feature": "Monthly progress note",
+  "item": "s1-active",
+  "model": "groq/openai/gpt-oss-120b",
+  "startedAt": "2026-11-25T21:07:33.116Z",
+  "task": "progress-note",
+  "checks": {
+    "json": true,
+    "notation": false,
+    "numbersNotInInput": []
+  },
+  "ok": true,
+  "output": {
+    "note": "Your child attended 7 of 8 classes and completed most of the homework, showing strong commitment. He/she was very active in class, often answering first, and the puzzle rating rose from 1180 to 1240, reflecting good tactical work. In games your child won more than half of the matches, which is a solid result. The coach noticed a tendency to rush moves, leading to pieces left undefended and back‑rank weaknesses. To improve, we suggest practicing slower, deliberate thinking and reviewing back‑rank safety before each game.",
+    "focusNextMonth": [
+      "slow down move selection",
+      "protect pieces in the middlegame",
+      "review back‑rank safety"
+    ]
+  },
+  "ms": 8438,
+  "usage": {
+    "calls": 1,
+    "completion": 638,
+    "prompt": 366,
+    "reasoning": 492,
+    "total": 1004
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:07:33.132Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7260, Requested 1299. Please try again in 4.1925s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "5",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "992",
+            "x-ratelimit-remaining-tokens": "740",
+            "x-ratelimit-reset-requests": "11m31.2s",
+            "x-ratelimit-reset-tokens": "54.449s"
+          },
+          "ms": 16,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:07:41.554Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "991",
+            "x-ratelimit-remaining-tokens": "134",
+            "x-ratelimit-reset-requests": "12m57.599s",
+            "x-ratelimit-reset-tokens": "58.995s"
+          },
+          "ms": 1417,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4600,
+        "messages": [
+          {
+            "content": "You write a chess academy's monthly progress note to a parent about their child.\nYou get the month's numbers and the coach's note. Write 4 to 6 warm, honest sentences in simple English:\nwhat went well, what to work on, and one concrete suggestion for next month. Call the student 'your child'.\nUse only the facts given; never invent a number, a game or an event. No chess notation.\nReturn only JSON: {\"note\": \"...\", \"focusNextMonth\": [\"1 to 3 short items\"]}",
+            "role": "system"
+          },
+          {
+            "content": "{\"month\":\"October\",\"ageGroup\":\"10-12\",\"level\":\"Intermediate\",\"classes\":{\"held\":8,\"attended\":7},\"homework\":{\"given\":6,\"done\":5},\"puzzles\":{\"attempted\":110,\"solved\":82,\"ratingStart\":1180,\"ratingEnd\":1240},\"puzzleStormBest\":18,\"games\":{\"played\":9,\"won\":5,\"lost\":3,\"drawn\":1},\"commonMistakes\":[\"leaves pieces undefended in the middlegame\",\"forgets to make room for the king (back-rank weakness)\"],\"topicsCovered\":[\"forks\",\"pins and skewers\",\"back-rank mate\"],\"coachNote\":\"very active in class, answers first, but rushes moves in games\"}",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-120b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"note\":\"Your child attended 7 of 8 classes and completed most of the homework, showing strong commitment. He/she was very active in class, often answering first, and the puzzle rating rose from 1180 to 1240, reflecting good tactical work. In games your child won more than half of the matches, which is a solid result. The coach noticed a tendency to rush moves, leading to pieces left undefended and back‑rank weaknesses. To improve, we suggest practicing slower, deliberate thinking and reviewing back‑rank safety before each game.\",\"focusNextMonth\":[\"slow down move selection\",\"protect pieces in the middlegame\",\"review back‑rank safety\"]}",
+        "finishReason": "stop",
+        "ms": 1417,
+        "providerModel": "openai/gpt-oss-120b",
+        "reasoning": "We need to produce JSON with \"note\": \"...\", \"focusNextMonth\": [\"...\",\"...\"] (1 to 3 short items). Must be 4-6 warm, honest sentences in simple English, covering what went well, what to work on, and one concrete suggestion for next month. Use only facts given; no invented numbers, games, events. Use \"your child\". Use facts: classes held 8 attended 7, homework given 6 done 5, puzzles attempted 110 solved 82 rating start 1180 end 1240, puzzleStormBest 18, games played 9 won 5 lost 3 drawn 1, common mistakes: leaves pieces undefended in middlegame, forgets to make room for king (back-rank weakness). Topics covered: forks, pins and skewers, back-rank mate. Coach note: very active in class, answers first, but rushes moves in games.\n\nWe need to mention what went well: active participation, good puzzle rating improvement, good attendance, good homework completion, good game results (won more than lost). Also mention progress in puzzles rating increase. Work on: avoid rushing moves, address common mistakes (undefended pieces, back-rank weakness). Suggestion: practice slower thinking, maybe set a timer for 30 seconds per move, or review back-rank safety.\n\nWe need 4-6 sentences. Provide suggestion as concrete.\n\nFocusNextMonth: list 1-3 short items, maybe \"slow down move selection\", \"protect pieces in middlegame\", \"strengthen back‑rank safety\". Provide as array of strings.\n\nMake sure JSON compact, no extra spaces? Compact means no unnecessary whitespace but okay.\n\nLet's craft note: 5 sentences.\n\nSentence1: Your child attended 7 of 8 classes and completed most of the homework, showing strong commitment. Sentence2: He/she was very active in class, often answering first, and the puzzle rating rose from 1180 to 1240, reflecting good tactical work. Sentence3: In games, your child won more than half of the matches, which is a solid result. Sentence4: The coach noticed a tendency to rush moves, leading to pieces left undefended and back‑rank weaknesses. Sentence5: To improve, we suggest practicing slower, deliberate thinking and reviewing back‑rank safety before each game.\n\nThat's 5 sentences.\n\nNow JSON.\n\n",
+        "usage": {
+          "queue_time": 0.054733369,
+          "prompt_tokens": 366,
+          "prompt_time": 0.015591451,
+          "completion_tokens": 638,
+          "completion_time": 1.331760651,
+          "total_tokens": 1004,
+          "total_time": 1.3473521019999999,
+          "completion_tokens_details": {
+            "reasoning_tokens": 492
+          }
+        }
+      }
+    }
+  ]
+}

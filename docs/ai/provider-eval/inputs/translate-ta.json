@@ -1,0 +1,8 @@
+{
+  "id": "translate-ta",
+  "about": "Tamil translation of a game-review comment (the AI play review's text) for a child and parent. The same English text goes to every model so the translations can be compared.",
+  "items": [
+    { "id": "t1-legal", "english": "You started well by bringing your bishop out early and pinning the knight. The big lesson is move 5: you took the queen with your bishop, but the engine shows that taking the knight with your pawn was much better, because winning the queen let White checkmate you. Before you grab a big piece, always check what your opponent can do next, especially checks. Practise this with five puzzles on checkmate patterns this week." },
+    { "id": "t2-immortal", "english": "You played very bravely and attacked the black king from the start. The engine did not like move 18, where giving up your rook was risky, and keeping it with a calm rook move was stronger. Your attack still worked because your pieces worked together near the king. This week, practise counting attackers and defenders before you sacrifice a piece." }
+  ]
+}

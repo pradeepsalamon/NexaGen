@@ -1,0 +1,71 @@
+{
+  "feature": "Monthly progress note",
+  "item": "s1-active",
+  "model": "gemini/gemini-3.1-flash-lite",
+  "startedAt": "2026-11-25T21:06:51.002Z",
+  "task": "progress-note",
+  "checks": {
+    "json": true,
+    "notation": false,
+    "numbersNotInInput": []
+  },
+  "ok": true,
+  "output": {
+    "note": "Your child had a very productive October, attending seven classes and showing great enthusiasm by being the first to answer questions. They made excellent progress with their puzzles, successfully raising their rating from 1180 to 1240. While they are very active, they tend to rush their moves during games, which sometimes leads to leaving pieces undefended or creating back-rank weaknesses. We are proud of their five wins this month and look forward to seeing them slow down to think through their decisions. Focusing on board safety will help them turn those close games into even more victories.",
+    "focusNextMonth": [
+      "Slow down during the middlegame",
+      "Check for undefended pieces before moving",
+      "Create space for the king to prevent back-rank issues"
+    ]
+  },
+  "ms": 3890,
+  "usage": {
+    "calls": 1,
+    "completion": 174,
+    "prompt": 274,
+    "reasoning": 0,
+    "total": 448
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:06:54.892Z",
+          "limits": {},
+          "ms": 3890,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4600,
+        "messages": [
+          {
+            "content": "You write a chess academy's monthly progress note to a parent about their child.\nYou get the month's numbers and the coach's note. Write 4 to 6 warm, honest sentences in simple English:\nwhat went well, what to work on, and one concrete suggestion for next month. Call the student 'your child'.\nUse only the facts given; never invent a number, a game or an event. No chess notation.\nReturn only JSON: {\"note\": \"...\", \"focusNextMonth\": [\"1 to 3 short items\"]}",
+            "role": "system"
+          },
+          {
+            "content": "{\"month\":\"October\",\"ageGroup\":\"10-12\",\"level\":\"Intermediate\",\"classes\":{\"held\":8,\"attended\":7},\"homework\":{\"given\":6,\"done\":5},\"puzzles\":{\"attempted\":110,\"solved\":82,\"ratingStart\":1180,\"ratingEnd\":1240},\"puzzleStormBest\":18,\"games\":{\"played\":9,\"won\":5,\"lost\":3,\"drawn\":1},\"commonMistakes\":[\"leaves pieces undefended in the middlegame\",\"forgets to make room for the king (back-rank weakness)\"],\"topicsCovered\":[\"forks\",\"pins and skewers\",\"back-rank mate\"],\"coachNote\":\"very active in class, answers first, but rushes moves in games\"}",
+            "role": "user"
+          }
+        ],
+        "model": "gemini-3.1-flash-lite",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\n  \"note\": \"Your child had a very productive October, attending seven classes and showing great enthusiasm by being the first to answer questions. They made excellent progress with their puzzles, successfully raising their rating from 1180 to 1240. While they are very active, they tend to rush their moves during games, which sometimes leads to leaving pieces undefended or creating back-rank weaknesses. We are proud of their five wins this month and look forward to seeing them slow down to think through their decisions. Focusing on board safety will help them turn those close games into even more victories.\",\n  \"focusNextMonth\": [\n    \"Slow down during the middlegame\",\n    \"Check for undefended pieces before moving\",\n    \"Create space for the king to prevent back-rank issues\"\n  ]\n}",
+        "finishReason": "stop",
+        "ms": 3890,
+        "providerModel": "gemini-3.1-flash-lite",
+        "reasoning": null,
+        "usage": {
+          "completion_tokens": 174,
+          "prompt_tokens": 274,
+          "total_tokens": 448
+        }
+      }
+    }
+  ]
+}

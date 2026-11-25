@@ -1,0 +1,68 @@
+{
+  "feature": "Support bot saved-answer pick",
+  "item": "q3-makeup-tamil",
+  "model": "gemini/gemini-3.1-flash-lite",
+  "startedAt": "2026-11-25T21:07:12.476Z",
+  "task": "support-pick",
+  "checks": {
+    "correct": true,
+    "expected": "A3",
+    "json": true,
+    "picked": "A3"
+  },
+  "ok": true,
+  "output": {
+    "answerId": "A3",
+    "reason": "The message asks about missing a class and the possibility of a make-up session, which is covered by A3."
+  },
+  "ms": 1060,
+  "usage": {
+    "calls": 1,
+    "completion": 43,
+    "prompt": 493,
+    "reasoning": 0,
+    "total": 536
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:07:13.536Z",
+          "limits": {},
+          "ms": 1060,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4150,
+        "messages": [
+          {
+            "content": "You sort WhatsApp messages for a chess academy's support desk.\nYou get the academy's saved answers and one message from a parent (English, Tamil or a mix).\nPick the one saved answer that fully answers the message, or null when none does.\nQuestions about one child's own records (attendance, fees paid, progress) always get null: a person answers those.\nReturn only JSON: {\"answerId\": \"A1\" or null, \"reason\": \"a few words\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"message\":\"என் மகன் நேற்று கிளாஸ் மிஸ் பண்ணிட்டான், மறுபடி கிளாஸ் கிடைக்குமா?\",\"savedAnswers\":[{\"id\":\"A1\",\"text\":\"Group classes are Rs 2,500 a month or Rs 6,900 for three months. You can pay by UPI, card or net banking from the Payments page in the app.\",\"title\":\"Fees and payment\"},{\"id\":\"A2\",\"text\":\"Each batch has fixed days and times, shown on the Classes page. To change your batch timing, ask your coach or write to us here.\",\"title\":\"Class timings\"},{\"id\":\"A3\",\"text\":\"Every class has a recap and homework in the app. If you miss a class, you can join one make-up class in the same week in another batch of the same level; ask your coach to add you.\",\"title\":\"Missed a class\"},{\"id\":\"A4\",\"text\":\"You can book a free 30-minute demo class for your child. Reply DEMO and we will send you the available times.\",\"title\":\"Free demo class\"},{\"id\":\"A5\",\"text\":\"Open the app, go to Classes and press Join on today's class, ten minutes before it starts. Use Chrome on a laptop or the latest browser on a phone, and allow the camera and microphone.\",\"title\":\"Joining a live class\"},{\"id\":\"A6\",\"text\":\"Fees are refunded for classes not yet held if you write to us within 7 days of paying.\",\"title\":\"Refunds\"},{\"id\":\"A7\",\"text\":\"We teach Beginner, Intermediate and Advanced batches. A coach checks your child's level in the demo class.\",\"title\":\"Levels\"},{\"id\":\"A8\",\"text\":\"We hold an online tournament every month. Every player gets a certificate in the app after the tournament.\",\"title\":\"Tournaments and certificates\"}]}",
+            "role": "user"
+          }
+        ],
+        "model": "gemini-3.1-flash-lite",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\n  \"answerId\": \"A3\",\n  \"reason\": \"The message asks about missing a class and the possibility of a make-up session, which is covered by A3.\"\n}",
+        "finishReason": "stop",
+        "ms": 1060,
+        "providerModel": "gemini-3.1-flash-lite",
+        "reasoning": null,
+        "usage": {
+          "completion_tokens": 43,
+          "prompt_tokens": 493,
+          "total_tokens": 536
+        }
+      }
+    }
+  ]
+}

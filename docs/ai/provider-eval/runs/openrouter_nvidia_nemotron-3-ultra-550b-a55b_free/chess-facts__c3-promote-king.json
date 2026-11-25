@@ -1,0 +1,83 @@
+{
+  "feature": "Chess facts answer",
+  "item": "c3-promote-king",
+  "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+  "startedAt": "2026-11-25T21:13:53.580Z",
+  "task": "chess-facts",
+  "checks": {
+    "json": true,
+    "mentions": true
+  },
+  "ok": true,
+  "output": {
+    "answer": "No, a pawn cannot promote to a king. It can only become a queen, rook, bishop, or knight."
+  },
+  "ms": 1691,
+  "usage": {
+    "calls": 1,
+    "completion": 95,
+    "prompt": 73,
+    "reasoning": 63,
+    "total": 168
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:13:55.271Z",
+          "limits": {},
+          "ms": 1691,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4250,
+        "messages": [
+          {
+            "content": "You answer a chess question from a child or a parent at a chess academy.\nAnswer correctly in 1 to 3 short sentences of simple English. If you are not sure, say so.\nReturn only JSON: {\"answer\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "Can a pawn promote to a king?",
+            "role": "user"
+          }
+        ],
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"answer\": \"No, a pawn cannot promote to a king. It can only become a queen, rook, bishop, or knight.\"}",
+        "finishReason": "stop",
+        "ms": 1691,
+        "providerModel": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "reasoning": "The user is asking if a pawn can promote to a king. This is a basic chess rule question. According to chess rules, a pawn can promote to a queen, rook, bishop, or knight, but not to a king. There can only be one king per side. So the answer is no.",
+        "usage": {
+          "prompt_tokens": 73,
+          "completion_tokens": 95,
+          "total_tokens": 168,
+          "cost": 0,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0,
+            "upstream_inference_prompt_cost": 0,
+            "upstream_inference_completions_cost": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 63,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      }
+    }
+  ]
+}

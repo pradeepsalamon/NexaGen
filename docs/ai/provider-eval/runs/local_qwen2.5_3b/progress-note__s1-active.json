@@ -1,0 +1,74 @@
+{
+  "feature": "Monthly progress note",
+  "item": "s1-active",
+  "model": "local/qwen2.5:3b",
+  "startedAt": "2026-11-25T21:27:05.131Z",
+  "task": "progress-note",
+  "checks": {
+    "json": true,
+    "notation": false,
+    "numbersNotInInput": []
+  },
+  "ok": true,
+  "output": {
+    "note": "Your child showed great engagement in class this month, actively participating and answering questions promptly. They also played several games, winning 5 out of 9 matches. However, they sometimes rush their moves in games, which can lead to mistakes. To improve, they should focus on taking more time to consider their moves carefully. Next month, I suggest practicing more on the topic of 'forks' to strengthen their ability to create threats and weaken their opponent's positions.",
+    "focusNextMonth": [
+      "practice more on forks",
+      "improve move consideration in games"
+    ]
+  },
+  "ms": 38258,
+  "usage": {
+    "calls": 1,
+    "completion": 117,
+    "prompt": 286,
+    "reasoning": 0,
+    "total": 403
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:27:43.388Z",
+          "limits": {},
+          "ms": 38256,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 600,
+        "messages": [
+          {
+            "content": "You write a chess academy's monthly progress note to a parent about their child.\nYou get the month's numbers and the coach's note. Write 4 to 6 warm, honest sentences in simple English:\nwhat went well, what to work on, and one concrete suggestion for next month. Call the student 'your child'.\nUse only the facts given; never invent a number, a game or an event. No chess notation.\nReturn only JSON: {\"note\": \"...\", \"focusNextMonth\": [\"1 to 3 short items\"]}",
+            "role": "system"
+          },
+          {
+            "content": "{\"month\":\"October\",\"ageGroup\":\"10-12\",\"level\":\"Intermediate\",\"classes\":{\"held\":8,\"attended\":7},\"homework\":{\"given\":6,\"done\":5},\"puzzles\":{\"attempted\":110,\"solved\":82,\"ratingStart\":1180,\"ratingEnd\":1240},\"puzzleStormBest\":18,\"games\":{\"played\":9,\"won\":5,\"lost\":3,\"drawn\":1},\"commonMistakes\":[\"leaves pieces undefended in the middlegame\",\"forgets to make room for the king (back-rank weakness)\"],\"topicsCovered\":[\"forks\",\"pins and skewers\",\"back-rank mate\"],\"coachNote\":\"very active in class, answers first, but rushes moves in games\"}",
+            "role": "user"
+          }
+        ],
+        "model": "qwen2.5:3b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "seed": 7,
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"note\": \"Your child showed great engagement in class this month, actively participating and answering questions promptly. They also played several games, winning 5 out of 9 matches. However, they sometimes rush their moves in games, which can lead to mistakes. To improve, they should focus on taking more time to consider their moves carefully. Next month, I suggest practicing more on the topic of 'forks' to strengthen their ability to create threats and weaken their opponent's positions.\", \"focusNextMonth\": [\"practice more on forks\", \"improve move consideration in games\"]}",
+        "finishReason": "stop",
+        "ms": 38256,
+        "providerModel": "qwen2.5:3b",
+        "reasoning": null,
+        "usage": {
+          "prompt_tokens": 286,
+          "prompt_tokens_details": {
+            "cached_tokens": 4
+          },
+          "completion_tokens": 117,
+          "total_tokens": 403
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "support-pick",
+  "about": "WhatsApp support bot: pick the admin-written saved answer that answers the parent's question, or none. The bot quotes only saved answers and never reveals account data, so questions about one student's records and questions no saved answer covers must get null (a person replies).",
+  "savedAnswers": [
+    { "id": "A1", "title": "Fees and payment", "text": "Group classes are Rs 2,500 a month or Rs 6,900 for three months. You can pay by UPI, card or net banking from the Payments page in the app." },
+    { "id": "A2", "title": "Class timings", "text": "Each batch has fixed days and times, shown on the Classes page. To change your batch timing, ask your coach or write to us here." },
+    { "id": "A3", "title": "Missed a class", "text": "Every class has a recap and homework in the app. If you miss a class, you can join one make-up class in the same week in another batch of the same level; ask your coach to add you." },
+    { "id": "A4", "title": "Free demo class", "text": "You can book a free 30-minute demo class for your child. Reply DEMO and we will send you the available times." },
+    { "id": "A5", "title": "Joining a live class", "text": "Open the app, go to Classes and press Join on today's class, ten minutes before it starts. Use Chrome on a laptop or the latest browser on a phone, and allow the camera and microphone." },
+    { "id": "A6", "title": "Refunds", "text": "Fees are refunded for classes not yet held if you write to us within 7 days of paying." },
+    { "id": "A7", "title": "Levels", "text": "We teach Beginner, Intermediate and Advanced batches. A coach checks your child's level in the demo class." },
+    { "id": "A8", "title": "Tournaments and certificates", "text": "We hold an online tournament every month. Every player gets a certificate in the app after the tournament." }
+  ],
+  "items": [
+    { "id": "q1-join", "question": "Today class link not working, how to join?", "expected": "A5" },
+    { "id": "q2-fees-tanglish", "question": "fees evvalavu sir? monthly ah illa 3 month ah kattanuma?", "expected": "A1" },
+    { "id": "q3-makeup-tamil", "question": "என் மகன் நேற்று கிளாஸ் மிஸ் பண்ணிட்டான், மறுபடி கிளாஸ் கிடைக்குமா?", "expected": "A3" },
+    { "id": "q4-account-data", "question": "Can you tell me how many classes my daughter attended in October?", "expected": null },
+    { "id": "q5-not-covered", "question": "Do you also teach carrom or Rubik's cube?", "expected": null }
+  ]
+}

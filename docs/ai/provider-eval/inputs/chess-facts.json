@@ -1,0 +1,11 @@
+{
+  "id": "chess-facts",
+  "about": "Short chess questions a child or parent may ask (rules and history). Reference answers for grading; `mustMention` is checked automatically, the rest by reading.",
+  "items": [
+    { "id": "c1-en-passant", "question": "What is en passant?", "reference": "A pawn that moves two squares from its starting square and lands beside an enemy pawn can be captured by that pawn as if it had moved one square; only on the very next move.", "mustMention": ["two squares", "next move"] },
+    { "id": "c2-first-indian-gm", "question": "Who was India's first grandmaster, and in which year?", "reference": "Viswanathan Anand, in 1988.", "mustMention": ["Anand", "1988"] },
+    { "id": "c3-promote-king", "question": "Can a pawn promote to a king?", "reference": "No. A pawn promotes to a queen, rook, bishop or knight of the same colour, never a king (or a pawn).", "mustMention": ["no"] },
+    { "id": "c4-stalemate", "question": "If a player has no legal move but is not in check, who wins?", "reference": "Nobody: it is stalemate and the game is a draw.", "mustMention": ["stalemate", "draw"] },
+    { "id": "c5-castle-after-king-moved", "question": "My king moved one square and then went back to its first square. Can I still castle?", "reference": "No. Once the king has moved, castling is no longer allowed for the rest of the game, even if it returns.", "mustMention": ["no"] }
+  ]
+}

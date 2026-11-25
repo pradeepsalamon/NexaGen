@@ -1,0 +1,86 @@
+{
+  "feature": "Support bot saved-answer pick",
+  "item": "q1-join",
+  "model": "openrouter/nvidia/nemotron-3.5-super-vl:free",
+  "startedAt": "2026-11-25T21:17:35.310Z",
+  "task": "support-pick",
+  "checks": {
+    "correct": true,
+    "expected": "A5",
+    "json": true,
+    "picked": "A5"
+  },
+  "ok": true,
+  "output": {
+    "answerId": "A5",
+    "reason": "Explains how to join today's class via the app when the link is not working"
+  },
+  "ms": 3781,
+  "usage": {
+    "calls": 1,
+    "completion": 459,
+    "prompt": 507,
+    "reasoning": 427,
+    "total": 966
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:17:39.091Z",
+          "limits": {},
+          "ms": 3781,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4150,
+        "messages": [
+          {
+            "content": "You sort WhatsApp messages for a chess academy's support desk.\nYou get the academy's saved answers and one message from a parent (English, Tamil or a mix).\nPick the one saved answer that fully answers the message, or null when none does.\nQuestions about one child's own records (attendance, fees paid, progress) always get null: a person answers those.\nReturn only JSON: {\"answerId\": \"A1\" or null, \"reason\": \"a few words\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"message\":\"Today class link not working, how to join?\",\"savedAnswers\":[{\"id\":\"A1\",\"text\":\"Group classes are Rs 2,500 a month or Rs 6,900 for three months. You can pay by UPI, card or net banking from the Payments page in the app.\",\"title\":\"Fees and payment\"},{\"id\":\"A2\",\"text\":\"Each batch has fixed days and times, shown on the Classes page. To change your batch timing, ask your coach or write to us here.\",\"title\":\"Class timings\"},{\"id\":\"A3\",\"text\":\"Every class has a recap and homework in the app. If you miss a class, you can join one make-up class in the same week in another batch of the same level; ask your coach to add you.\",\"title\":\"Missed a class\"},{\"id\":\"A4\",\"text\":\"You can book a free 30-minute demo class for your child. Reply DEMO and we will send you the available times.\",\"title\":\"Free demo class\"},{\"id\":\"A5\",\"text\":\"Open the app, go to Classes and press Join on today's class, ten minutes before it starts. Use Chrome on a laptop or the latest browser on a phone, and allow the camera and microphone.\",\"title\":\"Joining a live class\"},{\"id\":\"A6\",\"text\":\"Fees are refunded for classes not yet held if you write to us within 7 days of paying.\",\"title\":\"Refunds\"},{\"id\":\"A7\",\"text\":\"We teach Beginner, Intermediate and Advanced batches. A coach checks your child's level in the demo class.\",\"title\":\"Levels\"},{\"id\":\"A8\",\"text\":\"We hold an online tournament every month. Every player gets a certificate in the app after the tournament.\",\"title\":\"Tournaments and certificates\"}]}",
+            "role": "user"
+          }
+        ],
+        "model": "nvidia/nemotron-3.5-super-vl:free",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"answerId\": \"A5\", \"reason\": \"Explains how to join today's class via the app when the link is not working\"}",
+        "finishReason": "stop",
+        "ms": 3781,
+        "providerModel": "nvidia/nemotron-3.5-super-vl:free",
+        "reasoning": "The user wants me to sort a WhatsApp message for a chess academy's support desk.\nMessage: \"Today class link not working, how to join?\"\nSaved answers: A1-A8.\n\nI need to pick the one saved answer that fully answers the message, or null when none does.\nRules:\n- Questions about one child's own records (attendance, fees paid, progress) always get null.\n- Return only JSON: {\"answerId\": \"A1\" or null, \"reason\": \"a few words\"}\n\nAnalyze the message: Parent says today's class link is not working, asking how to join.\nThis is a general question about joining a live class / technical issue with link.\n\nLook at saved answers:\nA1: Fees and payment - not relevant.\nA2: Class timings - not relevant.\nA3: Missed a class - not exactly, link not working is not missing a class.\nA4: Free demo class - not relevant.\nA5: \"Open the app, go to Classes and press Join on today's class, ten minutes before it starts. Use Chrome on a laptop or the latest browser on a phone, and allow the camera and microphone.\" - This answers how to join a live class. It addresses the \"how to join\" part. It doesn't explicitly mention \"link not working\" but it gives the alternative method to join via app. Is it a full answer? The question is \"Today class link not working, how to join?\" A5 tells them how to join via app instead of link. This seems like the best match.\nA6: Refunds - no.\nA7: Levels - no.\nA8: Tournaments - no.\n\nSo answerId should be A5.\nReason: It explains how to join today's class via the app when the link isn't working.\n\nCheck constraints: Return only JSON. No extra text.\n\nJSON: {\"answerId\": \"A5\", \"reason\": \"Explains how to join today's class via the app instead of the link\"}\n\nMake sure it's valid JSON.",
+        "usage": {
+          "prompt_tokens": 507,
+          "completion_tokens": 459,
+          "total_tokens": 966,
+          "cost": 0,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0,
+            "upstream_inference_prompt_cost": 0,
+            "upstream_inference_completions_cost": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 427,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      }
+    }
+  ]
+}

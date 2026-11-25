@@ -1,0 +1,76 @@
+{
+  "feature": "Chess facts answer",
+  "item": "c1-en-passant",
+  "model": "groq/qwen/qwen3.8-27b",
+  "startedAt": "2026-11-25T21:08:54.390Z",
+  "task": "chess-facts",
+  "checks": {
+    "json": true,
+    "mentions": false
+  },
+  "ok": true,
+  "output": {
+    "answer": "En passant is a special pawn capture. You can capture an enemy pawn that just moved two squares next to you, as if it had only moved one square."
+  },
+  "ms": 157,
+  "usage": {
+    "calls": 1,
+    "completion": 38,
+    "prompt": 72,
+    "reasoning": 0,
+    "total": 110
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:08:54.547Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "979",
+            "x-ratelimit-remaining-tokens": "5302",
+            "x-ratelimit-reset-requests": "30m14.4s",
+            "x-ratelimit-reset-tokens": "42.3s"
+          },
+          "ms": 156,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4250,
+        "messages": [
+          {
+            "content": "You answer a chess question from a child or a parent at a chess academy.\nAnswer correctly in 1 to 3 short sentences of simple English. If you are not sure, say so.\nReturn only JSON: {\"answer\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "What is en passant?",
+            "role": "user"
+          }
+        ],
+        "model": "qwen/qwen3.8-27b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"answer\": \"En passant is a special pawn capture. You can capture an enemy pawn that just moved two squares next to you, as if it had only moved one square.\"}",
+        "finishReason": "stop",
+        "ms": 156,
+        "providerModel": "qwen/qwen3.8-27b",
+        "reasoning": null,
+        "usage": {
+          "queue_time": 0.054495049,
+          "prompt_tokens": 72,
+          "prompt_time": 0.00297571,
+          "completion_tokens": 38,
+          "completion_time": 0.090843801,
+          "total_tokens": 110,
+          "total_time": 0.093819511
+        }
+      }
+    }
+  ]
+}

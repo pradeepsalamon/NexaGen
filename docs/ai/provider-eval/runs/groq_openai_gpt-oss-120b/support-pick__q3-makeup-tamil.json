@@ -1,0 +1,97 @@
+{
+  "feature": "Support bot saved-answer pick",
+  "item": "q3-makeup-tamil",
+  "model": "groq/openai/gpt-oss-120b",
+  "startedAt": "2026-11-25T21:08:28.041Z",
+  "task": "support-pick",
+  "checks": {
+    "correct": true,
+    "expected": "A3",
+    "json": true,
+    "picked": "A3"
+  },
+  "ok": true,
+  "output": {
+    "answerId": "A3",
+    "reason": "addresses missed class and make‑up option"
+  },
+  "ms": 3537,
+  "usage": {
+    "calls": 1,
+    "completion": 156,
+    "prompt": 575,
+    "reasoning": 125,
+    "total": 731
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:08:28.058Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 6617, Requested 1508. Please try again in 937.5ms. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "1",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "983",
+            "x-ratelimit-remaining-tokens": "1383",
+            "x-ratelimit-reset-requests": "24m28.8s",
+            "x-ratelimit-reset-tokens": "49.627s"
+          },
+          "ms": 16,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:08:31.578Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "982",
+            "x-ratelimit-remaining-tokens": "539",
+            "x-ratelimit-reset-requests": "25m55.199s",
+            "x-ratelimit-reset-tokens": "55.957s"
+          },
+          "ms": 520,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4150,
+        "messages": [
+          {
+            "content": "You sort WhatsApp messages for a chess academy's support desk.\nYou get the academy's saved answers and one message from a parent (English, Tamil or a mix).\nPick the one saved answer that fully answers the message, or null when none does.\nQuestions about one child's own records (attendance, fees paid, progress) always get null: a person answers those.\nReturn only JSON: {\"answerId\": \"A1\" or null, \"reason\": \"a few words\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"message\":\"என் மகன் நேற்று கிளாஸ் மிஸ் பண்ணிட்டான், மறுபடி கிளாஸ் கிடைக்குமா?\",\"savedAnswers\":[{\"id\":\"A1\",\"text\":\"Group classes are Rs 2,500 a month or Rs 6,900 for three months. You can pay by UPI, card or net banking from the Payments page in the app.\",\"title\":\"Fees and payment\"},{\"id\":\"A2\",\"text\":\"Each batch has fixed days and times, shown on the Classes page. To change your batch timing, ask your coach or write to us here.\",\"title\":\"Class timings\"},{\"id\":\"A3\",\"text\":\"Every class has a recap and homework in the app. If you miss a class, you can join one make-up class in the same week in another batch of the same level; ask your coach to add you.\",\"title\":\"Missed a class\"},{\"id\":\"A4\",\"text\":\"You can book a free 30-minute demo class for your child. Reply DEMO and we will send you the available times.\",\"title\":\"Free demo class\"},{\"id\":\"A5\",\"text\":\"Open the app, go to Classes and press Join on today's class, ten minutes before it starts. Use Chrome on a laptop or the latest browser on a phone, and allow the camera and microphone.\",\"title\":\"Joining a live class\"},{\"id\":\"A6\",\"text\":\"Fees are refunded for classes not yet held if you write to us within 7 days of paying.\",\"title\":\"Refunds\"},{\"id\":\"A7\",\"text\":\"We teach Beginner, Intermediate and Advanced batches. A coach checks your child's level in the demo class.\",\"title\":\"Levels\"},{\"id\":\"A8\",\"text\":\"We hold an online tournament every month. Every player gets a certificate in the app after the tournament.\",\"title\":\"Tournaments and certificates\"}]}",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-120b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"answerId\":\"A3\",\"reason\":\"addresses missed class and make‑up option\"}",
+        "finishReason": "stop",
+        "ms": 520,
+        "providerModel": "openai/gpt-oss-120b",
+        "reasoning": "We need to pick saved answer that fully answers the message. Message in Tamil: \"என் மகன் நேற்று கிளாஸ் மிஸ் பண்ணிட்டான், மறுபடி கிளாஸ் கிடைக்குமா?\" Means: \"My son missed class yesterday, can we get a make-up class?\" So answer about missed class: A3 says: \"If you miss a class, you can join one make-up class in the same week in another batch of the same level; ask your coach to add you.\" That fully answers. So answerId A3. Reason: matches missed class query. Return JSON.",
+        "usage": {
+          "queue_time": 0.156141941,
+          "prompt_tokens": 575,
+          "prompt_time": 0.027315668,
+          "completion_tokens": 156,
+          "completion_time": 0.3203668,
+          "total_tokens": 731,
+          "total_time": 0.347682468,
+          "completion_tokens_details": {
+            "reasoning_tokens": 125
+          }
+        }
+      }
+    }
+  ]
+}

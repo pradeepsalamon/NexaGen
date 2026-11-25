@@ -1,0 +1,81 @@
+{
+  "feature": "Tamil translation of a review",
+  "item": "t2-immortal",
+  "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+  "startedAt": "2026-11-25T21:09:44.572Z",
+  "task": "translate-ta",
+  "checks": {
+    "json": true,
+    "tamilShare": 100
+  },
+  "ok": true,
+  "output": "நீ மிகவும் தைரியமாக விளையாடியிருக்கே, ஆரம்பத்திலிருந்தே பிளாக் கிங்-ஐ தாக்கியிருக்கே. எஞ்சின் 18-ஆம் மூவ் பிடிக்கவில்லை; அங்கு உன் ருக்-ஐ விட்டு விடுவது ஆபத்து, அமைதியாக ஒரு ருக் மூவ்-ஐ வைத்து வைத்திருப்பதே வலிமை. உன் தாக்கம் இன்னும் வேலை செய்தது, உன் பீஸ்-கள் கிங்-ஐ அருகில் ஒன்றாக வேலை செய்ததால். இந்த வாரம், ஒரு பீஸ்-ஐ தியாகம் செய்யும் முன் அட்டாக்கர்கள் மற்றும் பாதுகாவலர்களை எண்ணி பயிற்சி செய்.",
+  "ms": 49622,
+  "usage": {
+    "calls": 1,
+    "completion": 2403,
+    "prompt": 167,
+    "reasoning": 2212,
+    "total": 2570
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:10:34.194Z",
+          "limits": {},
+          "ms": 49622,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 5200,
+        "messages": [
+          {
+            "content": "You translate a chess coach's short comment for a child and their parent in Tamil Nadu.\nTranslate into simple, natural spoken-style Tamil in Tamil script. Keep the meaning exactly; add nothing.\nChess piece names and words like checkmate may stay in English (in Tamil letters or English letters) as Tamil chess players say them.\nReturn only JSON: {\"tamil\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "You played very bravely and attacked the black king from the start. The engine did not like move 18, where giving up your rook was risky, and keeping it with a calm rook move was stronger. Your attack still worked because your pieces worked together near the king. This week, practise counting attackers and defenders before you sacrifice a piece.",
+            "role": "user"
+          }
+        ],
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"tamil\": \"நீ மிகவும் தைரியமாக விளையாடியிருக்கே, ஆரம்பத்திலிருந்தே பிளாக் கிங்-ஐ தாக்கியிருக்கே. எஞ்சின் 18-ஆம் மூவ் பிடிக்கவில்லை; அங்கு உன் ருக்-ஐ விட்டு விடுவது ஆபத்து, அமைதியாக ஒரு ருக் மூவ்-ஐ வைத்து வைத்திருப்பதே வலிமை. உன் தாக்கம் இன்னும் வேலை செய்தது, உன் பீஸ்-கள் கிங்-ஐ அருகில் ஒன்றாக வேலை செய்ததால். இந்த வாரம், ஒரு பீஸ்-ஐ தியாகம் செய்யும் முன் அட்டாக்கர்கள் மற்றும் பாதுகாவலர்களை எண்ணி பயிற்சி செய்.\"}",
+        "finishReason": "stop",
+        "ms": 49622,
+        "providerModel": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "reasoning": "The user wants a translation of a chess coach's comment into simple, natural spoken-style Tamil in Tamil script. The translation should be accurate, keep the meaning exactly, add nothing. Chess piece names and terms like checkmate can stay in English (in Tamil letters or English letters) as Tamil chess players say them. Return only JSON with key \"tamil\".\n\nWe need to produce a JSON object: {\"tamil\": \"...\"}.\n\nWe must translate the given English text into Tamil. Let's parse the English:\n\n\"You played very bravely and attacked the black king from the start. The engine did not like move 18, where giving up your rook was risky, and keeping it with a calm rook move was stronger. Your attack still worked because your pieces worked together near the king. This week, practise counting attackers and defenders before you sacrifice a piece.\"\n\nWe need to produce a natural spoken Tamil translation. Use simple language. Keep chess terms like \"rook\", \"king\", \"move 18\", \"engine\", \"attackers\", \"defenders\", \"sacrifice\" maybe in English or Tamil script. The instruction: \"Chess piece names and words like checkmate may stay in English (in Tamil letters or English letters) as Tamil chess players say them.\" So we can keep \"rook\", \"king\", \"engine\", \"move 18\", \"attackers\", \"defenders\", \"sacrifice\" in English letters or Tamil transliteration. Probably better to keep them in English letters as they are commonly used. But we can also transliterate: \"ருக்\", \"கிங்\", \"எஞ்சின்\", \"மூவ் 18\", \"அட்டாக்கர்கள்\", \"பாதுகாவலர்கள்\", \"சேக்கிரிஃபைஸ்\"? But the instruction says they may stay in English (in Tamil letters or English letters). So we can keep them in English letters for simplicity.\n\nWe need to produce a JSON with the Tamil translation. Ensure it's valid JSON. No extra text.\n\nLet's craft the Tamil translation.\n\nWe need to be careful: \"You played very bravely and attacked the black king from the start.\" -> \"நீங்கள் மிகவும் தைரியமாக விளையாடினீர்கள் மற்றும் ஆரம்பத்திலிருந்தே கருப்பு கிங்-ஐ தாக்கினீர்கள்.\" But \"black king\" can be \"கருப்பு கிங்\" or \"பிளாக் கிங்\". In Tamil chess, they might say \"பிளாக் கிங்\". But we can use \"கருப்பு கிங்\". \"from the start\" -> \"ஆரம்பத்திலிருந்தே\".\n\n\"The engine did not like move 18, where giving up your rook was risky, and keeping it with a calm rook move was stronger.\" -> \"எஞ்சின் 18-ஆம் மூவ்-ஐ விரும்பவில்லை; அங்கு உங்கள் ருக்-ஐ விட்டு விடுவது ஆபத்தானது, அதை அமைதியாக ஒரு ருக் மூவ்-ஐ வைத்து வைத்திருப்பது அதிக வலிமை கொண்டது.\" But we need natural spoken style. Maybe: \"எஞ்சின் 18-ஆம் மூவ் பிடிக்கவில்லை; உங்கள் ருக்-ஐ தியாகம் செய்வது ஆபத்து, அது அமைதியாக ஒரு ருக் மூவ்-ஐ வைத்து வைத்திருப்பதே நல்லது.\"\n\n\"Your attack still worked because your pieces worked together near the king.\" -> \"உங்கள் தாக்கம் இன்னும் வேலை செய்தது, உங்கள் பீஸ்-கள் கிங்-ஐ அருகில் ஒன்றாக வேலை செய்ததால்.\"\n\n\"This week, practise counting attackers and defenders before you sacrifice a piece.\" -> \"இந்த வாரம், ஒரு பீஸ்-ஐ தியாகம் செய்யும் முன் அட்டாக்கர்கள் மற்றும் பாதுகாவலர்களை எண்ணி பயிற்சி செய்யுங்கள்.\"\n\nWe need to keep it simple, spoken style. Use \"நீ\" instead of \"நீங்கள்\"? The coach speaking to child and parent, maybe polite but simple. Could use \"நீ\" for child. But the comment is addressed to child and parent. Could use \"நீங்கள்\" for respect. But spoken style often uses \"நீ\" for child. However, the instruction: \"Translate into simple, natural spoken-style Tamil in Tamil script.\" So we can use \"நீ\" for child. But the comment includes \"Your attack still worked because your pieces worked together near the king.\" Could be \"உன் தாக்கம்...\" etc.\n\nLet's produce a translation that is natural.\n\nWe'll produce:\n\n\"நீ மிகவும் தைரியமாக விளையாடியிருக்கே, ஆரம்பத்திலிருந்தே பிளாக் கிங்-ஐ தாக்கியிருக்கே. எஞ்சின் 18-ஆம் மூவ் பிடிக்கவில்லை; அங்கு உன் ருக்-ஐ விட்டு விடுவது ஆபத்து, அமைதியாக ஒரு ருக் மூவ்-ஐ வைத்து வைத்திருப்பதே வலிமை. உன் தாக்கம் இன்னும் வேலை செய்தது, உன் பீஸ்-கள் கிங்-ஐ அருகில் ஒன்றாக வேலை செய்ததால். இந்த வாரம், ஒரு பீஸ்-ஐ தியாகம் செய்யும் முன் அட்டாக்கர்கள் மற்றும் பாதுகாவலர்களை எண்ணி பயிற்சி செய்.\"\n\nBut we need to ensure it's valid JSON. The string must be escaped properly. But we just need to output JSON with the Tamil string. The JSON value should be a string with proper escaping for any double quotes inside. Our Tamil string contains no double quotes. It contains hyphens, numbers, etc. That's fine.\n\nWe must ensure no extra characters outside JSON. So output exactly: {\"tamil\": \"...\"}\n\nNow, check for any English words that should stay in English: \"engine\", \"move 18\", \"rook\", \"king\", \"attackers\", \"defenders\", \"sacrifice\". In the translation we used \"எஞ்சின்\", \"18-ஆம் மூவ்\", \"ருக்\", \"கிங்\", \"அட்டாக்கர்கள்\", \"பாதுகாவலர்கள்\", \"தியாகம்\" (for sacrifice). The instruction says chess piece names and words like checkmate may stay in English (in Tamil letters or English letters) as Tamil chess players say them. So we can keep \"rook\" as \"ருக்\" (Tamil letters) or \"rook\". We used \"ருக்\". That's fine. \"king\" as \"கிங்\". \"engine\" as \"எஞ்சின்\". \"move 18\" as \"18-ஆம் மூவ்\". \"attackers\" as \"அட்டாக்கர்கள்\". \"defenders\" as \"பாதுகாவலர்கள்\". \"sacrifice\" as \"தியாகம்\". That's okay.\n\nBut maybe they'd prefer English words like \"rook\", \"king\", \"engine\", \"move 18\", \"attackers\", \"defenders\", \"sacrifice\" in English letters. But the instruction says \"may stay in English (in Tamil letters or English letters) as Tamil chess players say them.\" So either is fine. We'll keep them in Tamil letters for naturalness.\n\nNow, ensure the translation is simple, natural spoken style. The above seems okay.\n\nBut we need to check for any missing nuance: \"You played very bravely and attacked the black king from the start.\" Could be \"நீ மிகவும் தைரியமாக விளையாடியே, ஆரம்பத்திலிருந்தே பிளாக் கிங்-ஐ தாக்கியே.\" But \"விளையாடியிருக்கே\" is more colloquial. \"தாக்கியிருக்கே\" also. But it's okay.\n\n\"The engine did not like move 18, where giving up your rook was risky, and keeping it with a calm rook move was stronger.\" Could be \"எஞ்சின் 18-ஆம் மூவ் பிடிக்கவில்லை; அங்கு உன் ருக்-ஐ விட்டு விடுவது ஆபத்து, அமைதியாக ஒரு ருக் மூவ்-ஐ வைத்து வைத்திருப்பதே வலிமை.\" Good.\n\n\"Your attack still worked because your pieces worked together near the king.\" -> \"உன் தாக்கம் இன்னும் வேலை செய்தது, உன் பீஸ்-கள் கிங்-ஐ அருகில் ஒன்றாக வேலை செய்ததால்.\" Good.\n\n\"This week, practise counting attackers and defenders before you sacrifice a piece.\" -> \"இந்த வாரம், ஒரு பீஸ்-ஐ தியாகம் செய்யும் முன் அட்டாக்கர்கள் மற்றும் பாதுகாவலர்களை எண்ணி பயிற்சி செய்.\" Good.\n\nNow, ensure the JSON is valid. The string includes characters like \"ஃ\" etc. That's fine. Ensure no unescaped newline. We'll output as a single line JSON.\n\nThus final answer: {\"tamil\": \"நீ மிகவும் தைரியமாக விளையாடியிருக்கே, ஆரம்பத்திலிருந்தே பிளாக் கிங்-ஐ தாக்கியிருக்கே. எஞ்சின் 18-ஆம் மூவ் பிடிக்கவில்லை; அங்கு உன் ருக்-ஐ விட்டு விடுவது ஆபத்து, அமைதியாக ஒரு ருக் மூவ்-ஐ வைத்து வைத்திருப்பதே வலிமை. உன் தாக்கம் இன்னும் வேலை செய்தது, உன் பீஸ்-கள் கிங்-ஐ அருகில் ஒன்றாக வேலை செய்ததால். இந்த வாரம், ஒரு பீஸ்-ஐ தியாகம் செய்யும் முன் அட்டாக்கர்கள் மற்றும் பாதுகாவலர்களை எண்ணி பயிற்சி செய்.\"}\n\nBut we need to ensure the JSON uses double quotes for the key and value. The value string must be enclosed in double quotes. The string contains double quotes? No. So it's fine.\n\nWe must not include any extra text. Just the JSON.\n\nThus final.",
+        "usage": {
+          "prompt_tokens": 167,
+          "completion_tokens": 2403,
+          "total_tokens": 2570,
+          "cost": 0,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0,
+            "upstream_inference_prompt_cost": 0,
+            "upstream_inference_completions_cost": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 2212,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      }
+    }
+  ]
+}

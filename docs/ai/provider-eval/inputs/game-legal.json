@@ -1,0 +1,70 @@
+{
+  "about": "Legall de Kermeur vs Saint Brie, Paris 1750 (public domain, 'Legal's mate'). The student played Black and lost in 7 moves.",
+  "engine": "Stockfish 16, depth 14, 1 thread",
+  "findingsWithLoss": [
+    {
+      "better": "Nc6",
+      "kind": "INACCURACY",
+      "motif": null,
+      "moveNumber": 4,
+      "played": "g6",
+      "segment": 0,
+      "winPercentLoss": 12
+    },
+    {
+      "better": "dxe5",
+      "kind": "BLUNDER",
+      "motif": null,
+      "moveNumber": 5,
+      "played": "Bxd1",
+      "segment": 0,
+      "winPercentLoss": 31
+    }
+  ],
+  "id": "game-legal",
+  "play": {
+    "accuracy": 74,
+    "findings": [
+      {
+        "better": "Nc6",
+        "kind": "INACCURACY",
+        "motif": null,
+        "moveNumber": 4,
+        "played": "g6",
+        "segment": 0
+      },
+      {
+        "better": "dxe5",
+        "kind": "BLUNDER",
+        "motif": null,
+        "moveNumber": 5,
+        "played": "Bxd1",
+        "segment": 0
+      }
+    ],
+    "kind": "Own game",
+    "segments": [
+      {
+        "label": null,
+        "moves": [
+          "e4",
+          "*e5",
+          "Bc4",
+          "*d6",
+          "Nf3",
+          "*Bg4",
+          "Nc3",
+          "*g6",
+          "Nxe5",
+          "*Bxd1",
+          "Bxf7+",
+          "*Ke7",
+          "Nd5#"
+        ],
+        "playerSide": "black",
+        "result": "1-0",
+        "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+      }
+    ]
+  }
+}

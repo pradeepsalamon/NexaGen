@@ -1,0 +1,92 @@
+{
+  "feature": "Puzzle hint",
+  "item": "p3-skewer",
+  "model": "groq/qwen/qwen3.8-27b",
+  "startedAt": "2026-11-25T21:08:31.970Z",
+  "task": "puzzle-hint",
+  "checks": {
+    "json": true,
+    "givesAway": false
+  },
+  "ok": true,
+  "output": {
+    "hint1": "Look for a way to line up your bishop with the enemy king and queen.",
+    "hint2": "Find the square that puts the king in check and forces it to move away from the queen."
+  },
+  "ms": 5198,
+  "usage": {
+    "calls": 1,
+    "completion": 47,
+    "prompt": 181,
+    "reasoning": 0,
+    "total": 228
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:08:31.982Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `qwen/qwen3.8-27b` in organization `org_[redacted]` service tier `on_demand` on output tokens per minute (OTPM): Limit 1000, Used 469, Requested 576. Please try again in 2.699999999s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "3",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "988",
+            "x-ratelimit-remaining-tokens": "7214",
+            "x-ratelimit-reset-requests": "17m16.8s",
+            "x-ratelimit-reset-tokens": "28.139s"
+          },
+          "ms": 12,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:08:37.168Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "987",
+            "x-ratelimit-remaining-tokens": "7140",
+            "x-ratelimit-reset-requests": "18m43.2s",
+            "x-ratelimit-reset-tokens": "40.74s"
+          },
+          "ms": 185,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4300,
+        "messages": [
+          {
+            "content": "You help a child who is stuck on a chess puzzle.\nYou get the position (FEN), the side to move, the solution and the theme.\nWrite two hints: the first gentle (what to look at), the second stronger (the idea), each one short sentence.\nNever give the solution move, never name the square the piece moves to, and never write chess notation.\nReturn only JSON: {\"hint1\": \"...\", \"hint2\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"fen\":\"6q1/8/8/3k4/8/1P6/4B3/7K w - - 0 1\",\"sideToMove\":\"white\",\"solution\":[\"Bc4+\",\"Ke5\",\"Bxg8\"],\"theme\":\"skewer (king and queen)\"}",
+            "role": "user"
+          }
+        ],
+        "model": "qwen/qwen3.8-27b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"hint1\": \"Look for a way to line up your bishop with the enemy king and queen.\", \"hint2\": \"Find the square that puts the king in check and forces it to move away from the queen.\"}",
+        "finishReason": "stop",
+        "ms": 185,
+        "providerModel": "qwen/qwen3.8-27b",
+        "reasoning": null,
+        "usage": {
+          "queue_time": 0.049905585,
+          "prompt_tokens": 181,
+          "prompt_time": 0.012590884,
+          "completion_tokens": 47,
+          "completion_time": 0.089331378,
+          "total_tokens": 228,
+          "total_time": 0.101922262
+        }
+      }
+    }
+  ]
+}

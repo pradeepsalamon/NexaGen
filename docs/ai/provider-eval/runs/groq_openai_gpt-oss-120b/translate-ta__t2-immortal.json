@@ -1,0 +1,92 @@
+{
+  "feature": "Tamil translation of a review",
+  "item": "t2-immortal",
+  "model": "groq/openai/gpt-oss-120b",
+  "startedAt": "2026-11-25T21:07:22.552Z",
+  "task": "translate-ta",
+  "checks": {
+    "json": true,
+    "tamilShare": 100
+  },
+  "ok": true,
+  "output": "நீங்கள் மிகவும் துணிச்சலாக விளையாடி, ஆரம்பத்திலேயே கருப்பு ராஜாவை தாக்கினீர்கள். எஞ்சின் 18வது நகர்வை விரும்பவில்லை; அங்கு உங்கள் ருக் விடுவது ஆபத்தானது, ஆனால் அமைதியான ருக் நகர்வுடன் அதை வைத்திருப்பது வலிமையானது. உங்கள் தாக்குதல் இன்னும் செயல்பட்டது, ஏனெனில் உங்கள் கற்கள் ராஜாவின் அருகில் ஒன்றாகச் செயல்பட்டன. இந்த வாரம், ஒரு கல்லை பலியிடும் முன், தாக்குபவர்கள் மற்றும் பாதுகாப்பாளர்களை எண்ணிப் பயிற்சி செய்யுங்கள்.",
+  "ms": 10564,
+  "usage": {
+    "calls": 1,
+    "completion": 705,
+    "prompt": 246,
+    "reasoning": 555,
+    "total": 951
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:07:22.568Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7716, Requested 1114. Please try again in 6.225s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "7",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "993",
+            "x-ratelimit-remaining-tokens": "284",
+            "x-ratelimit-reset-requests": "10m4.8s",
+            "x-ratelimit-reset-tokens": "57.87s"
+          },
+          "ms": 16,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:07:33.115Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "992",
+            "x-ratelimit-remaining-tokens": "64",
+            "x-ratelimit-reset-requests": "11m31.2s",
+            "x-ratelimit-reset-tokens": "59.519s"
+          },
+          "ms": 1547,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 5200,
+        "messages": [
+          {
+            "content": "You translate a chess coach's short comment for a child and their parent in Tamil Nadu.\nTranslate into simple, natural spoken-style Tamil in Tamil script. Keep the meaning exactly; add nothing.\nChess piece names and words like checkmate may stay in English (in Tamil letters or English letters) as Tamil chess players say them.\nReturn only JSON: {\"tamil\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "You played very bravely and attacked the black king from the start. The engine did not like move 18, where giving up your rook was risky, and keeping it with a calm rook move was stronger. Your attack still worked because your pieces worked together near the king. This week, practise counting attackers and defenders before you sacrifice a piece.",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-120b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"tamil\":\"நீங்கள் மிகவும் துணிச்சலாக விளையாடி, ஆரம்பத்திலேயே கருப்பு ராஜாவை தாக்கினீர்கள். எஞ்சின் 18வது நகர்வை விரும்பவில்லை; அங்கு உங்கள் ருக் விடுவது ஆபத்தானது, ஆனால் அமைதியான ருக் நகர்வுடன் அதை வைத்திருப்பது வலிமையானது. உங்கள் தாக்குதல் இன்னும் செயல்பட்டது, ஏனெனில் உங்கள் கற்கள் ராஜாவின் அருகில் ஒன்றாகச் செயல்பட்டன. இந்த வாரம், ஒரு கல்லை பலியிடும் முன், தாக்குபவர்கள் மற்றும் பாதுகாப்பாளர்களை எண்ணிப் பயிற்சி செய்யுங்கள்.\"}",
+        "finishReason": "stop",
+        "ms": 1547,
+        "providerModel": "openai/gpt-oss-120b",
+        "reasoning": "We need to translate the given English comment into simple, natural spoken-style Tamil in Tamil script, keeping meaning exactly, no additions. Chess piece names and words like checkmate may stay in English (in Tamil letters or English letters) as Tamil chess players say them. Return only JSON: {\"tamil\": \"...\"}.\n\nWe must ensure JSON is compact, valid.\n\nLet's translate:\n\n\"You played very bravely and attacked the black king from the start.\"\n\nTamil: \"நீங்கள் மிகவும் துணிச்சலாக விளையாடி, ஆரம்பத்திலேயே கருப்பு ராஜாவை தாக்கினீர்கள்.\"\n\n\"The engine did not like move 18, where giving up your rook was risky, and keeping it with a calm rook move was stronger.\"\n\nEngine = \"எஞ்சின்\". \"move 18\" = \"நடவடிக்கை 18\". \"giving up your rook was risky\" = \"உங்கள் ருக்(rook) விடுவது ஆபத்தானது\". \"keeping it with a calm rook move was stronger\" = \"அதை அமைதியான ருக் நகர்வுடன் வைத்திருப்பது வலிமையானது\". Need simple spoken style.\n\n\"எஞ்சின் 18வது நகர்வை விரும்பவில்லை, அங்கு உங்கள் ருக் விடுவது ஆபத்தானது, ஆனால் அமைதியான ருக் நகர்வுடன் அதை வைத்திருப்பது வலிமையானது.\"\n\n\"Your attack still worked because your pieces worked together near the king.\"\n\n\"உங்கள் தாக்குதல் இன்னும் செயல்பட்டது, ஏனெனில் உங்கள் கற்கள் ராஜாவின் அருகில் ஒன்றாகச் செயல்பட்டன.\"\n\n\"This week, practise counting attackers and defenders before you sacrifice a piece.\"\n\n\"This week\" = \"இந்த வாரம்\". \"practise counting attackers and defenders before you sacrifice a piece.\" = \"ஒரு கல்லை பலியிடும் முன், தாக்குபவர்கள் மற்றும் பாதுகாப்பாளர்களை எண்ணிப் பயிற்சி செய்யுங்கள்.\"\n\nMake it natural spoken Tamil.\n\nCombine sentences.\n\nFull translation:\n\n\"நீங்கள் மிகவும் துணிச்சலாக விளையாடி, ஆரம்பத்திலேயே கருப்பு ராஜாவை தாக்கினீர்கள். எஞ்சின் 18வது நகர்வை விரும்பவில்லை; அங்கு உங்கள் ருக் விடுவது ஆபத்தானது, ஆனால் அமைதியான ருக் நகர்வுடன் அதை வைத்திருப்பது வலிமையானது. உங்கள் தாக்குதல் இன்னும் செயல்பட்டது, ஏனெனில் உங்கள் கற்கள் ராஜாவின் அருகில் ஒன்றாகச் செயல்பட்டன. இந்த வாரம், ஒரு கல்லை பலியிடும் முன், தாக்குபவர்கள் மற்றும் பாதுகாப்பாளர்களை எண்ணிப் பயிற்சி செய்யுங்கள்.\"\n\nCheck for any extra meaning: fine.\n\nReturn JSON.\n\n",
+        "usage": {
+          "queue_time": 0.053988776,
+          "prompt_tokens": 246,
+          "prompt_time": 0.009306514,
+          "completion_tokens": 705,
+          "completion_time": 1.466873986,
+          "total_tokens": 951,
+          "total_time": 1.4761805,
+          "completion_tokens_details": {
+            "reasoning_tokens": 555
+          }
+        }
+      }
+    }
+  ]
+}

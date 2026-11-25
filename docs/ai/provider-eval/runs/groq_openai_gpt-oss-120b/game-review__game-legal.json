@@ -1,0 +1,90 @@
+{
+  "feature": "Game review comment (AI play review)",
+  "item": "game-legal",
+  "model": "groq/openai/gpt-oss-120b",
+  "startedAt": "2026-11-25T21:06:58.232Z",
+  "task": "game-review",
+  "checks": {
+    "inventedMoves": [
+      "g4"
+    ]
+  },
+  "ok": true,
+  "output": "You got your bishop out to g4 early, which is a solid developing move. The engine showed that the move Bxd1 on move 5 was a blunder; a better move would have been dxe5 to keep material balance. It also noted that g6 on move 4 was an inaccuracy and Nc6 would have been a stronger alternative. Work on looking a couple of moves ahead before you capture, especially checking if a pawn recapture like dxe5 is possible.",
+  "ms": 5781,
+  "usage": {
+    "calls": 1,
+    "completion": 671,
+    "prompt": 369,
+    "reasoning": 563,
+    "total": 1040
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:06:58.246Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7708, Requested 518. Please try again in 1.695s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "2",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "996",
+            "x-ratelimit-remaining-tokens": "292",
+            "x-ratelimit-reset-requests": "5m45.6s",
+            "x-ratelimit-reset-tokens": "57.81s"
+          },
+          "ms": 13,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:07:04.012Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "995",
+            "x-ratelimit-remaining-tokens": "309",
+            "x-ratelimit-reset-requests": "7m12s",
+            "x-ratelimit-reset-tokens": "57.682s"
+          },
+          "ms": 1765,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4400,
+        "messages": [
+          {
+            "content": "You are a friendly chess coach writing to a young student about their own play. You get the positions, the moves (the student's own moves start with *) and what a chess engine found. Write 3 to 5 short sentences: one thing they did well, the most important lesson from the engine's findings (name the better move when given), and one concrete thing to practise. Use only the facts given; never invent moves or evaluations. Plain language, no headings, no lists, no emojis.",
+            "role": "system"
+          },
+          {
+            "content": "{\"accuracy\":74,\"findings\":[{\"better\":\"Nc6\",\"kind\":\"INACCURACY\",\"motif\":null,\"moveNumber\":4,\"played\":\"g6\",\"segment\":0},{\"better\":\"dxe5\",\"kind\":\"BLUNDER\",\"motif\":null,\"moveNumber\":5,\"played\":\"Bxd1\",\"segment\":0}],\"kind\":\"Own game\",\"segments\":[{\"label\":null,\"moves\":[\"e4\",\"*e5\",\"Bc4\",\"*d6\",\"Nf3\",\"*Bg4\",\"Nc3\",\"*g6\",\"Nxe5\",\"*Bxd1\",\"Bxf7+\",\"*Ke7\",\"Nd5#\"],\"playerSide\":\"black\",\"result\":\"1-0\",\"startFen\":\"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\"}]}",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-120b",
+        "temperature": 0.4
+      },
+      "response": {
+        "content": "You got your bishop out to g4 early, which is a solid developing move. The engine showed that the move Bxd1 on move 5 was a blunder; a better move would have been dxe5 to keep material balance. It also noted that g6 on move 4 was an inaccuracy and Nc6 would have been a stronger alternative. Work on looking a couple of moves ahead before you capture, especially checking if a pawn recapture like dxe5 is possible.",
+        "finishReason": "stop",
+        "ms": 1765,
+        "providerModel": "openai/gpt-oss-120b",
+        "reasoning": "We need to write 3-5 short sentences: one thing they did well, the most important lesson from engine's findings (name the better move when given), and one concrete thing to practise. Use only facts given; never invent moves or evaluations. Plain language, no headings, no lists, no emojis.\n\nWe have a game where the student is black? Actually playerSide is \"black\". Moves list: \"e4\" (white), \"*e5\" (black's move by student), \"Bc4\" (white), \"*d6\" (black), \"Nf3\" (white), \"*Bg4\" (black), \"Nc3\" (white), \"*g6\" (black), \"Nxe5\" (white), \"*Bxd1\" (black), \"Bxf7+\" (white), \"*Ke7\" (black), \"Nd5#\" (white). So black lost.\n\nEngine findings: at move 4 (moveNumber 4) black played g6, engine says better is Nc6. That's an inaccuracy. At move 5 black played Bxd1, engine says better is dxe5, a blunder.\n\nWe need to mention one thing they did well. Perhaps they delivered a check with Bxf7+? Actually that was white. Black's moves: e5, d6, Bg4, g6, Bxd1, Ke7. Hard to find a positive. Maybe they developed a bishop to g4 early, that's a good developing move. So we can say they developed the bishop to g4, which puts pressure.\n\nMost important lesson: At move 5, Bxd1 was a blunder; better was dxe5. Or maybe the earlier inaccuracy also important. Probably the blunder is more important. So we say: Instead of Bxd1, capture on e5 with dxe5 would have kept material and avoided losing.\n\nConcrete thing to practice: calculating consequences of captures and looking for better pawn recaptures; practice spotting tactics and evaluating captures.\n\nWrite 3-5 short sentences. Let's do 4 sentences.\n\nSentence1: You did a good job getting your bishop out to g4 early, which is a natural developing move. Sentence2: The engine showed that the move Bxd1 on move 5 was a blunder; a better move would have been dxe5, keeping material balance. Sentence3: Also, on move 4 the inaccuracy g6 could have been improved by playing Nc6 to develop a piece. Sentence4: Practice looking ahead a couple of moves before capturing, especially checking if a pawn recapture like dxe5 is possible. That's 4 sentences.\n\nMake sure plain language, no headings, no lists, no emojis.",
+        "usage": {
+          "queue_time": 0.315762846,
+          "prompt_tokens": 369,
+          "prompt_time": 0.017539663,
+          "completion_tokens": 671,
+          "completion_time": 1.41721581,
+          "total_tokens": 1040,
+          "total_time": 1.434755473,
+          "completion_tokens_details": {
+            "reasoning_tokens": 563
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "feature": "Support bot saved-answer pick",
+  "item": "q2-fees-tanglish",
+  "model": "openrouter/nvidia/nemotron-3.5-super-vl:free",
+  "startedAt": "2026-11-25T21:17:39.092Z",
+  "task": "support-pick",
+  "checks": {
+    "correct": true,
+    "expected": "A1",
+    "json": true,
+    "picked": "A1"
+  },
+  "ok": true,
+  "output": {
+    "answerId": "A1",
+    "reason": "A1 gives the monthly and 3-month fee amounts and payment methods, directly answering the parent's question."
+  },
+  "ms": 2965,
+  "usage": {
+    "calls": 1,
+    "completion": 358,
+    "prompt": 515,
+    "reasoning": 321,
+    "total": 873
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:17:42.057Z",
+          "limits": {},
+          "ms": 2965,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4150,
+        "messages": [
+          {
+            "content": "You sort WhatsApp messages for a chess academy's support desk.\nYou get the academy's saved answers and one message from a parent (English, Tamil or a mix).\nPick the one saved answer that fully answers the message, or null when none does.\nQuestions about one child's own records (attendance, fees paid, progress) always get null: a person answers those.\nReturn only JSON: {\"answerId\": \"A1\" or null, \"reason\": \"a few words\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"message\":\"fees evvalavu sir? monthly ah illa 3 month ah kattanuma?\",\"savedAnswers\":[{\"id\":\"A1\",\"text\":\"Group classes are Rs 2,500 a month or Rs 6,900 for three months. You can pay by UPI, card or net banking from the Payments page in the app.\",\"title\":\"Fees and payment\"},{\"id\":\"A2\",\"text\":\"Each batch has fixed days and times, shown on the Classes page. To change your batch timing, ask your coach or write to us here.\",\"title\":\"Class timings\"},{\"id\":\"A3\",\"text\":\"Every class has a recap and homework in the app. If you miss a class, you can join one make-up class in the same week in another batch of the same level; ask your coach to add you.\",\"title\":\"Missed a class\"},{\"id\":\"A4\",\"text\":\"You can book a free 30-minute demo class for your child. Reply DEMO and we will send you the available times.\",\"title\":\"Free demo class\"},{\"id\":\"A5\",\"text\":\"Open the app, go to Classes and press Join on today's class, ten minutes before it starts. Use Chrome on a laptop or the latest browser on a phone, and allow the camera and microphone.\",\"title\":\"Joining a live class\"},{\"id\":\"A6\",\"text\":\"Fees are refunded for classes not yet held if you write to us within 7 days of paying.\",\"title\":\"Refunds\"},{\"id\":\"A7\",\"text\":\"We teach Beginner, Intermediate and Advanced batches. A coach checks your child's level in the demo class.\",\"title\":\"Levels\"},{\"id\":\"A8\",\"text\":\"We hold an online tournament every month. Every player gets a certificate in the app after the tournament.\",\"title\":\"Tournaments and certificates\"}]}",
+            "role": "user"
+          }
+        ],
+        "model": "nvidia/nemotron-3.5-super-vl:free",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"answerId\": \"A1\", \"reason\": \"A1 gives the monthly and 3-month fee amounts and payment methods, directly answering the parent's question.\"}",
+        "finishReason": "stop",
+        "ms": 2965,
+        "providerModel": "nvidia/nemotron-3.5-super-vl:free",
+        "reasoning": "The user wants me to sort a WhatsApp message for a chess academy's support desk.\nI need to pick the one saved answer that fully answers the message, or null when none does.\nThe message is: \"fees evvalavu sir? monthly ah illa 3 month ah kattanuma?\" (Tamil/English mix meaning \"What are the fees sir? monthly or 3 months?\")\nThe saved answers are A1 through A8.\n\nA1: \"Group classes are Rs 2,500 a month or Rs 6,900 for three months. You can pay by UPI, card or net banking from the Payments page in the app.\" - This directly answers the question about fees (monthly vs 3 months).\n\nA2: Class timings - not relevant.\nA3: Missed a class - not relevant.\nA4: Free demo class - not relevant.\nA5: Joining a live class - not relevant.\nA6: Refunds - not relevant.\nA7: Levels - not relevant.\nA8: Tournaments - not relevant.\n\nThe question is about fees structure (monthly vs 3 months), which A1 fully answers.\nIt's not about one child's own records (attendance, fees paid, progress), it's a general question about fee pricing. So not null.\n\nReturn only JSON: {\"answerId\": \"A1\", \"reason\": \"a few words\"}\n\nReason: A1 states monthly and 3-month fees and payment options, directly answering the parent's question.",
+        "usage": {
+          "prompt_tokens": 515,
+          "completion_tokens": 358,
+          "total_tokens": 873,
+          "cost": 0,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0,
+            "upstream_inference_prompt_cost": 0,
+            "upstream_inference_completions_cost": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 321,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      }
+    }
+  ]
+}

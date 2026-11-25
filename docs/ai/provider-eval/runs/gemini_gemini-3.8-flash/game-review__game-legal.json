@@ -1,0 +1,47 @@
+{
+  "feature": "Game review comment (AI play review)",
+  "item": "game-legal",
+  "model": "gemini/gemini-3.8-flash",
+  "startedAt": "2026-11-25T21:33:48.321Z",
+  "task": "game-review",
+  "error": "daily limit: [{\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceed",
+  "ok": false,
+  "dailyLimit": true,
+  "ms": 402,
+  "usage": {
+    "calls": 0,
+    "completion": 0,
+    "prompt": 0,
+    "reasoning": 0,
+    "total": 0
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:33:48.723Z",
+          "error": "[{\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.8-flash, description: Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\\nPlease retry in 10h26m11.315654298s.\",\n    \"status\": \"RESOURCE_EXHAUSTED\",\n    \"details\": [\n      {\n        \"@type\": \"type.googleapis.com/google.rpc.Help\",\n        \"links\": [\n          {\n            \"description\": \"Learn more about Gemini API quotas\",\n            \"url\": \"https://aistudio.google.com/docs/rate-limits\"\n          }\n        ]\n      },\n      {\n        \"@type\": \"type.googleapis.com/google.rpc.QuotaFailure\",\n        \"violations\": [\n          {\n            \"description\": \"Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\",\n            \"quotaMetric\": \"generativelanguage.googleapis.com/generate_content_free_tier_requests\",\n            \"quotaId\": \"GenerateRequestsPerDayPerProjectPerModel-FreeTier\",\n            \"quotaDimensions\": {\n              \"model\": \"gemini-3.8-flash\",\n              \"location\": \"global\"\n            },\n            \"quotaValue\": \"20\"\n          }\n        ]\n      },\n      {\n        \"@type\": \"type.googleapis.com/google.rpc.RetryInfo\",\n        \"retryDelay\": \"37571s\"\n      }\n    ]\n  }\n}\n]",
+          "limits": {},
+          "ms": 402,
+          "status": 429
+        }
+      ],
+      "error": "daily limit: [{\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceed",
+      "request": {
+        "max_tokens": 4400,
+        "messages": [
+          {
+            "content": "You are a friendly chess coach writing to a young student about their own play. You get the positions, the moves (the student's own moves start with *) and what a chess engine found. Write 3 to 5 short sentences: one thing they did well, the most important lesson from the engine's findings (name the better move when given), and one concrete thing to practise. Use only the facts given; never invent moves or evaluations. Plain language, no headings, no lists, no emojis.",
+            "role": "system"
+          },
+          {
+            "content": "{\"accuracy\":74,\"findings\":[{\"better\":\"Nc6\",\"kind\":\"INACCURACY\",\"motif\":null,\"moveNumber\":4,\"played\":\"g6\",\"segment\":0},{\"better\":\"dxe5\",\"kind\":\"BLUNDER\",\"motif\":null,\"moveNumber\":5,\"played\":\"Bxd1\",\"segment\":0}],\"kind\":\"Own game\",\"segments\":[{\"label\":null,\"moves\":[\"e4\",\"*e5\",\"Bc4\",\"*d6\",\"Nf3\",\"*Bg4\",\"Nc3\",\"*g6\",\"Nxe5\",\"*Bxd1\",\"Bxf7+\",\"*Ke7\",\"Nd5#\"],\"playerSide\":\"black\",\"result\":\"1-0\",\"startFen\":\"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\"}]}",
+            "role": "user"
+          }
+        ],
+        "model": "gemini-3.8-flash",
+        "temperature": 0.4
+      }
+    }
+  ]
+}

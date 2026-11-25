@@ -1,0 +1,3462 @@
+{
+  "rows": [
+    {
+      "checks": {
+        "json": true,
+        "mentions": false
+      },
+      "item": "c1-en-passant",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 5414,
+      "modelMs": 5411,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 48,
+        "prompt": 58,
+        "reasoning": 0,
+        "total": 106
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "mentions": true
+      },
+      "item": "c2-first-indian-gm",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 1913,
+      "modelMs": 1913,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 23,
+        "prompt": 67,
+        "reasoning": 0,
+        "total": 90
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "mentions": true
+      },
+      "item": "c3-promote-king",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 82408,
+      "modelMs": 82408,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 30,
+        "prompt": 61,
+        "reasoning": 0,
+        "total": 91
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "mentions": true
+      },
+      "item": "c4-stalemate",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 1059,
+      "modelMs": 1059,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 23,
+        "prompt": 69,
+        "reasoning": 0,
+        "total": 92
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "mentions": true
+      },
+      "item": "c5-castle-after-king-moved",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 1256,
+      "modelMs": 1256,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 30,
+        "prompt": 72,
+        "reasoning": 0,
+        "total": 102
+      }
+    },
+    {
+      "checks": {
+        "json": true
+      },
+      "item": "f1-english-notes",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 8999,
+      "modelMs": 8998,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "coach-feedback",
+      "usage": {
+        "calls": 1,
+        "completion": 83,
+        "prompt": 168,
+        "reasoning": 0,
+        "total": 251
+      }
+    },
+    {
+      "checks": {
+        "json": true
+      },
+      "item": "f2-tanglish-notes",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 1360,
+      "modelMs": 1360,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "coach-feedback",
+      "usage": {
+        "calls": 1,
+        "completion": 85,
+        "prompt": 183,
+        "reasoning": 0,
+        "total": 268
+      }
+    },
+    {
+      "checks": {
+        "inventedMoves": []
+      },
+      "item": "game-immortal",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 1884,
+      "modelMs": 1882,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "game-review",
+      "usage": {
+        "calls": 1,
+        "completion": 88,
+        "prompt": 409,
+        "reasoning": 0,
+        "total": 497
+      }
+    },
+    {
+      "checks": {
+        "inventedMoves": []
+      },
+      "item": "game-legal",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 1786,
+      "modelMs": 1783,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "game-review",
+      "usage": {
+        "calls": 1,
+        "completion": 91,
+        "prompt": 283,
+        "reasoning": 0,
+        "total": 374
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "notation": false,
+        "numbersNotInInput": []
+      },
+      "item": "s1-active",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 3890,
+      "modelMs": 3890,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "progress-note",
+      "usage": {
+        "calls": 1,
+        "completion": 174,
+        "prompt": 274,
+        "reasoning": 0,
+        "total": 448
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "notation": false,
+        "numbersNotInInput": []
+      },
+      "item": "s2-struggling",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 1645,
+      "modelMs": 1645,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "progress-note",
+      "usage": {
+        "calls": 1,
+        "completion": 165,
+        "prompt": 251,
+        "reasoning": 0,
+        "total": 416
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "givesAway": false
+      },
+      "item": "p1-back-rank",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 1205,
+      "modelMs": 1205,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "puzzle-hint",
+      "usage": {
+        "calls": 1,
+        "completion": 48,
+        "prompt": 153,
+        "reasoning": 0,
+        "total": 201
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "givesAway": false
+      },
+      "item": "p2-knight-fork",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 1084,
+      "modelMs": 1084,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "puzzle-hint",
+      "usage": {
+        "calls": 1,
+        "completion": 56,
+        "prompt": 164,
+        "reasoning": 0,
+        "total": 220
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "givesAway": false
+      },
+      "item": "p3-skewer",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 1103,
+      "modelMs": 1103,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "puzzle-hint",
+      "usage": {
+        "calls": 1,
+        "completion": 53,
+        "prompt": 162,
+        "reasoning": 0,
+        "total": 215
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 100
+      },
+      "item": "recap-ta-to-ta",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 1843,
+      "modelMs": 1840,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "recap-tamil",
+      "usage": {
+        "calls": 1,
+        "completion": 328,
+        "prompt": 1431,
+        "reasoning": 0,
+        "total": 1759
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 0
+      },
+      "item": "recap-en",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 2256,
+      "modelMs": 2195,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "recap",
+      "usage": {
+        "calls": 1,
+        "completion": 305,
+        "prompt": 1869,
+        "reasoning": 0,
+        "total": 2174
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 0
+      },
+      "item": "recap-mixed",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 2504,
+      "modelMs": 2503,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "recap",
+      "usage": {
+        "calls": 1,
+        "completion": 259,
+        "prompt": 1692,
+        "reasoning": 0,
+        "total": 1951
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 0
+      },
+      "item": "recap-ta",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 2460,
+      "modelMs": 2460,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "recap",
+      "usage": {
+        "calls": 1,
+        "completion": 285,
+        "prompt": 1419,
+        "reasoning": 0,
+        "total": 1704
+      }
+    },
+    {
+      "checks": {
+        "correct": true,
+        "expected": "A5",
+        "json": true,
+        "picked": "A5"
+      },
+      "item": "q1-join",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 1116,
+      "modelMs": 1116,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "support-pick",
+      "usage": {
+        "calls": 1,
+        "completion": 38,
+        "prompt": 482,
+        "reasoning": 0,
+        "total": 520
+      }
+    },
+    {
+      "checks": {
+        "correct": true,
+        "expected": "A1",
+        "json": true,
+        "picked": "A1"
+      },
+      "item": "q2-fees-tanglish",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 1061,
+      "modelMs": 1061,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "support-pick",
+      "usage": {
+        "calls": 1,
+        "completion": 37,
+        "prompt": 489,
+        "reasoning": 0,
+        "total": 526
+      }
+    },
+    {
+      "checks": {
+        "correct": true,
+        "expected": "A3",
+        "json": true,
+        "picked": "A3"
+      },
+      "item": "q3-makeup-tamil",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 1060,
+      "modelMs": 1060,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "support-pick",
+      "usage": {
+        "calls": 1,
+        "completion": 43,
+        "prompt": 493,
+        "reasoning": 0,
+        "total": 536
+      }
+    },
+    {
+      "checks": {
+        "correct": true,
+        "expected": null,
+        "json": true,
+        "picked": null
+      },
+      "item": "q4-account-data",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 224848,
+      "modelMs": 3636,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 1,
+      "task": "support-pick",
+      "usage": {
+        "calls": 1,
+        "completion": 29,
+        "prompt": 485,
+        "reasoning": 0,
+        "total": 514
+      }
+    },
+    {
+      "checks": {
+        "correct": true,
+        "expected": null,
+        "json": true,
+        "picked": null
+      },
+      "item": "q5-not-covered",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 2378,
+      "modelMs": 2378,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "support-pick",
+      "usage": {
+        "calls": 1,
+        "completion": 31,
+        "prompt": 485,
+        "reasoning": 0,
+        "total": 516
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "tamilShare": 72
+      },
+      "item": "t1-legal",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 2141,
+      "modelMs": 2141,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "translate-ta",
+      "usage": {
+        "calls": 1,
+        "completion": 145,
+        "prompt": 169,
+        "reasoning": 0,
+        "total": 314
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "tamilShare": 64
+      },
+      "item": "t2-immortal",
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ms": 1764,
+      "modelMs": 1764,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "translate-ta",
+      "usage": {
+        "calls": 1,
+        "completion": 126,
+        "prompt": 151,
+        "reasoning": 0,
+        "total": 277
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 100
+      },
+      "item": "recap-ta-to-ta",
+      "model": "gemini/gemini-3.5-flash",
+      "ms": 7716,
+      "modelMs": 7715,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "recap-tamil",
+      "usage": {
+        "calls": 1,
+        "completion": 1803,
+        "prompt": 1431,
+        "reasoning": 1448,
+        "total": 3234
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 0
+      },
+      "item": "recap-en",
+      "model": "gemini/gemini-3.5-flash",
+      "ms": 341073,
+      "modelMs": 123772,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 2,
+      "task": "recap",
+      "usage": {
+        "calls": 1,
+        "completion": 1762,
+        "prompt": 1869,
+        "reasoning": 1474,
+        "total": 3631
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 0
+      },
+      "item": "recap-mixed",
+      "model": "gemini/gemini-3.5-flash",
+      "ms": 22280,
+      "modelMs": 22280,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "recap",
+      "usage": {
+        "calls": 1,
+        "completion": 1667,
+        "prompt": 1692,
+        "reasoning": 1424,
+        "total": 3359
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 0
+      },
+      "item": "recap-ta",
+      "model": "gemini/gemini-3.5-flash",
+      "ms": 9992,
+      "modelMs": 9990,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "recap",
+      "usage": {
+        "calls": 1,
+        "completion": 1560,
+        "prompt": 1419,
+        "reasoning": 1311,
+        "total": 2979
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "mentions": true
+      },
+      "item": "c1-en-passant",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 723,
+      "modelMs": 723,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 186,
+        "prompt": 155,
+        "reasoning": 121,
+        "total": 341
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "mentions": true
+      },
+      "item": "c2-first-indian-gm",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 3410,
+      "modelMs": 395,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 154,
+        "prompt": 162,
+        "reasoning": 117,
+        "total": 316
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "mentions": true
+      },
+      "item": "c3-promote-king",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 4581,
+      "modelMs": 566,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 84,
+        "prompt": 158,
+        "reasoning": 44,
+        "total": 242
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "mentions": true
+      },
+      "item": "c4-stalemate",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 605,
+      "modelMs": 605,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 83,
+        "prompt": 166,
+        "reasoning": 55,
+        "total": 249
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "mentions": true
+      },
+      "item": "c5-castle-after-king-moved",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 763,
+      "modelMs": 763,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 173,
+        "prompt": 169,
+        "reasoning": 136,
+        "total": 342
+      }
+    },
+    {
+      "checks": {
+        "json": true
+      },
+      "item": "f1-english-notes",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 5320,
+      "modelMs": 1304,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "coach-feedback",
+      "usage": {
+        "calls": 1,
+        "completion": 392,
+        "prompt": 261,
+        "reasoning": 303,
+        "total": 653
+      }
+    },
+    {
+      "checks": {
+        "json": true
+      },
+      "item": "f2-tanglish-notes",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 1274,
+      "modelMs": 1274,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "coach-feedback",
+      "usage": {
+        "calls": 1,
+        "completion": 444,
+        "prompt": 275,
+        "reasoning": 354,
+        "total": 719
+      }
+    },
+    {
+      "checks": {
+        "inventedMoves": [
+          "d6"
+        ]
+      },
+      "item": "game-immortal",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 16175,
+      "modelMs": 1160,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "game-review",
+      "usage": {
+        "calls": 1,
+        "completion": 514,
+        "prompt": 496,
+        "reasoning": 418,
+        "total": 1010
+      }
+    },
+    {
+      "checks": {
+        "inventedMoves": [
+          "g4"
+        ]
+      },
+      "item": "game-legal",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 5781,
+      "modelMs": 1765,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "game-review",
+      "usage": {
+        "calls": 1,
+        "completion": 671,
+        "prompt": 369,
+        "reasoning": 563,
+        "total": 1040
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "notation": false,
+        "numbersNotInInput": []
+      },
+      "item": "s1-active",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 8438,
+      "modelMs": 1417,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "progress-note",
+      "usage": {
+        "calls": 1,
+        "completion": 638,
+        "prompt": 366,
+        "reasoning": 492,
+        "total": 1004
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "notation": false,
+        "numbersNotInInput": []
+      },
+      "item": "s2-struggling",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 8110,
+      "modelMs": 2095,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "progress-note",
+      "usage": {
+        "calls": 1,
+        "completion": 908,
+        "prompt": 344,
+        "reasoning": 775,
+        "total": 1252
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "givesAway": false
+      },
+      "item": "p1-back-rank",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 8742,
+      "modelMs": 727,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "puzzle-hint",
+      "usage": {
+        "calls": 1,
+        "completion": 262,
+        "prompt": 250,
+        "reasoning": 219,
+        "total": 512
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "givesAway": false
+      },
+      "item": "p2-knight-fork",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 970,
+      "modelMs": 970,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "puzzle-hint",
+      "usage": {
+        "calls": 1,
+        "completion": 277,
+        "prompt": 264,
+        "reasoning": 231,
+        "total": 541
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "givesAway": false
+      },
+      "item": "p3-skewer",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 5096,
+      "modelMs": 1080,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "puzzle-hint",
+      "usage": {
+        "calls": 1,
+        "completion": 302,
+        "prompt": 260,
+        "reasoning": 257,
+        "total": 562
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 100
+      },
+      "item": "recap-ta-to-ta",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 17724,
+      "modelMs": 2703,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "recap-tamil",
+      "usage": {
+        "calls": 1,
+        "completion": 1176,
+        "prompt": 1860,
+        "reasoning": 724,
+        "total": 3036
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 0
+      },
+      "item": "recap-en",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 2059,
+      "modelMs": 2044,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "recap",
+      "usage": {
+        "calls": 1,
+        "completion": 721,
+        "prompt": 1913,
+        "reasoning": 488,
+        "total": 2634
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 0
+      },
+      "item": "recap-mixed",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 2000,
+      "modelMs": 1999,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "recap",
+      "usage": {
+        "calls": 1,
+        "completion": 714,
+        "prompt": 1764,
+        "reasoning": 394,
+        "total": 2478
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 0
+      },
+      "item": "recap-ta",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 2223,
+      "modelMs": 2223,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "recap",
+      "usage": {
+        "calls": 1,
+        "completion": 868,
+        "prompt": 1848,
+        "reasoning": 623,
+        "total": 2716
+      }
+    },
+    {
+      "checks": {
+        "correct": true,
+        "expected": "A5",
+        "json": true,
+        "picked": "A5"
+      },
+      "item": "q1-join",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 11478,
+      "modelMs": 461,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "support-pick",
+      "usage": {
+        "calls": 1,
+        "completion": 172,
+        "prompt": 558,
+        "reasoning": 149,
+        "total": 730
+      }
+    },
+    {
+      "checks": {
+        "correct": true,
+        "expected": "A1",
+        "json": true,
+        "picked": "A1"
+      },
+      "item": "q2-fees-tanglish",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 5493,
+      "modelMs": 479,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "support-pick",
+      "usage": {
+        "calls": 1,
+        "completion": 135,
+        "prompt": 565,
+        "reasoning": 114,
+        "total": 700
+      }
+    },
+    {
+      "checks": {
+        "correct": true,
+        "expected": "A3",
+        "json": true,
+        "picked": "A3"
+      },
+      "item": "q3-makeup-tamil",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 3537,
+      "modelMs": 520,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "support-pick",
+      "usage": {
+        "calls": 1,
+        "completion": 156,
+        "prompt": 575,
+        "reasoning": 125,
+        "total": 731
+      }
+    },
+    {
+      "checks": {
+        "correct": true,
+        "expected": null,
+        "json": true,
+        "picked": null
+      },
+      "item": "q4-account-data",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 5612,
+      "modelMs": 596,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "support-pick",
+      "usage": {
+        "calls": 1,
+        "completion": 108,
+        "prompt": 561,
+        "reasoning": 87,
+        "total": 669
+      }
+    },
+    {
+      "checks": {
+        "correct": true,
+        "expected": null,
+        "json": true,
+        "picked": null
+      },
+      "item": "q5-not-covered",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 5567,
+      "modelMs": 550,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "support-pick",
+      "usage": {
+        "calls": 1,
+        "completion": 94,
+        "prompt": 560,
+        "reasoning": 73,
+        "total": 654
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "tamilShare": 73
+      },
+      "item": "t1-legal",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 2363,
+      "modelMs": 2362,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "translate-ta",
+      "usage": {
+        "calls": 1,
+        "completion": 933,
+        "prompt": 265,
+        "reasoning": 710,
+        "total": 1198
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "tamilShare": 100
+      },
+      "item": "t2-immortal",
+      "model": "groq/openai/gpt-oss-120b",
+      "ms": 10564,
+      "modelMs": 1547,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "translate-ta",
+      "usage": {
+        "calls": 1,
+        "completion": 705,
+        "prompt": 246,
+        "reasoning": 555,
+        "total": 951
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "mentions": false
+      },
+      "item": "c1-en-passant",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 4478,
+      "modelMs": 461,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 153,
+        "prompt": 155,
+        "reasoning": 92,
+        "total": 308
+      }
+    },
+    {
+      "checks": null,
+      "item": "c2-first-indian-gm",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 4625,
+      "modelMs": 0,
+      "ok": false,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 0,
+        "completion": 0,
+        "prompt": 0,
+        "reasoning": 0,
+        "total": 0
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "mentions": true
+      },
+      "item": "c3-promote-king",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 289,
+      "modelMs": 289,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 84,
+        "prompt": 158,
+        "reasoning": 48,
+        "total": 242
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "mentions": true
+      },
+      "item": "c4-stalemate",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 493,
+      "modelMs": 493,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 72,
+        "prompt": 166,
+        "reasoning": 46,
+        "total": 238
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "mentions": true
+      },
+      "item": "c5-castle-after-king-moved",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 5495,
+      "modelMs": 478,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 82,
+        "prompt": 169,
+        "reasoning": 47,
+        "total": 251
+      }
+    },
+    {
+      "checks": {
+        "json": true
+      },
+      "item": "f1-english-notes",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 870,
+      "modelMs": 870,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "coach-feedback",
+      "usage": {
+        "calls": 1,
+        "completion": 460,
+        "prompt": 261,
+        "reasoning": 396,
+        "total": 721
+      }
+    },
+    {
+      "checks": {
+        "json": true
+      },
+      "item": "f2-tanglish-notes",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 7679,
+      "modelMs": 664,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "coach-feedback",
+      "usage": {
+        "calls": 1,
+        "completion": 364,
+        "prompt": 275,
+        "reasoning": 303,
+        "total": 639
+      }
+    },
+    {
+      "checks": {
+        "inventedMoves": []
+      },
+      "item": "game-immortal",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 8641,
+      "modelMs": 625,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "game-review",
+      "usage": {
+        "calls": 1,
+        "completion": 376,
+        "prompt": 496,
+        "reasoning": 279,
+        "total": 872
+      }
+    },
+    {
+      "checks": {
+        "inventedMoves": []
+      },
+      "item": "game-legal",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 7222,
+      "modelMs": 1201,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "game-review",
+      "usage": {
+        "calls": 1,
+        "completion": 746,
+        "prompt": 369,
+        "reasoning": 660,
+        "total": 1115
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "notation": false,
+        "numbersNotInInput": []
+      },
+      "item": "s1-active",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 5930,
+      "modelMs": 914,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "progress-note",
+      "usage": {
+        "calls": 1,
+        "completion": 474,
+        "prompt": 366,
+        "reasoning": 310,
+        "total": 840
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "notation": false,
+        "numbersNotInInput": []
+      },
+      "item": "s2-struggling",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 3950,
+      "modelMs": 931,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "progress-note",
+      "usage": {
+        "calls": 1,
+        "completion": 573,
+        "prompt": 344,
+        "reasoning": 465,
+        "total": 917
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "givesAway": false
+      },
+      "item": "p1-back-rank",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 8098,
+      "modelMs": 1080,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "puzzle-hint",
+      "usage": {
+        "calls": 1,
+        "completion": 798,
+        "prompt": 250,
+        "reasoning": 751,
+        "total": 1048
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "givesAway": false
+      },
+      "item": "p2-knight-fork",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 5580,
+      "modelMs": 563,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "puzzle-hint",
+      "usage": {
+        "calls": 1,
+        "completion": 261,
+        "prompt": 264,
+        "reasoning": 210,
+        "total": 525
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "givesAway": false
+      },
+      "item": "p3-skewer",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 5691,
+      "modelMs": 676,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "puzzle-hint",
+      "usage": {
+        "calls": 1,
+        "completion": 310,
+        "prompt": 260,
+        "reasoning": 257,
+        "total": 570
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 100
+      },
+      "item": "recap-ta-to-ta",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 10953,
+      "modelMs": 932,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "recap-tamil",
+      "usage": {
+        "calls": 1,
+        "completion": 579,
+        "prompt": 1860,
+        "reasoning": 261,
+        "total": 2439
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 0
+      },
+      "item": "recap-en",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 1221,
+      "modelMs": 1002,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "recap",
+      "usage": {
+        "calls": 1,
+        "completion": 382,
+        "prompt": 1913,
+        "reasoning": 176,
+        "total": 2295
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 0
+      },
+      "item": "recap-mixed",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 837,
+      "modelMs": 834,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "recap",
+      "usage": {
+        "calls": 1,
+        "completion": 513,
+        "prompt": 1764,
+        "reasoning": 253,
+        "total": 2277
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 0
+      },
+      "item": "recap-ta",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 952,
+      "modelMs": 952,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "recap",
+      "usage": {
+        "calls": 1,
+        "completion": 509,
+        "prompt": 1848,
+        "reasoning": 251,
+        "total": 2357
+      }
+    },
+    {
+      "checks": {
+        "correct": true,
+        "expected": "A5",
+        "json": true,
+        "picked": "A5"
+      },
+      "item": "q1-join",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 6553,
+      "modelMs": 538,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "support-pick",
+      "usage": {
+        "calls": 1,
+        "completion": 116,
+        "prompt": 558,
+        "reasoning": 95,
+        "total": 674
+      }
+    },
+    {
+      "checks": {
+        "correct": true,
+        "expected": "A1",
+        "json": true,
+        "picked": "A1"
+      },
+      "item": "q2-fees-tanglish",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 6269,
+      "modelMs": 247,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "support-pick",
+      "usage": {
+        "calls": 1,
+        "completion": 131,
+        "prompt": 565,
+        "reasoning": 110,
+        "total": 696
+      }
+    },
+    {
+      "checks": {
+        "correct": true,
+        "expected": "A3",
+        "json": true,
+        "picked": "A3"
+      },
+      "item": "q3-makeup-tamil",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 551,
+      "modelMs": 551,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "support-pick",
+      "usage": {
+        "calls": 1,
+        "completion": 205,
+        "prompt": 575,
+        "reasoning": 182,
+        "total": 780
+      }
+    },
+    {
+      "checks": {
+        "correct": true,
+        "expected": null,
+        "json": true,
+        "picked": null
+      },
+      "item": "q4-account-data",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 11434,
+      "modelMs": 418,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "support-pick",
+      "usage": {
+        "calls": 1,
+        "completion": 119,
+        "prompt": 561,
+        "reasoning": 97,
+        "total": 680
+      }
+    },
+    {
+      "checks": {
+        "correct": true,
+        "expected": null,
+        "json": true,
+        "picked": null
+      },
+      "item": "q5-not-covered",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 544,
+      "modelMs": 544,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "support-pick",
+      "usage": {
+        "calls": 1,
+        "completion": 113,
+        "prompt": 560,
+        "reasoning": 92,
+        "total": 673
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "tamilShare": 70
+      },
+      "item": "t1-legal",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 5520,
+      "modelMs": 1507,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "translate-ta",
+      "usage": {
+        "calls": 1,
+        "completion": 1029,
+        "prompt": 265,
+        "reasoning": 859,
+        "total": 1294
+      }
+    },
+    {
+      "checks": null,
+      "item": "t2-immortal",
+      "model": "groq/openai/gpt-oss-20b",
+      "ms": 5907,
+      "modelMs": 0,
+      "ok": false,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "translate-ta",
+      "usage": {
+        "calls": 0,
+        "completion": 0,
+        "prompt": 0,
+        "reasoning": 0,
+        "total": 0
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "mentions": false
+      },
+      "item": "c1-en-passant",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 157,
+      "modelMs": 156,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 38,
+        "prompt": 72,
+        "reasoning": 0,
+        "total": 110
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "mentions": true
+      },
+      "item": "c2-first-indian-gm",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 4168,
+      "modelMs": 152,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 29,
+        "prompt": 80,
+        "reasoning": 0,
+        "total": 109
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "mentions": true
+      },
+      "item": "c3-promote-king",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 134,
+      "modelMs": 134,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 33,
+        "prompt": 75,
+        "reasoning": 0,
+        "total": 108
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "mentions": true
+      },
+      "item": "c4-stalemate",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 3124,
+      "modelMs": 110,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 20,
+        "prompt": 83,
+        "reasoning": 0,
+        "total": 103
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "mentions": true
+      },
+      "item": "c5-castle-after-king-moved",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 120,
+      "modelMs": 120,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 25,
+        "prompt": 86,
+        "reasoning": 0,
+        "total": 111
+      }
+    },
+    {
+      "checks": {
+        "json": true
+      },
+      "item": "f1-english-notes",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 251,
+      "modelMs": 251,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "coach-feedback",
+      "usage": {
+        "calls": 1,
+        "completion": 87,
+        "prompt": 181,
+        "reasoning": 0,
+        "total": 268
+      }
+    },
+    {
+      "checks": {
+        "json": true
+      },
+      "item": "f2-tanglish-notes",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 221,
+      "modelMs": 221,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "coach-feedback",
+      "usage": {
+        "calls": 1,
+        "completion": 75,
+        "prompt": 199,
+        "reasoning": 0,
+        "total": 274
+      }
+    },
+    {
+      "checks": {
+        "inventedMoves": []
+      },
+      "item": "game-immortal",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 5262,
+      "modelMs": 246,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "game-review",
+      "usage": {
+        "calls": 1,
+        "completion": 76,
+        "prompt": 451,
+        "reasoning": 0,
+        "total": 527
+      }
+    },
+    {
+      "checks": {
+        "inventedMoves": []
+      },
+      "item": "game-legal",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 37321,
+      "modelMs": 280,
+      "ok": true,
+      "rateLimited": 2,
+      "serverErrors": 0,
+      "task": "game-review",
+      "usage": {
+        "calls": 1,
+        "completion": 91,
+        "prompt": 314,
+        "reasoning": 0,
+        "total": 405
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "notation": false,
+        "numbersNotInInput": []
+      },
+      "item": "s1-active",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 12435,
+      "modelMs": 420,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "progress-note",
+      "usage": {
+        "calls": 1,
+        "completion": 177,
+        "prompt": 294,
+        "reasoning": 0,
+        "total": 471
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "notation": false,
+        "numbersNotInInput": []
+      },
+      "item": "s2-struggling",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 10374,
+      "modelMs": 358,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "progress-note",
+      "usage": {
+        "calls": 1,
+        "completion": 144,
+        "prompt": 269,
+        "reasoning": 0,
+        "total": 413
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "givesAway": false
+      },
+      "item": "p1-back-rank",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 25170,
+      "modelMs": 156,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "puzzle-hint",
+      "usage": {
+        "calls": 1,
+        "completion": 42,
+        "prompt": 169,
+        "reasoning": 0,
+        "total": 211
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "givesAway": false
+      },
+      "item": "p2-knight-fork",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 158,
+      "modelMs": 158,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "puzzle-hint",
+      "usage": {
+        "calls": 1,
+        "completion": 43,
+        "prompt": 184,
+        "reasoning": 0,
+        "total": 227
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "givesAway": false
+      },
+      "item": "p3-skewer",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 5198,
+      "modelMs": 185,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "puzzle-hint",
+      "usage": {
+        "calls": 1,
+        "completion": 47,
+        "prompt": 181,
+        "reasoning": 0,
+        "total": 228
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 100
+      },
+      "item": "recap-ta-to-ta",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 23350,
+      "modelMs": 1330,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "recap-tamil",
+      "usage": {
+        "calls": 1,
+        "completion": 576,
+        "prompt": 2193,
+        "reasoning": 0,
+        "total": 2769
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 0
+      },
+      "item": "recap-en",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 1072,
+      "modelMs": 851,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "recap",
+      "usage": {
+        "calls": 1,
+        "completion": 294,
+        "prompt": 1877,
+        "reasoning": 0,
+        "total": 2171
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 0
+      },
+      "item": "recap-mixed",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 806,
+      "modelMs": 802,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "recap",
+      "usage": {
+        "calls": 1,
+        "completion": 318,
+        "prompt": 1783,
+        "reasoning": 0,
+        "total": 2101
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 0
+      },
+      "item": "recap-ta",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 827,
+      "modelMs": 825,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "recap",
+      "usage": {
+        "calls": 1,
+        "completion": 292,
+        "prompt": 2181,
+        "reasoning": 0,
+        "total": 2473
+      }
+    },
+    {
+      "checks": {
+        "correct": true,
+        "expected": "A5",
+        "json": true,
+        "picked": "A5"
+      },
+      "item": "q1-join",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 12163,
+      "modelMs": 146,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "support-pick",
+      "usage": {
+        "calls": 1,
+        "completion": 19,
+        "prompt": 486,
+        "reasoning": 0,
+        "total": 505
+      }
+    },
+    {
+      "checks": {
+        "correct": true,
+        "expected": "A1",
+        "json": true,
+        "picked": "A1"
+      },
+      "item": "q2-fees-tanglish",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 143,
+      "modelMs": 143,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "support-pick",
+      "usage": {
+        "calls": 1,
+        "completion": 22,
+        "prompt": 495,
+        "reasoning": 0,
+        "total": 517
+      }
+    },
+    {
+      "checks": {
+        "correct": true,
+        "expected": "A3",
+        "json": true,
+        "picked": "A3"
+      },
+      "item": "q3-makeup-tamil",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 138,
+      "modelMs": 138,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "support-pick",
+      "usage": {
+        "calls": 1,
+        "completion": 20,
+        "prompt": 512,
+        "reasoning": 0,
+        "total": 532
+      }
+    },
+    {
+      "checks": {
+        "correct": true,
+        "expected": null,
+        "json": true,
+        "picked": null
+      },
+      "item": "q4-account-data",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 4145,
+      "modelMs": 131,
+      "ok": true,
+      "rateLimited": 1,
+      "serverErrors": 0,
+      "task": "support-pick",
+      "usage": {
+        "calls": 1,
+        "completion": 15,
+        "prompt": 489,
+        "reasoning": 0,
+        "total": 504
+      }
+    },
+    {
+      "checks": {
+        "correct": true,
+        "expected": null,
+        "json": true,
+        "picked": null
+      },
+      "item": "q5-not-covered",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 151,
+      "modelMs": 151,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "support-pick",
+      "usage": {
+        "calls": 1,
+        "completion": 25,
+        "prompt": 488,
+        "reasoning": 0,
+        "total": 513
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "tamilShare": 67
+      },
+      "item": "t1-legal",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 489,
+      "modelMs": 489,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "translate-ta",
+      "usage": {
+        "calls": 1,
+        "completion": 213,
+        "prompt": 183,
+        "reasoning": 0,
+        "total": 396
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "tamilShare": 100
+      },
+      "item": "t2-immortal",
+      "model": "groq/qwen/qwen3.8-27b",
+      "ms": 465,
+      "modelMs": 463,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "translate-ta",
+      "usage": {
+        "calls": 1,
+        "completion": 204,
+        "prompt": 167,
+        "reasoning": 0,
+        "total": 371
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "mentions": false
+      },
+      "item": "c1-en-passant",
+      "model": "local/qwen2.5:3b",
+      "ms": 44225,
+      "modelMs": 44223,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 34,
+        "prompt": 67,
+        "reasoning": 0,
+        "total": 101
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "mentions": true
+      },
+      "item": "c2-first-indian-gm",
+      "model": "local/qwen2.5:3b",
+      "ms": 6486,
+      "modelMs": 6486,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 31,
+        "prompt": 74,
+        "reasoning": 0,
+        "total": 105
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "mentions": true
+      },
+      "item": "c3-promote-king",
+      "model": "local/qwen2.5:3b",
+      "ms": 5171,
+      "modelMs": 5171,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 25,
+        "prompt": 69,
+        "reasoning": 0,
+        "total": 94
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "mentions": false
+      },
+      "item": "c4-stalemate",
+      "model": "local/qwen2.5:3b",
+      "ms": 3191,
+      "modelMs": 3190,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 12,
+        "prompt": 77,
+        "reasoning": 0,
+        "total": 89
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "mentions": true
+      },
+      "item": "c5-castle-after-king-moved",
+      "model": "local/qwen2.5:3b",
+      "ms": 4286,
+      "modelMs": 4286,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 18,
+        "prompt": 80,
+        "reasoning": 0,
+        "total": 98
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 0
+      },
+      "item": "recap-en",
+      "model": "local/qwen2.5:3b",
+      "ms": 167494,
+      "modelMs": 167483,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "recap",
+      "usage": {
+        "calls": 1,
+        "completion": 202,
+        "prompt": 1846,
+        "reasoning": 0,
+        "total": 2048
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 0
+      },
+      "item": "recap-mixed",
+      "model": "local/qwen2.5:3b",
+      "ms": 148358,
+      "modelMs": 148358,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "recap",
+      "usage": {
+        "calls": 1,
+        "completion": 170,
+        "prompt": 1827,
+        "reasoning": 0,
+        "total": 1997
+      }
+    },
+    {
+      "checks": {
+        "json": true
+      },
+      "item": "f1-english-notes",
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "ms": 5832,
+      "modelMs": 5831,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "coach-feedback",
+      "usage": {
+        "calls": 1,
+        "completion": 329,
+        "prompt": 180,
+        "reasoning": 254,
+        "total": 509
+      }
+    },
+    {
+      "checks": {
+        "json": true
+      },
+      "item": "f2-tanglish-notes",
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "ms": 19530,
+      "modelMs": 19530,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "coach-feedback",
+      "usage": {
+        "calls": 1,
+        "completion": 543,
+        "prompt": 201,
+        "reasoning": 475,
+        "total": 744
+      }
+    },
+    {
+      "checks": {
+        "inventedMoves": [
+          "e1"
+        ]
+      },
+      "item": "game-immortal",
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "ms": 15542,
+      "modelMs": 15541,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "game-review",
+      "usage": {
+        "calls": 1,
+        "completion": 504,
+        "prompt": 465,
+        "reasoning": 413,
+        "total": 969
+      }
+    },
+    {
+      "checks": {
+        "inventedMoves": [
+          "g4"
+        ]
+      },
+      "item": "game-legal",
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "ms": 12683,
+      "modelMs": 12678,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "game-review",
+      "usage": {
+        "calls": 1,
+        "completion": 595,
+        "prompt": 327,
+        "reasoning": 511,
+        "total": 922
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "notation": false,
+        "numbersNotInInput": []
+      },
+      "item": "s1-active",
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "ms": 23571,
+      "modelMs": 23570,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "progress-note",
+      "usage": {
+        "calls": 1,
+        "completion": 777,
+        "prompt": 300,
+        "reasoning": 604,
+        "total": 1077
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "notation": false,
+        "numbersNotInInput": []
+      },
+      "item": "s2-struggling",
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "ms": 18518,
+      "modelMs": 18517,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "progress-note",
+      "usage": {
+        "calls": 1,
+        "completion": 710,
+        "prompt": 276,
+        "reasoning": 535,
+        "total": 986
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "givesAway": false
+      },
+      "item": "p1-back-rank",
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "ms": 23050,
+      "modelMs": 23050,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "puzzle-hint",
+      "usage": {
+        "calls": 1,
+        "completion": 1297,
+        "prompt": 169,
+        "reasoning": 1248,
+        "total": 1466
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "givesAway": false
+      },
+      "item": "p2-knight-fork",
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "ms": 55206,
+      "modelMs": 55205,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "puzzle-hint",
+      "usage": {
+        "calls": 1,
+        "completion": 2143,
+        "prompt": 186,
+        "reasoning": 2094,
+        "total": 2329
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "givesAway": false
+      },
+      "item": "p3-skewer",
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "ms": 23875,
+      "modelMs": 23875,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "puzzle-hint",
+      "usage": {
+        "calls": 1,
+        "completion": 860,
+        "prompt": 180,
+        "reasoning": 809,
+        "total": 1040
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 100
+      },
+      "item": "recap-ta-to-ta",
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "ms": 25081,
+      "modelMs": 25080,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "recap-tamil",
+      "usage": {
+        "calls": 1,
+        "completion": 1169,
+        "prompt": 2045,
+        "reasoning": 734,
+        "total": 3214
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 0
+      },
+      "item": "recap-en",
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "ms": 56630,
+      "modelMs": 56620,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "recap",
+      "usage": {
+        "calls": 1,
+        "completion": 596,
+        "prompt": 1869,
+        "reasoning": 270,
+        "total": 2465
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 0
+      },
+      "item": "recap-mixed",
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "ms": 29030,
+      "modelMs": 29028,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "recap",
+      "usage": {
+        "calls": 1,
+        "completion": 1056,
+        "prompt": 1775,
+        "reasoning": 729,
+        "total": 2831
+      }
+    },
+    {
+      "checks": {
+        "calls": 1,
+        "removedByCleaner": 0,
+        "tamilShare": 0
+      },
+      "item": "recap-ta",
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "ms": 32035,
+      "modelMs": 32030,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "recap",
+      "usage": {
+        "calls": 1,
+        "completion": 1211,
+        "prompt": 2033,
+        "reasoning": 895,
+        "total": 3244
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "tamilShare": 100
+      },
+      "item": "t1-legal",
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "ms": 19425,
+      "modelMs": 19425,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "translate-ta",
+      "usage": {
+        "calls": 1,
+        "completion": 817,
+        "prompt": 182,
+        "reasoning": 608,
+        "total": 999
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "tamilShare": 100
+      },
+      "item": "t2-immortal",
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "ms": 49622,
+      "modelMs": 49622,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "translate-ta",
+      "usage": {
+        "calls": 1,
+        "completion": 2403,
+        "prompt": 167,
+        "reasoning": 2212,
+        "total": 2570
+      }
+    }
+  ],
+  "summary": [
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 31,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ok": 5,
+      "promptPerUnit": 65,
+      "rateLimited": 0,
+      "reasoningPerUnit": 0,
+      "secondsPerUnit": 18.4,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "totalPerUnit": 96,
+      "units": 5
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 136,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/openai/gpt-oss-120b",
+      "ok": 5,
+      "promptPerUnit": 162,
+      "rateLimited": 2,
+      "reasoningPerUnit": 95,
+      "secondsPerUnit": 0.6,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "totalPerUnit": 298,
+      "units": 5
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 98,
+      "failed": 1,
+      "failedTries": 2,
+      "model": "groq/openai/gpt-oss-20b",
+      "ok": 4,
+      "promptPerUnit": 162,
+      "rateLimited": 2,
+      "reasoningPerUnit": 58,
+      "secondsPerUnit": 0.4,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "totalPerUnit": 260,
+      "units": 5
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 29,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/qwen/qwen3.8-27b",
+      "ok": 5,
+      "promptPerUnit": 79,
+      "rateLimited": 2,
+      "reasoningPerUnit": 0,
+      "secondsPerUnit": 0.1,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "totalPerUnit": 108,
+      "units": 5
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 24,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "local/qwen2.5:3b",
+      "ok": 5,
+      "promptPerUnit": 73,
+      "rateLimited": 0,
+      "reasoningPerUnit": 0,
+      "secondsPerUnit": 12.7,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "totalPerUnit": 97,
+      "units": 5
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 84,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ok": 2,
+      "promptPerUnit": 176,
+      "rateLimited": 0,
+      "reasoningPerUnit": 0,
+      "secondsPerUnit": 5.2,
+      "serverErrors": 0,
+      "task": "coach-feedback",
+      "totalPerUnit": 260,
+      "units": 2
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 418,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/openai/gpt-oss-120b",
+      "ok": 2,
+      "promptPerUnit": 268,
+      "rateLimited": 1,
+      "reasoningPerUnit": 329,
+      "secondsPerUnit": 1.3,
+      "serverErrors": 0,
+      "task": "coach-feedback",
+      "totalPerUnit": 686,
+      "units": 2
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 412,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/openai/gpt-oss-20b",
+      "ok": 2,
+      "promptPerUnit": 268,
+      "rateLimited": 1,
+      "reasoningPerUnit": 350,
+      "secondsPerUnit": 0.8,
+      "serverErrors": 0,
+      "task": "coach-feedback",
+      "totalPerUnit": 680,
+      "units": 2
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 81,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/qwen/qwen3.8-27b",
+      "ok": 2,
+      "promptPerUnit": 190,
+      "rateLimited": 0,
+      "reasoningPerUnit": 0,
+      "secondsPerUnit": 0.2,
+      "serverErrors": 0,
+      "task": "coach-feedback",
+      "totalPerUnit": 271,
+      "units": 2
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 436,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "ok": 2,
+      "promptPerUnit": 191,
+      "rateLimited": 0,
+      "reasoningPerUnit": 365,
+      "secondsPerUnit": 12.7,
+      "serverErrors": 0,
+      "task": "coach-feedback",
+      "totalPerUnit": 627,
+      "units": 2
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 90,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ok": 2,
+      "promptPerUnit": 346,
+      "rateLimited": 0,
+      "reasoningPerUnit": 0,
+      "secondsPerUnit": 1.8,
+      "serverErrors": 0,
+      "task": "game-review",
+      "totalPerUnit": 436,
+      "units": 2
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 593,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/openai/gpt-oss-120b",
+      "ok": 2,
+      "promptPerUnit": 433,
+      "rateLimited": 2,
+      "reasoningPerUnit": 491,
+      "secondsPerUnit": 1.5,
+      "serverErrors": 0,
+      "task": "game-review",
+      "totalPerUnit": 1025,
+      "units": 2
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 561,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/openai/gpt-oss-20b",
+      "ok": 2,
+      "promptPerUnit": 433,
+      "rateLimited": 2,
+      "reasoningPerUnit": 470,
+      "secondsPerUnit": 0.9,
+      "serverErrors": 0,
+      "task": "game-review",
+      "totalPerUnit": 994,
+      "units": 2
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 84,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/qwen/qwen3.8-27b",
+      "ok": 2,
+      "promptPerUnit": 383,
+      "rateLimited": 3,
+      "reasoningPerUnit": 0,
+      "secondsPerUnit": 0.3,
+      "serverErrors": 0,
+      "task": "game-review",
+      "totalPerUnit": 466,
+      "units": 2
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 550,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "ok": 2,
+      "promptPerUnit": 396,
+      "rateLimited": 0,
+      "reasoningPerUnit": 462,
+      "secondsPerUnit": 14.1,
+      "serverErrors": 0,
+      "task": "game-review",
+      "totalPerUnit": 946,
+      "units": 2
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 170,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ok": 2,
+      "promptPerUnit": 263,
+      "rateLimited": 0,
+      "reasoningPerUnit": 0,
+      "secondsPerUnit": 2.8,
+      "serverErrors": 0,
+      "task": "progress-note",
+      "totalPerUnit": 432,
+      "units": 2
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 773,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/openai/gpt-oss-120b",
+      "ok": 2,
+      "promptPerUnit": 355,
+      "rateLimited": 2,
+      "reasoningPerUnit": 634,
+      "secondsPerUnit": 1.8,
+      "serverErrors": 0,
+      "task": "progress-note",
+      "totalPerUnit": 1128,
+      "units": 2
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 524,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/openai/gpt-oss-20b",
+      "ok": 2,
+      "promptPerUnit": 355,
+      "rateLimited": 2,
+      "reasoningPerUnit": 388,
+      "secondsPerUnit": 0.9,
+      "serverErrors": 0,
+      "task": "progress-note",
+      "totalPerUnit": 879,
+      "units": 2
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 161,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/qwen/qwen3.8-27b",
+      "ok": 2,
+      "promptPerUnit": 282,
+      "rateLimited": 2,
+      "reasoningPerUnit": 0,
+      "secondsPerUnit": 0.4,
+      "serverErrors": 0,
+      "task": "progress-note",
+      "totalPerUnit": 442,
+      "units": 2
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 744,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "ok": 2,
+      "promptPerUnit": 288,
+      "rateLimited": 0,
+      "reasoningPerUnit": 570,
+      "secondsPerUnit": 21,
+      "serverErrors": 0,
+      "task": "progress-note",
+      "totalPerUnit": 1032,
+      "units": 2
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 52,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ok": 3,
+      "promptPerUnit": 160,
+      "rateLimited": 0,
+      "reasoningPerUnit": 0,
+      "secondsPerUnit": 1.1,
+      "serverErrors": 0,
+      "task": "puzzle-hint",
+      "totalPerUnit": 212,
+      "units": 3
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 280,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/openai/gpt-oss-120b",
+      "ok": 3,
+      "promptPerUnit": 258,
+      "rateLimited": 2,
+      "reasoningPerUnit": 236,
+      "secondsPerUnit": 0.9,
+      "serverErrors": 0,
+      "task": "puzzle-hint",
+      "totalPerUnit": 538,
+      "units": 3
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 456,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/openai/gpt-oss-20b",
+      "ok": 3,
+      "promptPerUnit": 258,
+      "rateLimited": 3,
+      "reasoningPerUnit": 406,
+      "secondsPerUnit": 0.8,
+      "serverErrors": 0,
+      "task": "puzzle-hint",
+      "totalPerUnit": 714,
+      "units": 3
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 44,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/qwen/qwen3.8-27b",
+      "ok": 3,
+      "promptPerUnit": 178,
+      "rateLimited": 2,
+      "reasoningPerUnit": 0,
+      "secondsPerUnit": 0.2,
+      "serverErrors": 0,
+      "task": "puzzle-hint",
+      "totalPerUnit": 222,
+      "units": 3
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 1433,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "ok": 3,
+      "promptPerUnit": 178,
+      "rateLimited": 0,
+      "reasoningPerUnit": 1384,
+      "secondsPerUnit": 34,
+      "serverErrors": 0,
+      "task": "puzzle-hint",
+      "totalPerUnit": 1612,
+      "units": 3
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 283,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ok": 3,
+      "promptPerUnit": 1660,
+      "rateLimited": 0,
+      "reasoningPerUnit": 0,
+      "secondsPerUnit": 2.4,
+      "serverErrors": 0,
+      "task": "recap",
+      "totalPerUnit": 1943,
+      "units": 3
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 1663,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "gemini/gemini-3.5-flash",
+      "ok": 3,
+      "promptPerUnit": 1660,
+      "rateLimited": 0,
+      "reasoningPerUnit": 1403,
+      "secondsPerUnit": 52,
+      "serverErrors": 2,
+      "task": "recap",
+      "totalPerUnit": 3323,
+      "units": 3
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 768,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/openai/gpt-oss-120b",
+      "ok": 3,
+      "promptPerUnit": 1842,
+      "rateLimited": 0,
+      "reasoningPerUnit": 502,
+      "secondsPerUnit": 2.1,
+      "serverErrors": 0,
+      "task": "recap",
+      "totalPerUnit": 2609,
+      "units": 3
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 468,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/openai/gpt-oss-20b",
+      "ok": 3,
+      "promptPerUnit": 1842,
+      "rateLimited": 0,
+      "reasoningPerUnit": 227,
+      "secondsPerUnit": 0.9,
+      "serverErrors": 0,
+      "task": "recap",
+      "totalPerUnit": 2310,
+      "units": 3
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 301,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/qwen/qwen3.8-27b",
+      "ok": 3,
+      "promptPerUnit": 1947,
+      "rateLimited": 0,
+      "reasoningPerUnit": 0,
+      "secondsPerUnit": 0.8,
+      "serverErrors": 0,
+      "task": "recap",
+      "totalPerUnit": 2248,
+      "units": 3
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 186,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "local/qwen2.5:3b",
+      "ok": 2,
+      "promptPerUnit": 1837,
+      "rateLimited": 0,
+      "reasoningPerUnit": 0,
+      "secondsPerUnit": 157.9,
+      "serverErrors": 0,
+      "task": "recap",
+      "totalPerUnit": 2023,
+      "units": 2
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 954,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "ok": 3,
+      "promptPerUnit": 1892,
+      "rateLimited": 0,
+      "reasoningPerUnit": 631,
+      "secondsPerUnit": 39.2,
+      "serverErrors": 0,
+      "task": "recap",
+      "totalPerUnit": 2847,
+      "units": 3
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 328,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ok": 1,
+      "promptPerUnit": 1431,
+      "rateLimited": 0,
+      "reasoningPerUnit": 0,
+      "secondsPerUnit": 1.8,
+      "serverErrors": 0,
+      "task": "recap-tamil",
+      "totalPerUnit": 1759,
+      "units": 1
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 1803,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "gemini/gemini-3.5-flash",
+      "ok": 1,
+      "promptPerUnit": 1431,
+      "rateLimited": 0,
+      "reasoningPerUnit": 1448,
+      "secondsPerUnit": 7.7,
+      "serverErrors": 0,
+      "task": "recap-tamil",
+      "totalPerUnit": 3234,
+      "units": 1
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 1176,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/openai/gpt-oss-120b",
+      "ok": 1,
+      "promptPerUnit": 1860,
+      "rateLimited": 1,
+      "reasoningPerUnit": 724,
+      "secondsPerUnit": 2.7,
+      "serverErrors": 0,
+      "task": "recap-tamil",
+      "totalPerUnit": 3036,
+      "units": 1
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 579,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/openai/gpt-oss-20b",
+      "ok": 1,
+      "promptPerUnit": 1860,
+      "rateLimited": 1,
+      "reasoningPerUnit": 261,
+      "secondsPerUnit": 0.9,
+      "serverErrors": 0,
+      "task": "recap-tamil",
+      "totalPerUnit": 2439,
+      "units": 1
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 576,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/qwen/qwen3.8-27b",
+      "ok": 1,
+      "promptPerUnit": 2193,
+      "rateLimited": 1,
+      "reasoningPerUnit": 0,
+      "secondsPerUnit": 1.3,
+      "serverErrors": 0,
+      "task": "recap-tamil",
+      "totalPerUnit": 2769,
+      "units": 1
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 1169,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "ok": 1,
+      "promptPerUnit": 2045,
+      "rateLimited": 0,
+      "reasoningPerUnit": 734,
+      "secondsPerUnit": 25.1,
+      "serverErrors": 0,
+      "task": "recap-tamil",
+      "totalPerUnit": 3214,
+      "units": 1
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 36,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ok": 5,
+      "promptPerUnit": 487,
+      "rateLimited": 1,
+      "reasoningPerUnit": 0,
+      "secondsPerUnit": 1.9,
+      "serverErrors": 1,
+      "task": "support-pick",
+      "totalPerUnit": 522,
+      "units": 5
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 133,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/openai/gpt-oss-120b",
+      "ok": 5,
+      "promptPerUnit": 564,
+      "rateLimited": 5,
+      "reasoningPerUnit": 110,
+      "secondsPerUnit": 0.5,
+      "serverErrors": 0,
+      "task": "support-pick",
+      "totalPerUnit": 697,
+      "units": 5
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 137,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/openai/gpt-oss-20b",
+      "ok": 5,
+      "promptPerUnit": 564,
+      "rateLimited": 3,
+      "reasoningPerUnit": 115,
+      "secondsPerUnit": 0.5,
+      "serverErrors": 0,
+      "task": "support-pick",
+      "totalPerUnit": 701,
+      "units": 5
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 20,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/qwen/qwen3.8-27b",
+      "ok": 5,
+      "promptPerUnit": 494,
+      "rateLimited": 2,
+      "reasoningPerUnit": 0,
+      "secondsPerUnit": 0.1,
+      "serverErrors": 0,
+      "task": "support-pick",
+      "totalPerUnit": 514,
+      "units": 5
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 136,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "gemini/gemini-3.1-flash-lite",
+      "ok": 2,
+      "promptPerUnit": 160,
+      "rateLimited": 0,
+      "reasoningPerUnit": 0,
+      "secondsPerUnit": 2,
+      "serverErrors": 0,
+      "task": "translate-ta",
+      "totalPerUnit": 296,
+      "units": 2
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 819,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/openai/gpt-oss-120b",
+      "ok": 2,
+      "promptPerUnit": 256,
+      "rateLimited": 1,
+      "reasoningPerUnit": 633,
+      "secondsPerUnit": 2,
+      "serverErrors": 0,
+      "task": "translate-ta",
+      "totalPerUnit": 1075,
+      "units": 2
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 1029,
+      "failed": 1,
+      "failedTries": 2,
+      "model": "groq/openai/gpt-oss-20b",
+      "ok": 1,
+      "promptPerUnit": 265,
+      "rateLimited": 1,
+      "reasoningPerUnit": 859,
+      "secondsPerUnit": 1.5,
+      "serverErrors": 0,
+      "task": "translate-ta",
+      "totalPerUnit": 1294,
+      "units": 2
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 209,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "groq/qwen/qwen3.8-27b",
+      "ok": 2,
+      "promptPerUnit": 175,
+      "rateLimited": 0,
+      "reasoningPerUnit": 0,
+      "secondsPerUnit": 0.5,
+      "serverErrors": 0,
+      "task": "translate-ta",
+      "totalPerUnit": 384,
+      "units": 2
+    },
+    {
+      "callsPerUnit": 1,
+      "completionPerUnit": 1610,
+      "failed": 0,
+      "failedTries": 0,
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "ok": 2,
+      "promptPerUnit": 175,
+      "rateLimited": 0,
+      "reasoningPerUnit": 1410,
+      "secondsPerUnit": 34.5,
+      "serverErrors": 0,
+      "task": "translate-ta",
+      "totalPerUnit": 1785,
+      "units": 2
+    }
+  ]
+}

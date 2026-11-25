@@ -1,0 +1,76 @@
+{
+  "feature": "Chess facts answer",
+  "item": "c3-promote-king",
+  "model": "groq/qwen/qwen3.8-27b",
+  "startedAt": "2026-11-25T21:08:58.717Z",
+  "task": "chess-facts",
+  "checks": {
+    "json": true,
+    "mentions": true
+  },
+  "ok": true,
+  "output": {
+    "answer": "No, a pawn can only promote to a queen, rook, bishop, or knight. You can never promote to a king."
+  },
+  "ms": 134,
+  "usage": {
+    "calls": 1,
+    "completion": 33,
+    "prompt": 75,
+    "reasoning": 0,
+    "total": 108
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:08:58.851Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "977",
+            "x-ratelimit-remaining-tokens": "5372",
+            "x-ratelimit-reset-requests": "33m7.2s",
+            "x-ratelimit-reset-tokens": "58.98s"
+          },
+          "ms": 134,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4250,
+        "messages": [
+          {
+            "content": "You answer a chess question from a child or a parent at a chess academy.\nAnswer correctly in 1 to 3 short sentences of simple English. If you are not sure, say so.\nReturn only JSON: {\"answer\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "Can a pawn promote to a king?",
+            "role": "user"
+          }
+        ],
+        "model": "qwen/qwen3.8-27b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"answer\": \"No, a pawn can only promote to a queen, rook, bishop, or knight. You can never promote to a king.\"}",
+        "finishReason": "stop",
+        "ms": 134,
+        "providerModel": "qwen/qwen3.8-27b",
+        "reasoning": null,
+        "usage": {
+          "queue_time": 0.05339345,
+          "prompt_tokens": 75,
+          "prompt_time": 0.00511628,
+          "completion_tokens": 33,
+          "completion_time": 0.062690566,
+          "total_tokens": 108,
+          "total_time": 0.067806846
+        }
+      }
+    }
+  ]
+}

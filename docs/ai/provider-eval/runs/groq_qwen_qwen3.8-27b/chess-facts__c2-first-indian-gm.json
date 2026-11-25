@@ -1,0 +1,91 @@
+{
+  "feature": "Chess facts answer",
+  "item": "c2-first-indian-gm",
+  "model": "groq/qwen/qwen3.8-27b",
+  "startedAt": "2026-11-25T21:08:54.548Z",
+  "task": "chess-facts",
+  "checks": {
+    "json": true,
+    "mentions": true
+  },
+  "ok": true,
+  "output": {
+    "answer": "India's first grandmaster was Viswanathan Anand, who earned the title in 1988."
+  },
+  "ms": 4168,
+  "usage": {
+    "calls": 1,
+    "completion": 29,
+    "prompt": 80,
+    "reasoning": 0,
+    "total": 109
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:08:54.562Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `qwen/qwen3.8-27b` in organization `org_[redacted]` service tier `on_demand` on output tokens per minute (OTPM): Limit 1000, Used 447, Requested 576. Please try again in 1.38s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "2",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "979",
+            "x-ratelimit-remaining-tokens": "5578",
+            "x-ratelimit-reset-requests": "30m14.4s",
+            "x-ratelimit-reset-tokens": "26.82s"
+          },
+          "ms": 14,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:08:58.716Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "978",
+            "x-ratelimit-remaining-tokens": "5741",
+            "x-ratelimit-reset-requests": "31m40.8s",
+            "x-ratelimit-reset-tokens": "40.32s"
+          },
+          "ms": 152,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4250,
+        "messages": [
+          {
+            "content": "You answer a chess question from a child or a parent at a chess academy.\nAnswer correctly in 1 to 3 short sentences of simple English. If you are not sure, say so.\nReturn only JSON: {\"answer\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "Who was India's first grandmaster, and in which year?",
+            "role": "user"
+          }
+        ],
+        "model": "qwen/qwen3.8-27b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"answer\": \"India's first grandmaster was Viswanathan Anand, who earned the title in 1988.\"}",
+        "finishReason": "stop",
+        "ms": 152,
+        "providerModel": "qwen/qwen3.8-27b",
+        "reasoning": null,
+        "usage": {
+          "queue_time": 0.06909638,
+          "prompt_tokens": 80,
+          "prompt_time": 0.00009709,
+          "completion_tokens": 29,
+          "completion_time": 0.084610429,
+          "total_tokens": 109,
+          "total_time": 0.084707519
+        }
+      }
+    }
+  ]
+}

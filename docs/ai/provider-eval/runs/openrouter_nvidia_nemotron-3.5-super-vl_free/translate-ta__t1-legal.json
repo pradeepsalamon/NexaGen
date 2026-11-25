@@ -1,0 +1,81 @@
+{
+  "feature": "Tamil translation of a review",
+  "item": "t1-legal",
+  "model": "openrouter/nvidia/nemotron-3.5-super-vl:free",
+  "startedAt": "2026-11-25T21:15:17.781Z",
+  "task": "translate-ta",
+  "checks": {
+    "json": true,
+    "tamilShare": 98
+  },
+  "ok": true,
+  "output": "நீ நல்லதாகத் தொடங்கினாய்: உன் பிஷப்பை ஆரம்பத்திலேயே எடுத்து விட்டு, நைட்டை பின் வைத்து. பெரிய பாடம் மூவ் 5: உன் பிஷப் দিয়ে குவீனை எடுத்து விட்டாய், ஆனால் எஞ்சின் காட்டுகிறது, நைட்டை உன் பான் দিয়ে எடுப்பது மிகவும் நல்லது. ஏனெனில் குவீனை வென்றதால் வைட் உன்னை செக்க்மேட் செய்து விட்டார். பெரிய காயலை எடுப்பதற்கு முன், எப்போதும் உன் எதிராளி அடுத்து என்ன செய்யப் போகிறார் என்று பார்க்க, குறிப்பாக செக்குகளை. இந்த வாரம் செக்க்மேட் பேட்டர்ன் பற்றிய ஐந்து பஜில்களுடன் இதை பயிற்சி செய்.",
+  "ms": 26558,
+  "usage": {
+    "calls": 1,
+    "completion": 2662,
+    "prompt": 182,
+    "reasoning": 2446,
+    "total": 2844
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:15:44.339Z",
+          "limits": {},
+          "ms": 26558,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 5200,
+        "messages": [
+          {
+            "content": "You translate a chess coach's short comment for a child and their parent in Tamil Nadu.\nTranslate into simple, natural spoken-style Tamil in Tamil script. Keep the meaning exactly; add nothing.\nChess piece names and words like checkmate may stay in English (in Tamil letters or English letters) as Tamil chess players say them.\nReturn only JSON: {\"tamil\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "You started well by bringing your bishop out early and pinning the knight. The big lesson is move 5: you took the queen with your bishop, but the engine shows that taking the knight with your pawn was much better, because winning the queen let White checkmate you. Before you grab a big piece, always check what your opponent can do next, especially checks. Practise this with five puzzles on checkmate patterns this week.",
+            "role": "user"
+          }
+        ],
+        "model": "nvidia/nemotron-3.5-super-vl:free",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"tamil\": \"நீ நல்லதாகத் தொடங்கினாய்: உன் பிஷப்பை ஆரம்பத்திலேயே எடுத்து விட்டு, நைட்டை பின் வைத்து. பெரிய பாடம் மூவ் 5: உன் பிஷப் দিয়ে குவீனை எடுத்து விட்டாய், ஆனால் எஞ்சின் காட்டுகிறது, நைட்டை உன் பான் দিয়ে எடுப்பது மிகவும் நல்லது. ஏனெனில் குவீனை வென்றதால் வைட் உன்னை செக்க்மேட் செய்து விட்டார். பெரிய காயலை எடுப்பதற்கு முன், எப்போதும் உன் எதிராளி அடுத்து என்ன செய்யப் போகிறார் என்று பார்க்க, குறிப்பாக செக்குகளை. இந்த வாரம் செக்க்மேட் பேட்டர்ன் பற்றிய ஐந்து பஜில்களுடன் இதை பயிற்சி செய்.\"}",
+        "finishReason": "stop",
+        "ms": 26558,
+        "providerModel": "nvidia/nemotron-3.5-super-vl:free",
+        "reasoning": "The user wants me to translate a chess coach's comment into simple, natural spoken-style Tamil in Tamil script. The audience is a child and their parent in Tamil Nadu. I need to keep the meaning exactly, add nothing. Chess piece names and words like checkmate can stay in English (in Tamil letters or English letters) as Tamil chess players say them.\n\nLet me break down the source text:\n\n1. \"You started well by bringing your bishop out early and pinning the knight.\"\n2. \"The big lesson is move 5: you took the queen with your bishop, but the engine shows that taking the knight with your pawn was much better, because winning the queen let White checkmate you.\"\n3. \"Before you grab a big piece, always check what your opponent can do next, especially checks.\"\n4. \"Practise this with five puzzles on checkmate patterns this week.\"\n\nKey terms:\n- Bishop - பிஷப் (bishop) or ஆட்சி? In Tamil chess context, usually English terms are used or transliterated. Let's use transliteration: பிஷப், நைட் (knight), குவீன் (queen), பான் (pawn), வைட் (White), செக்க்மேட் (checkmate), செக் (check).\n- \"pinning the knight\" - நைட்டை பின் செய்து / நைட்டை பின் வைத்து. In chess, \"pin\" is often just \"பின்\" or explained. But since it's spoken style, maybe \"நைட்டை பின் வைத்து\" or just keep it simple. Actually, Tamil chess players might say \"பின்\" for pin. Let's use \"நைட்டை பின் வைத்து\".\n- \"engine\" - எஞ்சின் or கம்ப்யூட்டர். \"எஞ்சின் காட்டுகிறது\" is fine.\n- \"move 5\" - 5வது muv / 5வது muve. \"மூவ் 5\" or \"5வது muv\". Let's say \"5வது muv\" or \"மூவ் 5\". In spoken Tamil, English numbers are common. \"மூவ் 5\" sounds natural.\n- \"took the queen with your bishop\" - உங்கள் பிஷப் দিয়ে குவீனை எடுத்தீர்கள். But for child/parent, simple spoken: \"உன் பிஷப் দিয়ে குவீனை எடுத்து விட்டாய்\" (child) or \"நீ எடுத்து விட்டாய்\". Since it's for child and parent, maybe address the child primarily but respectful enough. \"நீ\" is fine for child.\n- \"taking the knight with your pawn was much better\" - நைட்டை பான் দিয়ে எடுப்பது மிகவும் நல்லது.\n- \"because winning the queen let White checkmate you\" - குவீனை வென்றதால் வைட் உன்னை செக்க்மேட் செய்து விட்டார் / செய்தது. \"White\" as \"வைட்\".\n- \"Before you grab a big piece\" - பெரிய காயலை எடுப்பதற்கு முன். \"big piece\" = பெரிய காயல் / பெரிய மোহரி. In Tamil chess, \"காயல்\" is piece. \"பெரிய காயல்\" is understandable.\n- \"always check what your opponent can do next\" - எப்போதும் உங்கள் எதிராளி அடுத்து என்ன செய்ய முடியும் என்று சரிபார்க்கவும். \"சரிபார்க்க\" or \"பார்க்க\". Spoken: \"என்ன செய்யப் போகிறார் என்று பார்க்க\".\n- \"especially checks\" - குறிப்பாக செக்குகளை. Or \"செக் Given\". \"செக்குகள்\" plural.\n- \"Practise this with five puzzles on checkmate patterns this week.\" - இந்த வாரம் செக்க்மேட் பேட்டர்ன் பற்றிய ஐந்து பஜில்களுடன் இதை பயிற்சி செய்யவும். \"பஜில்\" is commonly used for puzzle in Tamil chess circles. \"பேட்டர்ன்\" or \"மாதிரி\". \"செக்க்மேட் பேட்டர்ன்\" is fine.\n\nLet's draft:\n\nநீ நல்லதாகத் தொடங்கினாய்: உன் பிஷப்பை ஆரம்பத்திலேயே எடுத்து வரி, நைட்டை பின் வைத்து. பெரிய பாடம் muv 5: உன் பிஷப் দিয়ে குவீனை எடுத்து விட்டாய், ஆனால் எஞ்சின் காட்டுகிறது, நைட்டை உன் பான் দিয়ে எடுத்திருக்க வேண்டும், ஏனெனில் குவீனை வென்றதால் வைட் உன்னை செக்க்மேட் செய்து விட்டார். பெரிய காயலை எடுப்பதற்கு முன், எப்போதும் உன் எதிராளி அடுத்து என்ன செய்யப் போகிறார் என்று பார்க்க, குறிப்பாக செக்குகளை. இந்த வாரம் செக்க்மேட் பேட்டர்ன் பற்றிய ஐந்து பஜில்களுடன் இதை பயிற்சி செய்.\n\nWait, \"bringing your bishop out early\" - \"உன் பிஷப்பை ஆரம்பத்திலேயே எடுத்து வரி\" sounds a bit off. \"உன் பிஷப்பை ஆரம்பத்திலேயே வெளிக்கொண்டு வரி\" or \"உன் பிஷப்பை ஆரம்பத்திலேயே எடுத்து விட்டு\". In chess, \"developing a piece\" is often \"பீஸ் வெளியே எடுத்தல்\" or just \"பிஷப் எடுத்து வைத்தல்\". Let's say: \"உன் பிஷப்பை ஆரம்பத்திலேயே எடுத்து விட்டு, நைட்டை பின் வைத்து நீ நல்லதாகத் தொடங்கினாய்.\"\n\n\"pinning the knight\" - \"நைட்டை பின் வைத்து\" is okay. Or \"நைட்டை பின் சுட்டு\". \"பின் வைத்து\" is more standard.\n\n\"move 5\" - \"மூவ் 5\" or \"5வது muv\". Let's use \"மூவ் 5\".\n\n\"you took the queen with your bishop\" - \"உன் பிஷப் দিয়ে குவீனை எடுத்து விட்டாய்\"\n\n\"but the engine shows that taking the knight with your pawn was much better\" - \"ஆனால் எஞ்சின் காட்டுகிறது, நைட்டை உன் பான் দিয়ে எடுத்திருக்க வேண்டும் மிகவும் நல்லது\" -> \"நைட்டை பான் দিয়ে எடுப்பது மிகவும் நல்லது என்று எஞ்சின் காட்டுகிறது\"\n\n\"because winning the queen let White checkmate you\" - \"ஏனெனில் குவீனை வென்றதால் வைட் உன்னை செக்க்மேட் செய்து விட்டார்\"\n\n\"Before you grab a big piece\" - \"பெரிய காயலை எடுப்பதற்கு முன்\"\n\n\"always check what your opponent can do next, especially checks.\" - \"எப்போதும் உன் எதிராளி அடுத்து என்ன செய்யப் போகிறார் என்று பார்க்க, குறிப்பாக செக்குகளை.\"\n\n\"Practise this with five puzzles on checkmate patterns this week.\" - \"இந்த வாரம் செக்க்மேட் பேட்டர்ன் பற்றிய ஐந்து பஜில்களுடன் இதை பயிற்சி செய்.\"\n\nTone: simple, natural spoken-style. Addressing child (\"நீ\", \"செய்\"). Parent is also there but the comment is to the child. Using \"நீ\" is fine.\n\nLet's refine for natural flow:\n\nநீ நல்லதாகத் தொடங்கினாய்: உன் பிஷப்பை ஆரம்பத்திலேயே எடுத்து விட்டு, நைட்டை பின் வைத்து. பெரிய பாடம் மூவ் 5: உன் பிஷப் দিয়ে குவீனை எடுத்து விட்டாய், ஆனால் எஞ்சின் காட்டுகிறது, நைட்டை உன் பான் দিয়ে எடுப்பது மிகவும் நல்லது. ஏனெனில் குவீனை வென்றதால் வைட் உன்னை செக்க்மேட் செய்து விட்டார். பெரிய காயலை எடுப்பதற்கு முன், எப்போதும் உன் எதிராளி அடுத்து என்ன செய்யப் போகிறார் என்று பார்க்க, குறிப்பாக செக்குகளை. இந்த வாரம் செக்க்மேட் பேட்டர்ன் பற்றிய ஐந்து பஜில்களுடன் இதை பயிற்சி செய்.\n\nCheck: \"add nothing\" - I haven't added extra meaning. \"Keep the meaning exactly\" - yes.\n\nChess terms in Tamil letters:\n- bishop -> பிஷப்\n- knight -> நைட் / நைட். I wrote நைட்டை (with tt). That's fine.\n- queen -> குவீன் / குவீனை. I wrote குவீனை.\n- pawn -> பான்\n- White -> வைட்\n- checkmate -> செக்க்மேட்\n- check -> செக் / செக்குகள். I wrote செக்குகள்.\n- engine -> எஞ்சின்\n- move -> மூவ்\n- puzzles -> பஜில்கள்\n- patterns -> பேட்டர்ன்\n\nIs \"பஜில்\" understood? Yes, in Tamil chess circles, puzzle is often \"பஜில்\". Could also be \"பிரச்சனை\" but பஜில் is more natural spoken.\n\n\"pinning\" -> \"பின் வைத்து\". Is that clear? In Tamil chess, pin is often called \"பின்\" or \"பின் வைத்தல்\". It's acceptable.\n\n\"grab a big piece\" -> \"பெரிய காயலை எடுப்பதற்கு முன்\". \"காயல்\" is piece. \"பெரிய காயல்\" = big piece. Good.\n\n\"especially checks\" -> \"குறிப்பாக செக்குகளை\". Good.\n\nLet's make sure the JSON is valid. Only the key \"tamil\" with the string. No markdown, no extra text.\n\nFinal check on Tamil script correctness:\nநீ நல்லதாகத் தொடங்கினாய்: உன் பிஷப்பை ஆரம்பத்திலேயே எடுத்து விட்டு, நைட்டை பின் வைத்து. பெரிய பாடம் மூவ் 5: உன் பிஷப் দিয়ে குவீனை எடுத்து விட்டாய், ஆனால் எஞ்சின் காட்டுகிறது, நைட்டை உன் பான் দিয়ে எடுப்பது மிகவும் நல்லது. ஏனெனில் குவீனை வென்றதால் வைட் உன்னை செக்க்மேட் செய்து விட்டார். பெரிய காயலை எடுப்பதற்கு முன், எப்போதும் உன் எதிராளி அடுத்து என்ன செய்யப் போகிறார் என்று பார்க்க, குறிப்பாக செக்குகளை. இந்த வாரம் செக்க்மேட் பேட்டர்ன் பற்றிய ஐந்து பஜில்களுடன் இதை பயிற்சி செய்.\n\nLooks good. I'll output only JSON.",
+        "usage": {
+          "prompt_tokens": 182,
+          "completion_tokens": 2662,
+          "total_tokens": 2844,
+          "cost": 0,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0,
+            "upstream_inference_prompt_cost": 0,
+            "upstream_inference_completions_cost": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 2446,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      }
+    }
+  ]
+}

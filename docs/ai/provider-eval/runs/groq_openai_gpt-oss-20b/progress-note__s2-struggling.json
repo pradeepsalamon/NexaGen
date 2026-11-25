@@ -1,0 +1,98 @@
+{
+  "feature": "Monthly progress note",
+  "item": "s2-struggling",
+  "model": "groq/openai/gpt-oss-20b",
+  "startedAt": "2026-11-25T21:07:29.290Z",
+  "task": "progress-note",
+  "checks": {
+    "json": true,
+    "notation": false,
+    "numbersNotInInput": []
+  },
+  "ok": true,
+  "output": {
+    "note": "Your child attended half of the classes this month. They completed 1 of 6 homework assignments. They solved 20 of 31 puzzles, but their rating dropped from 950 to 930. They played 2 games and lost both, and often moved the queen too early. Next month, encourage them to practice queen safety by reviewing opening principles and playing a few practice games.",
+    "focusNextMonth": [
+      "Practice queen safety by reviewing opening principles and playing a few practice games"
+    ]
+  },
+  "ms": 3950,
+  "usage": {
+    "calls": 1,
+    "completion": 573,
+    "prompt": 344,
+    "reasoning": 465,
+    "total": 917
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:07:29.308Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-20b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 6955, Requested 1090. Please try again in 337.499999ms. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "1",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "991",
+            "x-ratelimit-remaining-tokens": "1045",
+            "x-ratelimit-reset-requests": "12m57.599s",
+            "x-ratelimit-reset-tokens": "52.162s"
+          },
+          "ms": 18,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:07:33.240Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "990",
+            "x-ratelimit-remaining-tokens": "360",
+            "x-ratelimit-reset-requests": "14m24s",
+            "x-ratelimit-reset-tokens": "57.3s"
+          },
+          "ms": 931,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4600,
+        "messages": [
+          {
+            "content": "You write a chess academy's monthly progress note to a parent about their child.\nYou get the month's numbers and the coach's note. Write 4 to 6 warm, honest sentences in simple English:\nwhat went well, what to work on, and one concrete suggestion for next month. Call the student 'your child'.\nUse only the facts given; never invent a number, a game or an event. No chess notation.\nReturn only JSON: {\"note\": \"...\", \"focusNextMonth\": [\"1 to 3 short items\"]}",
+            "role": "system"
+          },
+          {
+            "content": "{\"month\":\"October\",\"ageGroup\":\"7-9\",\"level\":\"Beginner\",\"classes\":{\"held\":8,\"attended\":4},\"homework\":{\"given\":6,\"done\":1},\"puzzles\":{\"attempted\":31,\"solved\":20,\"ratingStart\":950,\"ratingEnd\":930},\"puzzleStormBest\":6,\"games\":{\"played\":2,\"won\":0,\"lost\":2,\"drawn\":0},\"commonMistakes\":[\"moves the queen out too early\"],\"topicsCovered\":[\"how the pieces move\",\"check and checkmate\",\"opening principles\"],\"coachNote\":\"quiet in class, needs encouragement, knows the opening rules well\"}",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-20b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"note\":\"Your child attended half of the classes this month. They completed 1 of 6 homework assignments. They solved 20 of 31 puzzles, but their rating dropped from 950 to 930. They played 2 games and lost both, and often moved the queen too early. Next month, encourage them to practice queen safety by reviewing opening principles and playing a few practice games.\",\"focusNextMonth\":[\"Practice queen safety by reviewing opening principles and playing a few practice games\"]}",
+        "finishReason": "stop",
+        "ms": 931,
+        "providerModel": "openai/gpt-oss-20b",
+        "reasoning": "We need to produce JSON with note and focusNextMonth array. Use only facts given. Provide 4-6 warm, honest sentences in simple English. Use \"your child\". Provide concrete suggestion. Use only facts. No invented numbers. Use only facts given. Let's craft.\n\nFacts: October, age group 7-9, beginner. Classes held 8, attended 4. Homework given 6, done 1. Puzzles attempted 31, solved 20, rating start 950, end 930. PuzzleStorm best 6. Games played 2, won 0, lost 2, drawn 0. Common mistake: moves queen out too early. Topics covered: how pieces move, check and checkmate, opening principles. Coach note: quiet in class, needs encouragement, knows opening rules well.\n\nWe need 4-6 sentences. Let's do 5 sentences.\n\nSentences: 1) Your child attended half of the classes this month. 2) They completed 1 of 6 homework assignments. 3) They solved 20 of 31 puzzles, but their rating dropped from 950 to 930. 4) They played 2 games and lost both, and often moved the queen too early. 5) Next month, encourage them to practice queen safety by reviewing the opening principles and playing a few practice games.\n\nBut we need to keep simple English. Use \"your child\". Provide suggestion: \"practice queen safety by reviewing opening principles and playing a few practice games.\" That is concrete.\n\nNow produce JSON: {\"note\":\"...\",\"focusNextMonth\":[\"...\"]}.\n\nMake sure JSON is compact. Use double quotes. Ensure no trailing commas. Provide 1-3 short items in focusNextMonth. We can give 1 item: \"Practice queen safety by reviewing opening principles and playing a few practice games.\" That is one item. Or we can give 2 items: \"Practice queen safety\" and \"Play a few practice games.\" But the instruction: \"one concrete suggestion for next month.\" So maybe one item. But focusNextMonth expects array of 1 to 3 short items. So we can give one item.\n\nLet's craft note: 5 sentences. Ensure no extra punctuation? It's fine.\n\nLet's produce JSON.",
+        "usage": {
+          "queue_time": 0.270822908,
+          "prompt_tokens": 344,
+          "prompt_time": 0.023580848,
+          "completion_tokens": 573,
+          "completion_time": 0.6026455,
+          "total_tokens": 917,
+          "total_time": 0.626226348,
+          "completion_tokens_details": {
+            "reasoning_tokens": 465
+          }
+        }
+      }
+    }
+  ]
+}

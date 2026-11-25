@@ -1,0 +1,89 @@
+{
+  "feature": "Monthly progress note",
+  "item": "s2-struggling",
+  "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+  "startedAt": "2026-11-25T21:10:57.767Z",
+  "task": "progress-note",
+  "checks": {
+    "json": true,
+    "notation": false,
+    "numbersNotInInput": []
+  },
+  "ok": true,
+  "output": {
+    "note": "Your child attended four of the eight classes this month and showed good understanding of the opening principles. Homework completion was low, with only one of six assignments finished, so regular practice at home would help. Puzzle work was steady, solving 20 of 31 attempts, but the puzzle rating slipped from 950 to 930, indicating a need for more consistent solving. In the two games played, your child lost both and tends to bring the queen out too early, a habit we can correct. A concrete step for next month is to aim for at least six class attendances, finish all homework, and spend a few minutes each day on puzzles to raise the rating.",
+    "focusNextMonth": [
+      "Attend at least six classes",
+      "Complete all homework assignments",
+      "Do daily puzzle practice"
+    ]
+  },
+  "ms": 18518,
+  "usage": {
+    "calls": 1,
+    "completion": 710,
+    "prompt": 276,
+    "reasoning": 535,
+    "total": 986
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:11:16.285Z",
+          "limits": {},
+          "ms": 18517,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4600,
+        "messages": [
+          {
+            "content": "You write a chess academy's monthly progress note to a parent about their child.\nYou get the month's numbers and the coach's note. Write 4 to 6 warm, honest sentences in simple English:\nwhat went well, what to work on, and one concrete suggestion for next month. Call the student 'your child'.\nUse only the facts given; never invent a number, a game or an event. No chess notation.\nReturn only JSON: {\"note\": \"...\", \"focusNextMonth\": [\"1 to 3 short items\"]}",
+            "role": "system"
+          },
+          {
+            "content": "{\"month\":\"October\",\"ageGroup\":\"7-9\",\"level\":\"Beginner\",\"classes\":{\"held\":8,\"attended\":4},\"homework\":{\"given\":6,\"done\":1},\"puzzles\":{\"attempted\":31,\"solved\":20,\"ratingStart\":950,\"ratingEnd\":930},\"puzzleStormBest\":6,\"games\":{\"played\":2,\"won\":0,\"lost\":2,\"drawn\":0},\"commonMistakes\":[\"moves the queen out too early\"],\"topicsCovered\":[\"how the pieces move\",\"check and checkmate\",\"opening principles\"],\"coachNote\":\"quiet in class, needs encouragement, knows the opening rules well\"}",
+            "role": "user"
+          }
+        ],
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"note\": \"Your child attended four of the eight classes this month and showed good understanding of the opening principles. Homework completion was low, with only one of six assignments finished, so regular practice at home would help. Puzzle work was steady, solving 20 of 31 attempts, but the puzzle rating slipped from 950 to 930, indicating a need for more consistent solving. In the two games played, your child lost both and tends to bring the queen out too early, a habit we can correct. A concrete step for next month is to aim for at least six class attendances, finish all homework, and spend a few minutes each day on puzzles to raise the rating.\", \"focusNextMonth\": [\"Attend at least six classes\", \"Complete all homework assignments\", \"Do daily puzzle practice\"]}",
+        "finishReason": "stop",
+        "ms": 18517,
+        "providerModel": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "reasoning": "We need to produce JSON with note and focusNextMonth. Note: 4-6 warm, honest sentences, simple English, about what went well, what to work on, one concrete suggestion for next month. Use only facts given. No invented numbers, games, events. No chess notation. Call student 'your child'. Provide focusNextMonth as array of 1-3 short items.\n\nWe have data: month October, age 7-9, beginner. Classes held 8, attended 4 (50% attendance). Homework given 6, done 1 (low completion). Puzzles attempted 31, solved 20, rating start 950 end 930 (rating dropped). Puzzle Storm best 6. Games played 2, lost both. Common mistake: moves queen out too early. Topics covered: piece movement, check/checkmate, opening principles. Coach note: quiet in class, needs encouragement, knows opening rules well.\n\nWe need to write note: mention attendance, homework, puzzle progress, rating drop, games, mistake, strengths (knows opening rules). Provide suggestion: e.g., encourage more class participation, complete homework, practice puzzles daily, work on queen development.\n\nFocusNextMonth: maybe [\"Attend more classes\", \"Complete homework assignments\", \"Practice puzzles daily to improve rating\"].\n\nWe need 4-6 sentences. Let's craft 5 sentences.\n\nSentence 1: \"Your child attended four of the eight classes this month and showed good understanding of the opening principles.\" (fact: attended 4 of 8, knows opening rules well). Sentence 2: \"Homework completion was low, with only one of six assignments finished, so regular practice at home would help.\" (fact). Sentence 3: \"Puzzle work was steady, solving 20 of 31 attempts, but the puzzle rating slipped from 950 to 930, indicating a need for more consistent solving.\" (facts). Sentence 4: \"In the two games played, your child lost both and tends to bring the queen out too early, a habit we can correct.\" (facts). Sentence 5: \"A concrete step for next month is to aim for at least six class attendances, finish all homework, and spend a few minutes each day on puzzles to raise the rating.\" (suggestion). That's 5 sentences.\n\nFocusNextMonth: maybe [\"Attend at least six classes\", \"Complete all homework\", \"Do daily puzzle practice\"].\n\nReturn JSON only.",
+        "usage": {
+          "prompt_tokens": 276,
+          "completion_tokens": 710,
+          "total_tokens": 986,
+          "cost": 0,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0,
+            "upstream_inference_prompt_cost": 0,
+            "upstream_inference_completions_cost": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 535,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      }
+    }
+  ]
+}

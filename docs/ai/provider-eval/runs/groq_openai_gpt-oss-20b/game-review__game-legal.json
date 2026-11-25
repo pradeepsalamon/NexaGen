@@ -1,0 +1,88 @@
+{
+  "feature": "Game review comment (AI play review)",
+  "item": "game-legal",
+  "model": "groq/openai/gpt-oss-20b",
+  "startedAt": "2026-11-25T21:06:48.197Z",
+  "task": "game-review",
+  "checks": {
+    "inventedMoves": []
+  },
+  "ok": true,
+  "output": "You did well by setting up a quick mating attack with Bxf7+ and finishing with Nd5#. The engine shows that instead of Bxd1, you should have played dxe5 to keep material. Practice checking whether a capture keeps your material or loses a piece before you move. Also consider playing Nc6 earlier instead of g6 to develop a knight and control the center.",
+  "ms": 7222,
+  "usage": {
+    "calls": 1,
+    "completion": 746,
+    "prompt": 369,
+    "reasoning": 660,
+    "total": 1115
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:06:48.214Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-20b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7550, Requested 882. Please try again in 3.24s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "4",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "996",
+            "x-ratelimit-remaining-tokens": "450",
+            "x-ratelimit-reset-requests": "5m45.6s",
+            "x-ratelimit-reset-tokens": "56.625s"
+          },
+          "ms": 15,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:06:55.419Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "995",
+            "x-ratelimit-remaining-tokens": "376",
+            "x-ratelimit-reset-requests": "7m12s",
+            "x-ratelimit-reset-tokens": "57.18s"
+          },
+          "ms": 1201,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4400,
+        "messages": [
+          {
+            "content": "You are a friendly chess coach writing to a young student about their own play. You get the positions, the moves (the student's own moves start with *) and what a chess engine found. Write 3 to 5 short sentences: one thing they did well, the most important lesson from the engine's findings (name the better move when given), and one concrete thing to practise. Use only the facts given; never invent moves or evaluations. Plain language, no headings, no lists, no emojis.",
+            "role": "system"
+          },
+          {
+            "content": "{\"accuracy\":74,\"findings\":[{\"better\":\"Nc6\",\"kind\":\"INACCURACY\",\"motif\":null,\"moveNumber\":4,\"played\":\"g6\",\"segment\":0},{\"better\":\"dxe5\",\"kind\":\"BLUNDER\",\"motif\":null,\"moveNumber\":5,\"played\":\"Bxd1\",\"segment\":0}],\"kind\":\"Own game\",\"segments\":[{\"label\":null,\"moves\":[\"e4\",\"*e5\",\"Bc4\",\"*d6\",\"Nf3\",\"*Bg4\",\"Nc3\",\"*g6\",\"Nxe5\",\"*Bxd1\",\"Bxf7+\",\"*Ke7\",\"Nd5#\"],\"playerSide\":\"black\",\"result\":\"1-0\",\"startFen\":\"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\"}]}",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-20b",
+        "temperature": 0.4
+      },
+      "response": {
+        "content": "You did well by setting up a quick mating attack with Bxf7+ and finishing with Nd5#. The engine shows that instead of Bxd1, you should have played dxe5 to keep material. Practice checking whether a capture keeps your material or loses a piece before you move. Also consider playing Nc6 earlier instead of g6 to develop a knight and control the center.",
+        "finishReason": "stop",
+        "ms": 1201,
+        "providerModel": "openai/gpt-oss-20b",
+        "reasoning": "We need to write 3-5 short sentences: one thing they did well, the most important lesson from engine findings (name better move when given), and one concrete thing to practice. Use only facts given. The student's own moves start with *.\n\nMoves: e4, *e5, Bc4, *d6, Nf3, *Bg4, Nc3, *g6, Nxe5, *Bxd1, Bxf7+, *Ke7, Nd5#.\n\nSo black is the student. They played e5, d6, Bg4, g6, Bxd1, Ke7. Engine found better Nc6 at move 4 (when they played g6). Wait: moveNumber 4: played g6, better Nc6. That means after 4...g6, engine says better move is Nc6. So the engine says black should have played Nc6 instead of g6. Also at move 5, played Bxd1, engine says better dxe5. So black captured the rook with bishop, but engine says better to capture pawn on e5. So the lesson: avoid losing material; better to take pawn.\n\nWe need to mention one thing they did well. From the game, black delivered checkmate in 12 moves. They forced a quick mate. They played Bxf7+ and then Ke7, Nd5#. So maybe the good thing: they executed a quick mating attack. Or they used the bishop to deliver check. So we can say they did well by creating a mating threat with Bxf7+. The most important lesson: engine shows that instead of g6, playing Nc6 would have been better, and instead of Bxd1, capturing the pawn with dxe5 would have been better. But we need to name the better move when given. So we can say: the engine recommends playing Nc6 instead of g6, and dxe5 instead of Bxd1. But we need to choose one most important lesson. Probably the blunder: Bxd1 loses material; better to play dxe5. So we can say: the engine indicates that instead of Bxd1, you should have captured the pawn with dxe5 to keep material. That is the lesson. And a concrete thing to practice: practice evaluating material balance and avoid losing pieces for no gain. Or practice checking for better captures. Let's craft 4 sentences: one good thing, one lesson with better move, one concrete practice.\n\nWe must not invent moves or evaluations. Use plain language. No headings, no lists, no emojis. 3-5 short sentences. Let's produce 4 sentences.\n\nSentence 1: You did well by setting up a quick mating attack with Bxf7+ and finishing with Nd5#. Sentence 2: The engine shows that instead of Bxd1, you should have played dxe5 to keep material. Sentence 3: Practice checking whether a capture keeps your material or loses a piece before you move. Sentence 4: Also, consider playing Nc6 earlier instead of g6 to develop a knight and control the center. That covers all. Ensure we don't mention other engine findings incorrectly. We mention better moves. Good.",
+        "usage": {
+          "queue_time": 0.365530105,
+          "prompt_tokens": 369,
+          "prompt_time": 0.019532041,
+          "completion_tokens": 746,
+          "completion_time": 0.785380193,
+          "total_tokens": 1115,
+          "total_time": 0.804912234,
+          "completion_tokens_details": {
+            "reasoning_tokens": 660
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "feature": "Coach feedback message",
+  "item": "f2-tanglish-notes",
+  "model": "groq/qwen/qwen3.8-27b",
+  "startedAt": "2026-11-25T21:08:37.423Z",
+  "task": "coach-feedback",
+  "checks": {
+    "json": true
+  },
+  "ok": true,
+  "output": {
+    "message": "Your child is showing great improvement in tactics, especially in spotting forks quickly. However, they have been distracted in class and often keep their camera off, which affects their focus. They have also only completed two homework assignments so far. Please check in with them at home to help improve their focus and ensure they complete their homework."
+  },
+  "ms": 221,
+  "usage": {
+    "calls": 1,
+    "completion": 75,
+    "prompt": 199,
+    "reasoning": 0,
+    "total": 274
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:08:37.644Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "985",
+            "x-ratelimit-remaining-tokens": "6679",
+            "x-ratelimit-reset-requests": "21m36s",
+            "x-ratelimit-reset-tokens": "48.48s"
+          },
+          "ms": 221,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4500,
+        "messages": [
+          {
+            "content": "You turn a chess coach's quick feedback form into a short message to the student's parent.\nYou get ratings from 1 to 5 and the coach's rough notes (they may mix Tamil and English).\nWrite 3 to 5 polite, encouraging and honest sentences in simple English from the coach. Call the student 'your child'.\nKeep every point the coach made and add nothing new. No chess notation.\nReturn only JSON: {\"message\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"context\":\"after 4 classes\",\"ratings\":{\"focus\":2,\"tactics\":4,\"endgames\":3,\"homework\":2,\"behaviour\":3},\"coachNotes\":\"class la romba distract aagudhu, camera off pannidraan. tactics nalla pannuraan, forks fast ah paakuraan. homework 2 dhaan pannaan. parents konjam check pannunga\"}",
+            "role": "user"
+          }
+        ],
+        "model": "qwen/qwen3.8-27b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\n  \"message\": \"Your child is showing great improvement in tactics, especially in spotting forks quickly. However, they have been distracted in class and often keep their camera off, which affects their focus. They have also only completed two homework assignments so far. Please check in with them at home to help improve their focus and ensure they complete their homework.\"\n}",
+        "finishReason": "stop",
+        "ms": 221,
+        "providerModel": "qwen/qwen3.8-27b",
+        "reasoning": null,
+        "usage": {
+          "queue_time": 0.049837056,
+          "prompt_tokens": 199,
+          "prompt_time": 0.014373303,
+          "completion_tokens": 75,
+          "completion_time": 0.142228821,
+          "total_tokens": 274,
+          "total_time": 0.156602124
+        }
+      }
+    }
+  ]
+}

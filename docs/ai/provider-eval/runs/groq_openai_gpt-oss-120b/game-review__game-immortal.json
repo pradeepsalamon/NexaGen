@@ -1,0 +1,90 @@
+{
+  "feature": "Game review comment (AI play review)",
+  "item": "game-immortal",
+  "model": "groq/openai/gpt-oss-120b",
+  "startedAt": "2026-11-25T21:07:04.013Z",
+  "task": "game-review",
+  "checks": {
+    "inventedMoves": [
+      "d6"
+    ]
+  },
+  "ok": true,
+  "output": "You built a strong attack that finished with a clean checkmate. The engine showed that at move 18 and again at move 19 the move Re1 was much better than the bishop move to d6 and the pawn push e5. Those rook moves would have kept more pressure on Black’s king. Practice looking for chances to activate a rook on an open file before moving other pieces, using simple puzzles that focus on rook lifts.",
+  "ms": 16175,
+  "usage": {
+    "calls": 1,
+    "completion": 514,
+    "prompt": 496,
+    "reasoning": 418,
+    "total": 1010
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:07:04.026Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7978, Requested 1672. Please try again in 12.375s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "13",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "995",
+            "x-ratelimit-remaining-tokens": "22",
+            "x-ratelimit-reset-requests": "7m12s",
+            "x-ratelimit-reset-tokens": "59.835s"
+          },
+          "ms": 13,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:07:20.188Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "994",
+            "x-ratelimit-remaining-tokens": "353",
+            "x-ratelimit-reset-requests": "8m38.4s",
+            "x-ratelimit-reset-tokens": "57.352s"
+          },
+          "ms": 1160,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4400,
+        "messages": [
+          {
+            "content": "You are a friendly chess coach writing to a young student about their own play. You get the positions, the moves (the student's own moves start with *) and what a chess engine found. Write 3 to 5 short sentences: one thing they did well, the most important lesson from the engine's findings (name the better move when given), and one concrete thing to practise. Use only the facts given; never invent moves or evaluations. Plain language, no headings, no lists, no emojis.",
+            "role": "system"
+          },
+          {
+            "content": "{\"accuracy\":84,\"findings\":[{\"better\":\"Re1\",\"kind\":\"BLUNDER\",\"motif\":null,\"moveNumber\":18,\"played\":\"Bd6\",\"segment\":0},{\"better\":\"Re1\",\"kind\":\"BLUNDER\",\"motif\":null,\"moveNumber\":19,\"played\":\"e5\",\"segment\":0}],\"kind\":\"Own game\",\"segments\":[{\"label\":null,\"moves\":[\"*e4\",\"e5\",\"*f4\",\"exf4\",\"*Bc4\",\"Qh4+\",\"*Kf1\",\"b5\",\"*Bxb5\",\"Nf6\",\"*Nf3\",\"Qh6\",\"*d3\",\"Nh5\",\"*Nh4\",\"Qg5\",\"*Nf5\",\"c6\",\"*g4\",\"Nf6\",\"*Rg1\",\"cxb5\",\"*h4\",\"Qg6\",\"*h5\",\"Qg5\",\"*Qf3\",\"Ng8\",\"*Bxf4\",\"Qf6\",\"*Nc3\",\"Bc5\",\"*Nd5\",\"Qxb2\",\"*Bd6\",\"Bxg1\",\"*e5\",\"Qxa1+\",\"*Ke2\",\"Na6\",\"*Nxg7+\",\"Kd8\",\"*Qf6+\",\"Nxf6\",\"*Be7#\"],\"playerSide\":\"white\",\"result\":\"1-0\",\"startFen\":\"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\"}]}",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-120b",
+        "temperature": 0.4
+      },
+      "response": {
+        "content": "You built a strong attack that finished with a clean checkmate. The engine showed that at move 18 and again at move 19 the move Re1 was much better than the bishop move to d6 and the pawn push e5. Those rook moves would have kept more pressure on Black’s king. Practice looking for chances to activate a rook on an open file before moving other pieces, using simple puzzles that focus on rook lifts.",
+        "finishReason": "stop",
+        "ms": 1160,
+        "providerModel": "openai/gpt-oss-120b",
+        "reasoning": "We need to write 3-5 short sentences: one thing they did well, the most important lesson from engine's findings (name the better move when given), and one concrete thing to practise. Use only facts given; never invent moves or evaluations. Plain language, no headings, no lists, no emojis.\n\nWe have findings: two blunders at move 18 and 19. Move 18: played Bd6, better Re1. Move 19: played e5, better Re1 (again). So the engine suggests Re1 as better move at both points. Need to mention that.\n\nWe need to note something they did well. Look at game: they won 1-0, delivered checkmate with Be7#. They also captured pieces, maybe early Bxb5, etc. Could say they found a strong attack on the king, culminating in checkmate. Or they used the rook on g1 to attack.\n\nOne concrete thing to practice: perhaps looking for rook lifts or checking for better rook moves, or avoiding premature bishop moves, or calculating before playing Bd6/e5. Could suggest practicing evaluating rook moves on open files, or practicing checking for tactics before moving pieces.\n\nWrite 3-5 sentences. Let's do 4 sentences.\n\nSentence 1: praise: \"You created a powerful attack that ended with a clean checkmate.\" Sentence 2: lesson: \"At move 18 and again at move 19 the engine showed that playing Re1 was much stronger than the bishop move to d6 and the pawn push e5.\" Sentence 3: explain why: maybe mention that Re1 would have increased pressure on the black king. But keep short. Sentence 4: concrete practice: \"Work on spotting when a rook can become active on an open file before moving other pieces, by solving simple puzzles that focus on rook lifts and centralizing rooks.\"\n\nMake sure not to invent evaluations. We have no evaluation numbers, just that they were blunders. That's fine.\n\nNo headings, no lists, no emojis. Use plain language.",
+        "usage": {
+          "queue_time": 0.047911882,
+          "prompt_tokens": 496,
+          "prompt_time": 0.019489418,
+          "completion_tokens": 514,
+          "completion_time": 1.069809885,
+          "total_tokens": 1010,
+          "total_time": 1.089299303,
+          "completion_tokens_details": {
+            "reasoning_tokens": 418
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "feature": "Support bot saved-answer pick",
+  "item": "q4-account-data",
+  "model": "openrouter/nvidia/nemotron-3.5-super-vl:free",
+  "startedAt": "2026-11-25T21:17:45.380Z",
+  "task": "support-pick",
+  "checks": {
+    "correct": true,
+    "expected": null,
+    "json": true,
+    "picked": null
+  },
+  "ok": true,
+  "output": {
+    "answerId": null,
+    "reason": "Asks for one child's attendance record, which a person must answer; no saved answer covers it."
+  },
+  "ms": 2960,
+  "usage": {
+    "calls": 1,
+    "completion": 345,
+    "prompt": 510,
+    "reasoning": 311,
+    "total": 855
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:17:48.340Z",
+          "limits": {},
+          "ms": 2960,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4150,
+        "messages": [
+          {
+            "content": "You sort WhatsApp messages for a chess academy's support desk.\nYou get the academy's saved answers and one message from a parent (English, Tamil or a mix).\nPick the one saved answer that fully answers the message, or null when none does.\nQuestions about one child's own records (attendance, fees paid, progress) always get null: a person answers those.\nReturn only JSON: {\"answerId\": \"A1\" or null, \"reason\": \"a few words\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"message\":\"Can you tell me how many classes my daughter attended in October?\",\"savedAnswers\":[{\"id\":\"A1\",\"text\":\"Group classes are Rs 2,500 a month or Rs 6,900 for three months. You can pay by UPI, card or net banking from the Payments page in the app.\",\"title\":\"Fees and payment\"},{\"id\":\"A2\",\"text\":\"Each batch has fixed days and times, shown on the Classes page. To change your batch timing, ask your coach or write to us here.\",\"title\":\"Class timings\"},{\"id\":\"A3\",\"text\":\"Every class has a recap and homework in the app. If you miss a class, you can join one make-up class in the same week in another batch of the same level; ask your coach to add you.\",\"title\":\"Missed a class\"},{\"id\":\"A4\",\"text\":\"You can book a free 30-minute demo class for your child. Reply DEMO and we will send you the available times.\",\"title\":\"Free demo class\"},{\"id\":\"A5\",\"text\":\"Open the app, go to Classes and press Join on today's class, ten minutes before it starts. Use Chrome on a laptop or the latest browser on a phone, and allow the camera and microphone.\",\"title\":\"Joining a live class\"},{\"id\":\"A6\",\"text\":\"Fees are refunded for classes not yet held if you write to us within 7 days of paying.\",\"title\":\"Refunds\"},{\"id\":\"A7\",\"text\":\"We teach Beginner, Intermediate and Advanced batches. A coach checks your child's level in the demo class.\",\"title\":\"Levels\"},{\"id\":\"A8\",\"text\":\"We hold an online tournament every month. Every player gets a certificate in the app after the tournament.\",\"title\":\"Tournaments and certificates\"}]}",
+            "role": "user"
+          }
+        ],
+        "model": "nvidia/nemotron-3.5-super-vl:free",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"answerId\": null, \"reason\": \"Asks for one child's attendance record, which a person must answer; no saved answer covers it.\"}",
+        "finishReason": "stop",
+        "ms": 2960,
+        "providerModel": "nvidia/nemotron-3.5-super-vl:free",
+        "reasoning": "The user wants me to sort a WhatsApp message for a chess academy's support desk. I need to pick the one saved answer that fully answers the message, or null when none does.\n\nMessage: \"Can you tell me how many classes my daughter attended in October?\"\n\nThis is a question about one child's own records (attendance). According to the instructions: \"Questions about one child's own records (attendance, fees paid, progress) always get null: a person answers those.\"\n\nSo the answer should be null.\n\nLet me check the saved answers:\n- A1: Fees and payment - not about attendance count\n- A2: Class timings - not about attendance count\n- A3: Missed a class - about make-up classes, not attendance count\n- A4: Free demo class - not relevant\n- A5: Joining a live class - not relevant\n- A6: Refunds - not relevant\n- A7: Levels - not relevant\n- A8: Tournaments and certificates - not relevant\n\nNone of them answer how many classes the daughter attended in October. Plus, it's specifically about one child's attendance record, which always gets null.\n\nReturn only JSON: {\"answerId\": \"A1\" or null, \"reason\": \"a few words\"}\n\nSo: {\"answerId\": null, \"reason\": \"Asks for one child's attendance record, which a person must answer; no saved answer covers it.\"}\n\nMake sure it's valid JSON only.",
+        "usage": {
+          "prompt_tokens": 510,
+          "completion_tokens": 345,
+          "total_tokens": 855,
+          "cost": 0,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0,
+            "upstream_inference_prompt_cost": 0,
+            "upstream_inference_completions_cost": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 311,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      }
+    }
+  ]
+}

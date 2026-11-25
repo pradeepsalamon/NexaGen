@@ -1,0 +1,96 @@
+{
+  "feature": "Class recap (English)",
+  "item": "recap-ta",
+  "model": "openrouter/nvidia/nemotron-3.5-super-vl:free",
+  "startedAt": "2026-11-25T21:14:23.162Z",
+  "task": "recap",
+  "checks": {
+    "calls": 1,
+    "removedByCleaner": 0,
+    "tamilShare": 0
+  },
+  "ok": true,
+  "output": {
+    "keyPoints": [
+      "The back rank mate traps the king on the last rank with its own pieces.",
+      "Give your king an escape square by moving a side pawn one step forward.",
+      "A rook on the back rank can guard against this mate.",
+      "Rooks are powerful on open files, and two rooks on one file are stronger.",
+      "Before every move, check if your king has a safe escape square."
+    ],
+    "practice": [
+      "Solve the twelve back rank puzzles in your assignment by Saturday.",
+      "In every puzzle, count the enemy king's escape squares first.",
+      "In your games this week, give your king an escape square during a quiet moment in the middle game."
+    ],
+    "recap": "In this class we studied the back rank mate. It happens when the king is stuck on the last rank behind its own pieces and a rook or queen gives checkmate. You can stop it by giving your king an escape square, usually by moving the side pawn one step forward, or by keeping a rook on the back rank. We also talked about using open files and doubled rooks to attack."
+  },
+  "ms": 15867,
+  "usage": {
+    "calls": 1,
+    "completion": 1927,
+    "prompt": 2033,
+    "reasoning": 1695,
+    "total": 3960
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:14:39.029Z",
+          "limits": {},
+          "ms": 15866,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4800,
+        "messages": [
+          {
+            "content": "You write a short recap of a chess class for the children who attended it.\nYou get a transcript of what the coach said.\nReturn only JSON: {\"recap\": \"3 to 5 sentences on what the class covered, speaking to the students as you\", \"keyPoints\": [\"3 to 5 short ideas the class taught\"], \"practice\": [\"1 to 3 things to practise at home\"]}\nRules:\n- Students appear as S1, S2 and so on. Never mention any student, by code or otherwise.\n- Do not write chess moves, squares or notation (such as e4, Nf3, Bxf7 or O-O). Describe the ideas in words.\n- Use only what the coach said. Do not invent topics.\n- The transcript comes from speech recognition: it may mix Tamil and English and contain mistakes. Write in simple English.",
+            "role": "system"
+          },
+          {
+            "content": "வணக்கம் எல்லாருக்கும். எல்லாரும் வந்துட்டீங்களா? S1 வந்தாச்சு, S2 வந்தாச்சு, S3 இன்னும் ஜாயின் ஆகல. சரி பரவாயில்லை, நாம ஆரம்பிக்கலாம். எல்லாரும் உங்க மைக்கை ம்யூட் பண்ணுங்க, பின்னாடி சத்தம் கேக்குது.\nபோன கிளாஸ்ல நாம பின் பத்தி பார்த்தோம். இன்னைக்கு ஒரு ரொம்ப முக்கியமான செக்மேட் பார்க்கப் போறோம், அதோட பேர் பேக் ரேங்க் மேட். பேக் ரேங்க் அப்படின்னா கடைசி வரிசை. வெள்ளைக்கு முதல் வரிசை, கருப்புக்கு எட்டாவது வரிசை. கிங் அந்த கடைசி வரிசையில மாட்டிக்கிட்டா, ஒரு ரூக் இல்லைன்னா குயின் வந்து செக் கொடுத்தா, கிங் தப்பிக்க முடியாது.\nஏன் தப்பிக்க முடியாது? ஏன்னா கிங் முன்னாடி அதோட சொந்த பான்கள் இருக்கு. காசில் பண்ணின அப்புறம் மூணு பான்கள் கிங் முன்னாடி நிக்கும். அது நல்லதுதான், பாதுகாப்பு கொடுக்குது. ஆனா அதே பான்கள் கிங்கை ஜெயில் மாதிரி அடைச்சு வச்சிடும். பக்கவாட்டுல செக் வந்தா, கிங் மேலே போக முடியாது, ஏன்னா அங்க சொந்த பான்கள்.\nஇந்த பொசிஷனைப் பாருங்க. கருப்பு கிங் ஜி எட்டுல இருக்கு, முன்னாடி எஃப் ஏழு, ஜி ஏழு, எச் ஏழுல பான்கள். வெள்ளை ரூக் இ ஒண்ணுல இருக்கு. இ ஃபைல் திறந்திருக்கு. வெள்ளை ரூக் இ எட்டுக்கு போனா என்ன ஆகும்? செக், கிங் எங்கேயும் போக முடியாது, அதுதான் செக்மேட். பத்து செகண்ட் யோசிங்க, சாட்ல டைப் பண்ணுங்க.\nS2 சரியா சொன்னாங்க, ரூக் கடைசி வரிசைக்கு போனா மேட். சூப்பர் S2.\nஇப்போ முக்கியமான விஷயம், இதை எப்படி தடுக்கறது. இதுக்கு ஒரு பேர் இருக்கு, லுஃப்ட். லுஃப்ட் அப்படின்னா ஜெர்மன் மொழியில காற்று. கிங்குக்கு ஒரு மூச்சு விட இடம் கொடுக்கணும். கிங் முன்னாடி இருக்கற ஒரு பானை ஒரு கட்டம் முன்னாடி நகர்த்தினா, கிங்குக்கு ஒரு தப்பிக்கற கட்டம் கிடைக்கும்.\nஎந்த பானை நகர்த்தணும்? பொதுவா எச் பான், அதாவது ஓரத்துல இருக்கற பான். அதை ஒரு கட்டம் நகர்த்தினா கிங்குக்கு இடம் கிடைக்கும், ஆனா பாதுகாப்பு ரொம்ப குறையாது. ஜி பானை நகர்த்தினா பிஷப் டயகனல் திறந்துடும், அதனால கவனமா இருங்க.\nஆனா எப்போ லுஃப்ட் பண்ணணும்? ஓப்பனிங்ல உடனே பண்ண வேண்டாம், டைம் வேஸ்ட். மிடில் கேம்ல, குயின்கள் இல்லைன்னா ரூக்குகள் ஃபைல்ஸ்ல வந்த அப்புறம், அமைதியான நேரத்துல ஒரு மூவ் லுஃப்ட்டுக்கு கொடுங்க. இது ஒரு இன்ஷூரன்ஸ் மாதிரி.\nS1 கேக்கறாங்க, சார் இன்னொரு வழி இருக்கா? நல்ல கேள்வி. ஆமா, இரண்டாவது வழி, ஒரு ரூக்கை கடைசி வரிசையில வச்சுக்கறது. உங்க ரூக் கடைசி வரிசையை காவல் காத்தா, எதிரி ரூக் வந்தா நீங்க எடுத்துடலாம். ஆனா உங்க ரூக் அங்க கட்டிப்போட்ட மாதிரி இருக்கும், அது வேற வேலை செய்ய முடியாது.\nS3 இப்போதான் வந்தாங்க, வெல்கம். நாம பேக் ரேங்க் மேட் பத்தி பேசிட்டு இருக்கோம்.\nஇப்போ அட்டாக் பக்கத்துல இருந்து பார்ப்போம். எதிரி கிங் கடைசி வரிசையில இருந்து, லுஃப்ட் இல்லைன்னா, அது ஒரு வீக்னஸ். உங்க ரூக்கை திறந்த ஃபைலுக்கு கொண்டு வாங்க. ரெண்டு ரூக்கும் ஒரே ஃபைல்ல இருந்தா இன்னும் பவர்ஃபுல், அதை டபுள் ரூக்ஸ் அப்படின்னு சொல்வோம்.\nசில நேரம் எதிரி ஒரு பீஸால கடைசி வரிசையை காக்கும். அப்போ அந்த பீஸை டிஸ்ட்ராக்ட் பண்ணணும், அதாவது வேற வேலைக்கு இழுக்கணும். உங்க குயினை தியாகம் பண்ணி, அந்த பீஸை எடுக்க வச்சு, அப்புறம் ரூக் கடைசி வரிசைக்கு போய் மேட். இது அடுத்த லெவல், புதிர்களில் நிறைய வரும்.\nஒரு சின்ன குவிஸ். பேக் ரேங்க் மேட்டை தடுக்க எந்த பானை நகர்த்தலாம்? S1 சொல்றாங்க எச் பான். கரெக்ட். ரூக் மட்டும் இல்ல, குயினும் பேக் ரேங்க் மேட் கொடுக்கலாமா? ஆமா, குயினும் கொடுக்கலாம்.\nஒரு பொதுவான தப்பு சொல்றேன். பல பிள்ளைகள் எதிரியோட பீஸை எடுக்கறதுல ஆர்வமா இருப்பாங்க, தங்களோட கடைசி வரிசையை மறந்துடுவாங்க. ஒவ்வொரு மூவுக்கு முன்னாடியும், என் கிங்குக்கு மூச்சு விட இடம் இருக்கா, என் கடைசி வரிசை பாதுகாப்பா இருக்கான்னு ஒரு தடவை பாருங்க.\nசுருக்கமா சொல்றேன். பேக் ரேங்க் மேட், கிங் கடைசி வரிசையில சொந்த பான்களால அடைக்கப்பட்டு இருக்கும்போது ரூக் இல்லைன்னா குயின் கொடுக்கற மேட். தடுக்க லுஃப்ட் கொடுங்க, பொதுவா எச் பான் ஒரு கட்டம். இல்லைன்னா ஒரு ரூக்கை கடைசி வரிசையில வச்சுக்கோங்க. அட்டாக் பண்ணும்போது திறந்த ஃபைல்ல ரூக்குகளை கொண்டு வாங்க.\nஹோம்வொர்க், அசைன்மென்ட்ல பன்னிரண்டு பேக் ரேங்க் புதிர்கள் இருக்கு. சனிக்கிழமைக்குள்ள முடிங்க. ஒவ்வொரு புதிர்லயும் முதல்ல எதிரி கிங்கோட தப்பிக்கற கட்டங்களை எண்ணுங்க.\nஉங்க கேம்ஸ்ல இந்த வாரம், மிடில் கேம்ல ஒரு அமைதியான நேரத்துல லுஃப்ட் கொடுக்க மறக்காதீங்க. கேம் முடிஞ்ச அப்புறம் பாருங்க, லுஃப்ட் கொடுத்தேனான்னு.\nசரி, இன்னைக்கு அவ்வளவுதான். அடுத்த கிளாஸ்ல டிஸ்கவர்ட் அட்டாக் பார்ப்போம். எல்லாருக்கும் நன்றி, பை பை.",
+            "role": "user"
+          }
+        ],
+        "model": "nvidia/nemotron-3.5-super-vl:free",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"recap\": \"In this class we studied the back rank mate. It happens when the king is stuck on the last rank behind its own pieces and a rook or queen gives checkmate. You can stop it by giving your king an escape square, usually by moving the side pawn one step forward, or by keeping a rook on the back rank. We also talked about using open files and doubled rooks to attack.\", \"keyPoints\": [\"The back rank mate traps the king on the last rank with its own pieces.\", \"Give your king an escape square by moving a side pawn one step forward.\", \"A rook on the back rank can guard against this mate.\", \"Rooks are powerful on open files, and two rooks on one file are stronger.\", \"Before every move, check if your king has a safe escape square.\"], \"practice\": [\"Solve the twelve back rank puzzles in your assignment by Saturday.\", \"In every puzzle, count the enemy king's escape squares first.\", \"In your games this week, give your king an escape square during a quiet moment in the middle game.\"]}",
+        "finishReason": "stop",
+        "ms": 15866,
+        "providerModel": "nvidia/nemotron-3.5-super-vl:free",
+        "reasoning": "The user wants a JSON recap of a chess class for children based on a transcript. The transcript is in Tamil and English mixed. I need to extract what the coach said and produce:\n\n{\n  \"recap\": \"3 to 5 sentences on what the class covered, speaking to the students as you\",\n  \"keyPoints\": [\"3 to 5 short ideas the class taught\"],\n  \"practice\": [\"1 to 3 things to practise at home\"]\n}\n\nRules:\n- Students appear as S1, S2 etc. Never mention any student, by code or otherwise. So no S1, S2 references in output.\n- Do not write chess moves, squares or notation (e4, Nf3, Bxf7, O-O). Describe ideas in words.\n- Use only what the coach said. Do not invent topics.\n- Transcript may mix Tamil and English and contain mistakes. Write in simple English.\n\nLet's parse the transcript:\n\nCoach greeting, attendance (S1, S2 present, S3 joining later). Mute mics.\nPrevious class: back rank mate (பேக் ரேங்க் மேட்). Back rank = last rank. White first rank, Black eighth rank. King stuck on last rank, rook or queen gives check, king cannot escape because own pieces in front. Example: king on g8, pawns on f7, g7, h7. White rook on i1? Wait transcript says \"இ ஒண்ணுல\" maybe \"a1\"? Actually \"வெள்ளை ரூக் இ ஒண்ணுல இருக்கு. இ ஃபைல் திறந்திருக்கு. வெள்ளை ரூக் இ எட்டுக்கு போனா என்ன ஆகும்? செக், கிங் எங்கேயும் போக முடியாது, அதுதான் செக்மேட்.\" So rook goes to last rank on open file, checkmate.\nHow to prevent: luft (German for air). Give king a square to escape by moving a pawn in front one square, usually h-pawn. Moving g-pawn opens bishop diagonal, be careful. When to do luft: not in opening (waste of time), in middle game when queens are gone and rooks on files, quiet moment, like insurance.\nSecond way: place a rook on the back rank to guard it. But that rook is tied down.\nAttacking side: if enemy king on back rank without luft, it's a weakness. Bring rook to open file. Two rooks on same file = doubled rooks, powerful.\nSometimes a piece guards back rank; distract it, maybe sacrifice queen to capture that piece, then rook to back rank mate. Next level, puzzles.\nQuiz: which pawn to move? h-pawn. Can queen also give back rank mate? Yes.\nCommon mistake: focusing on capturing enemy pieces and forgetting own back rank. Before every move, check if king has escape square and back rank is safe.\nSummary: back rank mate is when king on last rank is boxed in by own pieces and rook or queen gives mate. Prevent by giving luft, usually h-pawn one square, or keep a rook on back rank. When attacking, bring rooks to open files.\nHomework: 12 back rank puzzles in assignment, finish by Saturday. In each puzzle, first count escape squares for enemy king.\nIn your games this week, give luft in middle game at a quiet moment. Check after game if you gave luft.\nNext class: discovered attack.\n\nNow construct JSON.\n\nRecap: 3-5 sentences, speaking to students as \"you\". Simple English. No student codes. No notation.\n\nPossible recap:\n\"Today we learned about the back rank mate. This happens when the king is stuck on the last rank behind its own pieces and a rook or queen delivers checkmate. We also discussed how to prevent it by giving the king luft, usually by moving the h-pawn one square, or by keeping a rook on the back rank. Finally, we saw how to attack using open files and doubled rooks.\"\n\nKey points: 3-5 short ideas.\n- Back rank mate happens when the king is trapped on the last rank by its own pieces.\n- Give your king luft by moving a pawn, usually the h-pawn, one square forward.\n- You can also guard the back rank with a rook.\n- Rooks are strong on open files, and two rooks on one file are even stronger.\n- Before every move, check if your king has an escape square and your back rank is safe.\n\nPractice: 1-3 things to practise at home.\n- Solve the twelve back rank puzzles in your assignment by Saturday.\n- In each puzzle, count the enemy king's escape squares first.\n- In your games this week, give your king luft in the middle game during a quiet moment.\n\nCheck constraints:\n- No student codes: none used.\n- No chess moves/squares/notation: I used \"h-pawn\" - is that notation? The rule says \"Do not write chess moves, squares or notation (such as e4, Nf3, Bxf7 or O-O).\" \"h-pawn\" is a piece description, not a square or move notation. It should be fine. But to be safe, maybe say \"the pawn on the edge\" or \"the side pawn\". The coach said \"ஹ பான்\" (h-pawn). Using \"h-pawn\" might be considered notation? It's a file designation. The examples given are moves and squares. \"h-pawn\" is not a square like h7, but it references a file. To be safest, avoid \"h-pawn\" and say \"the pawn on the side\" or \"the edge pawn\". The coach said \"பொதுவா எச் பான், அதாவது ஓரத்துல இருக்கற பான்\" (usually h-pawn, meaning the pawn on the side). So I can say \"the pawn on the side\" or \"the edge pawn\". Let's avoid \"h-pawn\" to be safe. Also avoid \"back rank\" maybe? That's a concept, not notation. It's fine. \"Last rank\" is fine.\n\nLet's refine.\n\nRecap:\n\"In this class we studied the back rank mate. It happens when the king is stuck on the last rank behind its own pieces and a rook or queen gives checkmate. You can stop it by giving your king some air, usually by moving the side pawn one square forward, or by keeping a rook on the back rank. We also talked about using open files and doubled rooks to attack.\"\n\nKey points:\n- The back rank mate traps the king on the last rank with its own pieces.\n- Give your king an escape square by moving a side pawn one step forward.\n- A rook on the back rank can guard against this mate.\n- Rooks are powerful on open files, and two rooks on one file are stronger.\n- Before every move, check if your king has a safe escape square.\n\nPractice:\n- Solve the twelve back rank puzzles in your assignment by Saturday.\n- In every puzzle, count the enemy king's escape squares first.\n- In your games this week, give your king luft during a quiet moment in the middle game.\n\nWait, \"luft\" is a German word used by coach. It's fine to use or translate as \"air\". I'll use \"air\" or \"luft\" maybe simple English: \"give your king some air\". The coach used \"luft\". I can say \"give your king luft (air)\". But simple English: \"give your king an escape square by moving a pawn\".\n\nCheck for any invented topics: discovered attack is mentioned as next class, but not covered. I won't include it. Homework is 12 puzzles. Good.\n\nJSON format exactly. No extra text.\n\nLet's ensure no notation like \"O-O\" etc. None.\n\nOne thing: \"back rank\" is okay. \"last rank\" is okay. \"side pawn\" is okay.\n\nLet's produce final JSON.",
+        "usage": {
+          "prompt_tokens": 2033,
+          "completion_tokens": 1927,
+          "total_tokens": 3960,
+          "cost": 0,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0,
+            "upstream_inference_prompt_cost": 0,
+            "upstream_inference_completions_cost": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 1695,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      }
+    }
+  ]
+}

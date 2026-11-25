@@ -1,0 +1,74 @@
+{
+  "feature": "Tamil translation of a review",
+  "item": "t2-immortal",
+  "model": "groq/qwen/qwen3.8-27b",
+  "startedAt": "2026-11-25T21:07:43.363Z",
+  "task": "translate-ta",
+  "checks": {
+    "json": true,
+    "tamilShare": 100
+  },
+  "ok": true,
+  "output": "நீ மிகவும் தைரியமாக விளையாடி, தொடக்கத்திலேயே கருப்பு கிங்கை தாக்கினாய். 18-வது நகர்வில் ரூக்கை விட்டுவிடுவது ஆபத்தானது என்று எஞ்சினுக்கு பிடிக்கவில்லை; அமைதியாக ரூக்கை நகர்த்தி வைத்திருப்பது மிகவும் வலுவானது. உன் தாக்குதல் வேலை செய்தது, கிங்கை அருகில் உன் பீஸ்கள் ஒன்றாக இணைந்து செயல்பட்டதால். இந்த வாரம், ஒரு பீஸை தியாகம் செய்யும் முன், தாக்குபவர்களையும் பாதுகாப்பவர்களையும் எண்ணிப் பார்ப்பதை பயிற்சி செய்.",
+  "ms": 465,
+  "usage": {
+    "calls": 1,
+    "completion": 204,
+    "prompt": 167,
+    "reasoning": 0,
+    "total": 371
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:07:43.828Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "992",
+            "x-ratelimit-remaining-tokens": "5871",
+            "x-ratelimit-reset-requests": "11m31.2s",
+            "x-ratelimit-reset-tokens": "15.967s"
+          },
+          "ms": 463,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 5200,
+        "messages": [
+          {
+            "content": "You translate a chess coach's short comment for a child and their parent in Tamil Nadu.\nTranslate into simple, natural spoken-style Tamil in Tamil script. Keep the meaning exactly; add nothing.\nChess piece names and words like checkmate may stay in English (in Tamil letters or English letters) as Tamil chess players say them.\nReturn only JSON: {\"tamil\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "You played very bravely and attacked the black king from the start. The engine did not like move 18, where giving up your rook was risky, and keeping it with a calm rook move was stronger. Your attack still worked because your pieces worked together near the king. This week, practise counting attackers and defenders before you sacrifice a piece.",
+            "role": "user"
+          }
+        ],
+        "model": "qwen/qwen3.8-27b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\n  \"tamil\": \"நீ மிகவும் தைரியமாக விளையாடி, தொடக்கத்திலேயே கருப்பு கிங்கை தாக்கினாய். 18-வது நகர்வில் ரூக்கை விட்டுவிடுவது ஆபத்தானது என்று எஞ்சினுக்கு பிடிக்கவில்லை; அமைதியாக ரூக்கை நகர்த்தி வைத்திருப்பது மிகவும் வலுவானது. உன் தாக்குதல் வேலை செய்தது, கிங்கை அருகில் உன் பீஸ்கள் ஒன்றாக இணைந்து செயல்பட்டதால். இந்த வாரம், ஒரு பீஸை தியாகம் செய்யும் முன், தாக்குபவர்களையும் பாதுகாப்பவர்களையும் எண்ணிப் பார்ப்பதை பயிற்சி செய்.\"\n}",
+        "finishReason": "stop",
+        "ms": 463,
+        "providerModel": "qwen/qwen3.8-27b",
+        "reasoning": null,
+        "usage": {
+          "queue_time": 0.04941835,
+          "prompt_tokens": 167,
+          "prompt_time": 0.01159231,
+          "completion_tokens": 204,
+          "completion_time": 0.388486183,
+          "total_tokens": 371,
+          "total_time": 0.400078493
+        }
+      }
+    }
+  ]
+}

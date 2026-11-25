@@ -1,0 +1,34 @@
+{
+  "id": "progress-notes",
+  "about": "Monthly progress note to a parent, from the month's numbers (synthetic students, already pseudonymised; no name, batch or academy is sent).",
+  "items": [
+    {
+      "id": "s1-active",
+      "month": "October",
+      "ageGroup": "10-12",
+      "level": "Intermediate",
+      "classes": { "held": 8, "attended": 7 },
+      "homework": { "given": 6, "done": 5 },
+      "puzzles": { "attempted": 110, "solved": 82, "ratingStart": 1180, "ratingEnd": 1240 },
+      "puzzleStormBest": 18,
+      "games": { "played": 9, "won": 5, "lost": 3, "drawn": 1 },
+      "commonMistakes": ["leaves pieces undefended in the middlegame", "forgets to make room for the king (back-rank weakness)"],
+      "topicsCovered": ["forks", "pins and skewers", "back-rank mate"],
+      "coachNote": "very active in class, answers first, but rushes moves in games"
+    },
+    {
+      "id": "s2-struggling",
+      "month": "October",
+      "ageGroup": "7-9",
+      "level": "Beginner",
+      "classes": { "held": 8, "attended": 4 },
+      "homework": { "given": 6, "done": 1 },
+      "puzzles": { "attempted": 31, "solved": 20, "ratingStart": 950, "ratingEnd": 930 },
+      "puzzleStormBest": 6,
+      "games": { "played": 2, "won": 0, "lost": 2, "drawn": 0 },
+      "commonMistakes": ["moves the queen out too early"],
+      "topicsCovered": ["how the pieces move", "check and checkmate", "opening principles"],
+      "coachNote": "quiet in class, needs encouragement, knows the opening rules well"
+    }
+  ]
+}

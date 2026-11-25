@@ -1,0 +1,74 @@
+{
+  "feature": "Tamil translation of a review",
+  "item": "t1-legal",
+  "model": "groq/qwen/qwen3.8-27b",
+  "startedAt": "2026-11-25T21:07:42.873Z",
+  "task": "translate-ta",
+  "checks": {
+    "json": true,
+    "tamilShare": 67
+  },
+  "ok": true,
+  "output": "நீ எப்போதும் போல நல்லா தொடங்கின. Bishop-ஐ முன்னாடி எடுத்து Knight-ஐ pin பண்ணின. ஆனால் மிக முக்கியமான பாடம் 5-வது நகர்வு: நீ Bishop-ஐ வைத்து Queen-ஐ எடுத்தாய். ஆனால் engine பார்த்தால், Pawn-ஐ வைத்து Knight-ஐ எடுக்க வேண்டும் என்று சொல்கிறது. ஏனெனில் Queen-ஐ எடுப்பதால் White உன்னை checkmate பண்ணிவிட்டார். பெரிய piece-ஐ எடுக்க முன், எதிராளி அடுத்த நகர்வில் என்ன செய்ய முடியும், குறிப்பாக check-கள், அவற்றை கவனமாக பார்க்க வேண்டும். இந்த வாரம் checkmate patterns-ஐ பற்றிய ஐந்து puzzles-ஐ பயிற்சி செய்யு.",
+  "ms": 489,
+  "usage": {
+    "calls": 1,
+    "completion": 213,
+    "prompt": 183,
+    "reasoning": 0,
+    "total": 396
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:07:43.362Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "993",
+            "x-ratelimit-remaining-tokens": "6187",
+            "x-ratelimit-reset-requests": "10m4.8s",
+            "x-ratelimit-reset-tokens": "13.597s"
+          },
+          "ms": 489,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 5200,
+        "messages": [
+          {
+            "content": "You translate a chess coach's short comment for a child and their parent in Tamil Nadu.\nTranslate into simple, natural spoken-style Tamil in Tamil script. Keep the meaning exactly; add nothing.\nChess piece names and words like checkmate may stay in English (in Tamil letters or English letters) as Tamil chess players say them.\nReturn only JSON: {\"tamil\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "You started well by bringing your bishop out early and pinning the knight. The big lesson is move 5: you took the queen with your bishop, but the engine shows that taking the knight with your pawn was much better, because winning the queen let White checkmate you. Before you grab a big piece, always check what your opponent can do next, especially checks. Practise this with five puzzles on checkmate patterns this week.",
+            "role": "user"
+          }
+        ],
+        "model": "qwen/qwen3.8-27b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"tamil\": \"நீ எப்போதும் போல நல்லா தொடங்கின. Bishop-ஐ முன்னாடி எடுத்து Knight-ஐ pin பண்ணின. ஆனால் மிக முக்கியமான பாடம் 5-வது நகர்வு: நீ Bishop-ஐ வைத்து Queen-ஐ எடுத்தாய். ஆனால் engine பார்த்தால், Pawn-ஐ வைத்து Knight-ஐ எடுக்க வேண்டும் என்று சொல்கிறது. ஏனெனில் Queen-ஐ எடுப்பதால் White உன்னை checkmate பண்ணிவிட்டார். பெரிய piece-ஐ எடுக்க முன், எதிராளி அடுத்த நகர்வில் என்ன செய்ய முடியும், குறிப்பாக check-கள், அவற்றை கவனமாக பார்க்க வேண்டும். இந்த வாரம் checkmate patterns-ஐ பற்றிய ஐந்து puzzles-ஐ பயிற்சி செய்யு.\"}",
+        "finishReason": "stop",
+        "ms": 489,
+        "providerModel": "qwen/qwen3.8-27b",
+        "reasoning": null,
+        "usage": {
+          "queue_time": 0.053241237,
+          "prompt_tokens": 183,
+          "prompt_time": 0.012773402,
+          "completion_tokens": 213,
+          "completion_time": 0.404865057,
+          "total_tokens": 396,
+          "total_time": 0.417638459
+        }
+      }
+    }
+  ]
+}

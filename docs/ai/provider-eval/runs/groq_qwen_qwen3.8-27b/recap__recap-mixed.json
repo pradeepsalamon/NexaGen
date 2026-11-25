@@ -1,0 +1,89 @@
+{
+  "feature": "Class recap (English)",
+  "item": "recap-mixed",
+  "model": "groq/qwen/qwen3.8-27b",
+  "startedAt": "2026-11-25T21:06:35.301Z",
+  "task": "recap",
+  "checks": {
+    "calls": 1,
+    "removedByCleaner": 0,
+    "tamilShare": 0
+  },
+  "ok": true,
+  "output": {
+    "keyPoints": [
+      "Only bishops, rooks, and queens can create pins or skewers because they move in straight lines.",
+      "In a pin, the front piece is stuck protecting a more valuable piece behind it, such as the king or queen.",
+      "In a skewer, the front valuable piece must move, allowing you to capture the piece behind it.",
+      "Always attack pinned pieces immediately because they cannot escape easily.",
+      "Check if your king and queen are on the same line to avoid getting skewered by the opponent."
+    ],
+    "practice": [
+      "Complete the ten pin puzzles and five skewer puzzles assigned for homework.",
+      "Before every move in your games, ask yourself if any of your pieces can be pinned.",
+      "Look for opportunities to skewer your opponent's king and queen when they are lined up."
+    ],
+    "recap": "Today we learned about pins and skewers, which are powerful tactics using long-range pieces like bishops, rooks, and queens. A pin happens when a piece is stuck because moving it would expose a more valuable piece behind it, while a skewer forces a valuable piece to move so you can capture the one behind it. We discussed how to identify these patterns by looking for two pieces lined up on the same file, rank, or diagonal. You also learned that you should always attack pinned pieces and avoid placing your own king and queen on the same line to prevent being skewered."
+  },
+  "ms": 806,
+  "usage": {
+    "calls": 1,
+    "completion": 318,
+    "prompt": 1783,
+    "reasoning": 0,
+    "total": 2101
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:06:36.106Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "998",
+            "x-ratelimit-remaining-tokens": "3698",
+            "x-ratelimit-reset-requests": "2m52.8s",
+            "x-ratelimit-reset-tokens": "32.265s"
+          },
+          "ms": 802,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4800,
+        "messages": [
+          {
+            "content": "You write a short recap of a chess class for the children who attended it.\nYou get a transcript of what the coach said.\nReturn only JSON: {\"recap\": \"3 to 5 sentences on what the class covered, speaking to the students as you\", \"keyPoints\": [\"3 to 5 short ideas the class taught\"], \"practice\": [\"1 to 3 things to practise at home\"]}\nRules:\n- Students appear as S1, S2 and so on. Never mention any student, by code or otherwise.\n- Do not write chess moves, squares or notation (such as e4, Nf3, Bxf7 or O-O). Describe the ideas in words.\n- Use only what the coach said. Do not invent topics.\n- The transcript comes from speech recognition: it may mix Tamil and English and contain mistakes. Write in simple English.",
+            "role": "system"
+          },
+          {
+            "content": "Vanakkam everyone, ellarum vandhachaa? S1 vandhachu, S2 vandhachu, S4 innum varala. Okay paravaillai, naama start pannalam. Ellarum unga mic mute pannunga please, background la sound varudhu.\nLast class naama fork pathi paathom, one piece rendu pieces ah attack panradhu. Inniku topic pin. Pin na enna? Oru piece ah attack pannum bodhu, adhu pinnadi oru periya piece irukkum. So andha munnadi irukra piece move panna mudiyaadhu, illa move pannina pinnadi irukra periya piece poyidum. Andha munnadi piece ah naama pinned piece nu solrom.\nPin panna mudiyra pieces moonu dhaan. Bishop, rook, queen. Yen? Because ivanga dhaan straight line la, long distance la move panranga. Knight jump pannum, king and pawn ku long range illa. So knight pin panna mudiyaadhu. Idha nyabagam vechukonga, line pieces mattum dhaan pin pannum.\nRendu type of pin irukku. First, absolute pin. Pinnadi king irundha, andha pinned piece move panradhe illegal. Rules la allowed illa, because king check la poyidum. Second, relative pin. Pinnadi queen illa rook irundha, move panna mudiyum, aana move pannina periya piece ah loose pannuvom. So relative pin la move pannalaam, but adhu nalla idea illa.\nBoard la paarunga. Black king e8 la irukku, black knight d7 la, illa illa sorry, knight e7 la. White bishop... no, idhu rook dhaan, white rook e1 la. Ippo e file la rook, knight, king ellam same line. Knight move pannina king ku check varum. So knight absolute pin. Idhula white enna pannanum? Pinned piece ah innum attack pannanum. Oru pawn vechu andha knight ah attack pannina, adhu escape panna mudiyaadhu.\nIdhu dhaan important rule, kavanama kelunga. Pinned piece ah attack pannunga, more and more attackers kondu vaanga. Pinned piece odadhu, so adhu oru easy target. Pin pannitu wait pannadheenga, immediately attack add pannunga.\nS2 kekkuraanga, sir pinned piece check kudukka mudiyuma? Nalla question. Absolute pin la irukra piece move panna mudiyaadhu, so adhu check kudukka mudiyaadhu andha move la. Aana adhu innum squares ah control pannudhu nu sila books solluvaanga, careful ah irukkanum. Ippodhaiku simple ah remember pannunga, absolute pin la andha piece freeze aayiduchu.\nOpening la romba common pin oru irukku. Bishop vandhu knight ah pin pannum, knight pinnadi queen illa king irukkum. Neenga black ah irundha, unga knight pinnadi queen irundha, andha bishop varumbodhu careful ah irunga. Sometimes bishop ah oru pawn vechu kelappi viradalam, kelvi kekkuradhu maadhiri, 'are you going to take or go back?'\nOkay ippo pin la irundhu escape panradhu eppadi. Moonu vazhi. One, pin panra piece ah capture pannunga, mudinja. Two, pinnadi irukra periya piece ah move pannunga, appo pin break aayidum. Three, rendukum naduvula innoru piece kondu vaanga, protect pannunga. Idhula best edhu nu position paathu decide pannanum.\nSari, puriyudhaa? Yaaravadhu doubt irundha chat la podunga. S3 'yes sir' nu podraanga, super.\nIppo second topic, skewer. Skewer na pin oda opposite. Pin la munnadi chinna piece, pinnadi periya piece. Skewer la munnadi periya piece, pinnadi chinna piece. Periya piece attack aagudhu, adhu move pannudhu, apram pinnadi irukra piece ah naama edukkurom. Kebab stick maadhiri, rendu pieces um ore line la korthu vechirukku, adhanala dhaan skewer nu per.\nMost common skewer king and queen. Rook illa bishop check kudukkudhu, king move pannanum, apram pinnadi irukra queen ah capture pannurom. Endgame la idhu romba nadakkum, especially rook endgame la, king and rook ore line la irundha careful.\nSkewer kandupidikka oru trick. Unga opponent oda king and queen, illa king and rook, ore line la, ore diagonal la irukka nu check pannunga. Rendu pieces ore line la irundha, andha line la unga bishop illa rook vara mudiyuma nu paarunga. Ore line la rendu periya pieces irundha, adhu oru gift.\nS4 ippo dhaan vandhaanga, welcome. Naama pin and skewer pathi pesitu irukkom, S1 kitta notes kelunga apram.\nDefend panradhu eppadi? Unga king and queen ah ore line la vekkaadheenga, especially opponent oda rook illa bishop open line la irundha. Every move ku munnadi, en king um queen um ore line la irukka nu check pannunga. Idhu oru simple habit, aana neraya games save pannum.\nOru chinna quiz. Pin la pinnadi irukradhu periya piece ah chinna piece ah? Correct, periya piece. Skewer la? Pinnadi chinna piece. Super, S2 and S3 rendu perum correct ah sonninga.\nSummary pannalam. Pin na munnadi irukra piece move panna mudiyaadhu, pinnadi periya piece irukradhala. Absolute pin la pinnadi king, move illegal. Relative pin la move pannalaam but loss. Pinned piece ah attack pannunga. Skewer la munnadi periya piece, adhu move aana pinnadi irukradha edukkalaam. Line pieces mattum dhaan pin and skewer pannum.\nHomework, assignment la pathu pin puzzles and anju skewer puzzles irukku. Saturday kulla mudinga. Oru puzzle thappa pochuna, adhu pin ah skewer ah nu yosichu paarunga, appo dhaan puriyum.\nGames la, every move ku munnadi oru question kelunga: en pieces ah yaaravadhu pin panna mudiyuma? Indha oru question pothum.\nSari, inniku avalavu dhaan. Next class discovered attack paakalam. Ellarukum thanks, bye bye, take care. S4, next time konjam early ah vaanga.",
+            "role": "user"
+          }
+        ],
+        "model": "qwen/qwen3.8-27b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\n  \"recap\": \"Today we learned about pins and skewers, which are powerful tactics using long-range pieces like bishops, rooks, and queens. A pin happens when a piece is stuck because moving it would expose a more valuable piece behind it, while a skewer forces a valuable piece to move so you can capture the one behind it. We discussed how to identify these patterns by looking for two pieces lined up on the same file, rank, or diagonal. You also learned that you should always attack pinned pieces and avoid placing your own king and queen on the same line to prevent being skewered.\",\n  \"keyPoints\": [\n    \"Only bishops, rooks, and queens can create pins or skewers because they move in straight lines.\",\n    \"In a pin, the front piece is stuck protecting a more valuable piece behind it, such as the king or queen.\",\n    \"In a skewer, the front valuable piece must move, allowing you to capture the piece behind it.\",\n    \"Always attack pinned pieces immediately because they cannot escape easily.\",\n    \"Check if your king and queen are on the same line to avoid getting skewered by the opponent.\"\n  ],\n  \"practice\": [\n    \"Complete the ten pin puzzles and five skewer puzzles assigned for homework.\",\n    \"Before every move in your games, ask yourself if any of your pieces can be pinned.\",\n    \"Look for opportunities to skewer your opponent's king and queen when they are lined up.\"\n  ]\n}",
+        "finishReason": "stop",
+        "ms": 802,
+        "providerModel": "qwen/qwen3.8-27b",
+        "reasoning": null,
+        "usage": {
+          "queue_time": 0.052011215,
+          "prompt_tokens": 1783,
+          "prompt_time": 0.122489765,
+          "completion_tokens": 318,
+          "completion_time": 0.604980292,
+          "total_tokens": 2101,
+          "total_time": 0.727470057
+        }
+      }
+    }
+  ]
+}

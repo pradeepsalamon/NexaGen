@@ -1,0 +1,97 @@
+{
+  "feature": "Support bot saved-answer pick",
+  "item": "q5-not-covered",
+  "model": "groq/openai/gpt-oss-120b",
+  "startedAt": "2026-11-25T21:08:37.192Z",
+  "task": "support-pick",
+  "checks": {
+    "correct": true,
+    "expected": null,
+    "json": true,
+    "picked": null
+  },
+  "ok": true,
+  "output": {
+    "answerId": null,
+    "reason": "no matching answer"
+  },
+  "ms": 5567,
+  "usage": {
+    "calls": 1,
+    "completion": 94,
+    "prompt": 560,
+    "reasoning": 73,
+    "total": 654
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:08:37.207Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 6800, Requested 1493. Please try again in 2.1975s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "3",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "981",
+            "x-ratelimit-remaining-tokens": "1200",
+            "x-ratelimit-reset-requests": "27m21.6s",
+            "x-ratelimit-reset-tokens": "51s"
+          },
+          "ms": 15,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:08:42.758Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "980",
+            "x-ratelimit-remaining-tokens": "133",
+            "x-ratelimit-reset-requests": "28m48s",
+            "x-ratelimit-reset-tokens": "59.002s"
+          },
+          "ms": 550,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4150,
+        "messages": [
+          {
+            "content": "You sort WhatsApp messages for a chess academy's support desk.\nYou get the academy's saved answers and one message from a parent (English, Tamil or a mix).\nPick the one saved answer that fully answers the message, or null when none does.\nQuestions about one child's own records (attendance, fees paid, progress) always get null: a person answers those.\nReturn only JSON: {\"answerId\": \"A1\" or null, \"reason\": \"a few words\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"message\":\"Do you also teach carrom or Rubik's cube?\",\"savedAnswers\":[{\"id\":\"A1\",\"text\":\"Group classes are Rs 2,500 a month or Rs 6,900 for three months. You can pay by UPI, card or net banking from the Payments page in the app.\",\"title\":\"Fees and payment\"},{\"id\":\"A2\",\"text\":\"Each batch has fixed days and times, shown on the Classes page. To change your batch timing, ask your coach or write to us here.\",\"title\":\"Class timings\"},{\"id\":\"A3\",\"text\":\"Every class has a recap and homework in the app. If you miss a class, you can join one make-up class in the same week in another batch of the same level; ask your coach to add you.\",\"title\":\"Missed a class\"},{\"id\":\"A4\",\"text\":\"You can book a free 30-minute demo class for your child. Reply DEMO and we will send you the available times.\",\"title\":\"Free demo class\"},{\"id\":\"A5\",\"text\":\"Open the app, go to Classes and press Join on today's class, ten minutes before it starts. Use Chrome on a laptop or the latest browser on a phone, and allow the camera and microphone.\",\"title\":\"Joining a live class\"},{\"id\":\"A6\",\"text\":\"Fees are refunded for classes not yet held if you write to us within 7 days of paying.\",\"title\":\"Refunds\"},{\"id\":\"A7\",\"text\":\"We teach Beginner, Intermediate and Advanced batches. A coach checks your child's level in the demo class.\",\"title\":\"Levels\"},{\"id\":\"A8\",\"text\":\"We hold an online tournament every month. Every player gets a certificate in the app after the tournament.\",\"title\":\"Tournaments and certificates\"}]}",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-120b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"answerId\":null,\"reason\":\"no matching answer\"}",
+        "finishReason": "stop",
+        "ms": 550,
+        "providerModel": "openai/gpt-oss-120b",
+        "reasoning": "We need to pick saved answer that fully answers the message: \"Do you also teach carrom or Rubik's cube?\" The saved answers are about fees, timings, missed class, demo, joining, refunds, levels, tournaments. None address teaching carrom or Rubik's cube. So answerId null. Reason: no relevant answer. Return JSON.",
+        "usage": {
+          "queue_time": 0.317779377,
+          "prompt_tokens": 560,
+          "prompt_time": 0.026087092,
+          "completion_tokens": 94,
+          "completion_time": 0.19386093,
+          "total_tokens": 654,
+          "total_time": 0.219948022,
+          "completion_tokens_details": {
+            "reasoning_tokens": 73
+          }
+        }
+      }
+    }
+  ]
+}

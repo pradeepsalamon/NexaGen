@@ -1,0 +1,91 @@
+{
+  "feature": "Chess facts answer",
+  "item": "c4-stalemate",
+  "model": "groq/qwen/qwen3.8-27b",
+  "startedAt": "2026-11-25T21:08:58.851Z",
+  "task": "chess-facts",
+  "checks": {
+    "json": true,
+    "mentions": true
+  },
+  "ok": true,
+  "output": {
+    "answer": "The game is a draw. This situation is called a stalemate."
+  },
+  "ms": 3124,
+  "usage": {
+    "calls": 1,
+    "completion": 20,
+    "prompt": 83,
+    "reasoning": 0,
+    "total": 103
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:08:58.863Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `qwen/qwen3.8-27b` in organization `org_[redacted]` service tier `on_demand` on output tokens per minute (OTPM): Limit 1000, Used 438, Requested 576. Please try again in 840ms. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "1",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "977",
+            "x-ratelimit-remaining-tokens": "5932",
+            "x-ratelimit-reset-requests": "33m7.2s",
+            "x-ratelimit-reset-tokens": "26.28s"
+          },
+          "ms": 12,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:09:01.975Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "976",
+            "x-ratelimit-remaining-tokens": "5957",
+            "x-ratelimit-reset-requests": "34m33.6s",
+            "x-ratelimit-reset-tokens": "40.92s"
+          },
+          "ms": 110,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4250,
+        "messages": [
+          {
+            "content": "You answer a chess question from a child or a parent at a chess academy.\nAnswer correctly in 1 to 3 short sentences of simple English. If you are not sure, say so.\nReturn only JSON: {\"answer\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "If a player has no legal move but is not in check, who wins?",
+            "role": "user"
+          }
+        ],
+        "model": "qwen/qwen3.8-27b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"answer\": \"The game is a draw. This situation is called a stalemate.\"}",
+        "finishReason": "stop",
+        "ms": 110,
+        "providerModel": "qwen/qwen3.8-27b",
+        "reasoning": null,
+        "usage": {
+          "queue_time": 0.051925813,
+          "prompt_tokens": 83,
+          "prompt_time": 0.005447777,
+          "completion_tokens": 20,
+          "completion_time": 0.038169336,
+          "total_tokens": 103,
+          "total_time": 0.043617113
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "feature": "Tamil translation of a review",
+  "item": "t1-legal",
+  "model": "groq/openai/gpt-oss-120b",
+  "startedAt": "2026-11-25T21:07:20.189Z",
+  "task": "translate-ta",
+  "checks": {
+    "json": true,
+    "tamilShare": 73
+  },
+  "ok": true,
+  "output": "நீங்கள் ஆரம்பத்திலேயே பிஷப் (bishop) வெளியே கொண்டு வந்து, நைட் (knight) ஐ பின் (pin) செய்து நல்ல தொடக்கம் செய்தீர்கள். முக்கிய பாடம் 5வது நகர்வில்: நீங்கள் பிஷப் (bishop) கொண்டு க்வீன் (queen) ஐ எடுத்தீர்கள், ஆனால் எஞ்சின் (engine) காட்டுவது, பான் (pawn) கொண்டு நைட் (knight) ஐ எடுத்தது அதிகம் நல்லது, ஏனெனில் க்வீன் வென்றதால் வெள்ளை (White) உங்களை செக் மேட் (checkmate) செய்ய முடிந்தது. பெரிய பீஸ் (piece) எடுக்கும் முன், எதிரி அடுத்ததாக என்ன செய்ய முடியும் என்று எப்போதும் பார்க்கவும், குறிப்பாக செக்குகள் (checks) பற்றி. இந்த வாரம் செக் மேட் (checkmate) பாட்டர்ன் (patterns) பற்றிய ஐந்து புதிர்களை (puzzles) பயிற்சி செய்யுங்கள்.",
+  "ms": 2363,
+  "usage": {
+    "calls": 1,
+    "completion": 933,
+    "prompt": 265,
+    "reasoning": 710,
+    "total": 1198
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:07:22.551Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "993",
+            "x-ratelimit-remaining-tokens": "35",
+            "x-ratelimit-reset-requests": "10m4.8s",
+            "x-ratelimit-reset-tokens": "59.737s"
+          },
+          "ms": 2362,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 5200,
+        "messages": [
+          {
+            "content": "You translate a chess coach's short comment for a child and their parent in Tamil Nadu.\nTranslate into simple, natural spoken-style Tamil in Tamil script. Keep the meaning exactly; add nothing.\nChess piece names and words like checkmate may stay in English (in Tamil letters or English letters) as Tamil chess players say them.\nReturn only JSON: {\"tamil\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "You started well by bringing your bishop out early and pinning the knight. The big lesson is move 5: you took the queen with your bishop, but the engine shows that taking the knight with your pawn was much better, because winning the queen let White checkmate you. Before you grab a big piece, always check what your opponent can do next, especially checks. Practise this with five puzzles on checkmate patterns this week.",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-120b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"tamil\":\"நீங்கள் ஆரம்பத்திலேயே பிஷப் (bishop) வெளியே கொண்டு வந்து, நைட் (knight) ஐ பின் (pin) செய்து நல்ல தொடக்கம் செய்தீர்கள். முக்கிய பாடம் 5வது நகர்வில்: நீங்கள் பிஷப் (bishop) கொண்டு க்வீன் (queen) ஐ எடுத்தீர்கள், ஆனால் எஞ்சின் (engine) காட்டுவது, பான் (pawn) கொண்டு நைட் (knight) ஐ எடுத்தது அதிகம் நல்லது, ஏனெனில் க்வீன் வென்றதால் வெள்ளை (White) உங்களை செக் மேட் (checkmate) செய்ய முடிந்தது. பெரிய பீஸ் (piece) எடுக்கும் முன், எதிரி அடுத்ததாக என்ன செய்ய முடியும் என்று எப்போதும் பார்க்கவும், குறிப்பாக செக்குகள் (checks) பற்றி. இந்த வாரம் செக் மேட் (checkmate) பாட்டர்ன் (patterns) பற்றிய ஐந்து புதிர்களை (puzzles) பயிற்சி செய்யுங்கள்.\"}",
+        "finishReason": "stop",
+        "ms": 2362,
+        "providerModel": "openai/gpt-oss-120b",
+        "reasoning": "We need to translate the given English comment into simple, natural spoken-style Tamil in Tamil script, keeping meaning exactly, no additions. Chess piece names and words like checkmate may stay in English (in Tamil letters or English letters) as Tamil chess players say them. Return only JSON: {\"tamil\": \"...\"}.\n\nWe must ensure JSON is compact, valid.\n\nLet's translate:\n\n\"You started well by bringing your bishop out early and pinning the knight.\"\n\nTamil: \"நீங்கள் ஆரம்பத்தில் உங்கள் பிஷப் (bishop) ஐ வெளியே கொண்டு வந்து, நைட் (knight) ஐ பின் செய்யும் (pin) முறையில் நல்ல தொடக்கம் செய்தீர்கள்.\"\n\nBut need simple spoken style: \"நீங்கள் ஆரம்பத்திலேயே பிஷப் (bishop) வெளியே கொண்டு வந்து, நைட் (knight) ஐ பின் (pin) செய்து நல்ல தொடக்கம் செய்தீர்கள்.\"\n\n\"The big lesson is move 5: you took the queen with your bishop, but the engine shows that taking the knight with your pawn was much better, because winning the queen let White checkmate you.\"\n\nTamil: \"முக்கிய பாடம் 5வது நகர்வில்: நீங்கள் பிஷப் (bishop) கொண்டு க்வீன் (queen) ஐ எடுத்தீர்கள், ஆனால் எஞ்சின் (engine) காட்டுவது, பான் (pawn) கொண்டு நைட் (knight) ஐ எடுத்தது அதிகம் நல்லது, ஏனெனில் க்வீன் வென்றதால் வெள்ளை (White) உங்களை செக் மேட் (checkmate) செய்ய முடிந்தது.\"\n\n\"Before you grab a big piece, always check what your opponent can do next, especially checks.\"\n\nTamil: \"பெரிய பீஸ் (piece) எடுக்கும் முன், எதிரி அடுத்ததாக என்ன செய்ய முடியும் என்று எப்போதும் பார்க்கவும், குறிப்பாக செக்குகள் (checks) பற்றி.\"\n\n\"Practise this with five puzzles on checkmate patterns this week.\"\n\nTamil: \"இந்த வாரம் செக் மேட் (checkmate) பாட்டர்ன் (patterns) பற்றிய ஐந்து புதிர்களை (puzzles) பயிற்சி செய்யுங்கள்.\"\n\nMake sure it's natural spoken Tamil, simple.\n\nCombine into one paragraph.\n\nLet's craft final Tamil:\n\n\"நீங்கள் ஆரம்பத்திலேயே பிஷப் (bishop) வெளியே கொண்டு வந்து, நைட் (knight) ஐ பின் (pin) செய்து நல்ல தொடக்கம் செய்தீர்கள். முக்கிய பாடம் 5வது நகர்வில்: நீங்கள் பிஷப் (bishop) கொண்டு க்வீன் (queen) ஐ எடுத்தீர்கள், ஆனால் எஞ்சின் (engine) காட்டுவது, பான் (pawn) கொண்டு நைட் (knight) ஐ எடுத்தது அதிகம் நல்லது, ஏனெனில் க்வீன் வென்றதால் வெள்ளை (White) உங்களை செக் மேட் (checkmate) செய்ய முடிந்தது. பெரிய பீஸ் (piece) எடுக்கும் முன், எதிரி அடுத்ததாக என்ன செய்ய முடியும் என்று எப்போதும் பார்க்கவும், குறிப்பாக செக்குகள் (checks) பற்றி. இந்த வாரம் செக் மேட் (checkmate) பாட்டர்ன் (patterns) பற்றிய ஐந்து புதிர்களை (puzzles) பயிற்சி செய்யுங்கள்.\"\n\nCheck JSON: {\"tamil\":\"...\"} Ensure escape of quotes inside? The Tamil string contains double quotes? No, only Tamil and parentheses. No double quotes inside. So fine.\n\nReturn compact JSON.",
+        "usage": {
+          "queue_time": 0.374079351,
+          "prompt_tokens": 265,
+          "prompt_time": 0.021771445,
+          "completion_tokens": 933,
+          "completion_time": 1.950531125,
+          "total_tokens": 1198,
+          "total_time": 1.97230257,
+          "completion_tokens_details": {
+            "reasoning_tokens": 710
+          }
+        }
+      }
+    }
+  ]
+}

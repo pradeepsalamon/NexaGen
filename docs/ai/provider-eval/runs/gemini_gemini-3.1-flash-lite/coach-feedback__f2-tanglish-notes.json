@@ -1,0 +1,64 @@
+{
+  "feature": "Coach feedback message",
+  "item": "f2-tanglish-notes",
+  "model": "gemini/gemini-3.1-flash-lite",
+  "startedAt": "2026-11-25T21:07:08.935Z",
+  "task": "coach-feedback",
+  "checks": {
+    "json": true
+  },
+  "ok": true,
+  "output": {
+    "message": "Your child is doing very well with tactics and is particularly quick at spotting forks. While their performance in endgames and behavior is steady, they have been getting distracted during class and turning off the camera. They only completed two homework assignments, so I would appreciate it if you could help monitor their progress. With a bit more focus and consistency in their practice, I am confident they will continue to improve."
+  },
+  "ms": 1360,
+  "usage": {
+    "calls": 1,
+    "completion": 85,
+    "prompt": 183,
+    "reasoning": 0,
+    "total": 268
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:07:10.295Z",
+          "limits": {},
+          "ms": 1360,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4500,
+        "messages": [
+          {
+            "content": "You turn a chess coach's quick feedback form into a short message to the student's parent.\nYou get ratings from 1 to 5 and the coach's rough notes (they may mix Tamil and English).\nWrite 3 to 5 polite, encouraging and honest sentences in simple English from the coach. Call the student 'your child'.\nKeep every point the coach made and add nothing new. No chess notation.\nReturn only JSON: {\"message\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"context\":\"after 4 classes\",\"ratings\":{\"focus\":2,\"tactics\":4,\"endgames\":3,\"homework\":2,\"behaviour\":3},\"coachNotes\":\"class la romba distract aagudhu, camera off pannidraan. tactics nalla pannuraan, forks fast ah paakuraan. homework 2 dhaan pannaan. parents konjam check pannunga\"}",
+            "role": "user"
+          }
+        ],
+        "model": "gemini-3.1-flash-lite",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"message\": \"Your child is doing very well with tactics and is particularly quick at spotting forks. While their performance in endgames and behavior is steady, they have been getting distracted during class and turning off the camera. They only completed two homework assignments, so I would appreciate it if you could help monitor their progress. With a bit more focus and consistency in their practice, I am confident they will continue to improve.\"}",
+        "finishReason": "stop",
+        "ms": 1360,
+        "providerModel": "gemini-3.1-flash-lite",
+        "reasoning": null,
+        "usage": {
+          "completion_tokens": 85,
+          "prompt_tokens": 183,
+          "total_tokens": 268
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+{
+  "feature": "Puzzle hint",
+  "item": "p2-knight-fork",
+  "model": "groq/openai/gpt-oss-20b",
+  "startedAt": "2026-11-25T21:07:41.339Z",
+  "task": "puzzle-hint",
+  "checks": {
+    "json": true,
+    "givesAway": false
+  },
+  "ok": true,
+  "output": {
+    "hint1": "Check if the knight can attack both the king and the rook at the same time.",
+    "hint2": "Find a checking move that forces the king into a square where the rook is exposed."
+  },
+  "ms": 5580,
+  "usage": {
+    "calls": 1,
+    "completion": 261,
+    "prompt": 264,
+    "reasoning": 210,
+    "total": 525
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:07:41.354Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-20b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7315, Requested 1010. Please try again in 2.4375s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "3",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "989",
+            "x-ratelimit-remaining-tokens": "685",
+            "x-ratelimit-reset-requests": "15m50.4s",
+            "x-ratelimit-reset-tokens": "54.862s"
+          },
+          "ms": 15,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:07:46.919Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "988",
+            "x-ratelimit-remaining-tokens": "343",
+            "x-ratelimit-reset-requests": "17m16.8s",
+            "x-ratelimit-reset-tokens": "57.427s"
+          },
+          "ms": 563,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4300,
+        "messages": [
+          {
+            "content": "You help a child who is stuck on a chess puzzle.\nYou get the position (FEN), the side to move, the solution and the theme.\nWrite two hints: the first gentle (what to look at), the second stronger (the idea), each one short sentence.\nNever give the solution move, never name the square the piece moves to, and never write chess notation.\nReturn only JSON: {\"hint1\": \"...\", \"hint2\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"fen\":\"r3k3/pp3ppp/8/1N6/8/8/PP3PPP/6K1 w - - 0 1\",\"sideToMove\":\"white\",\"solution\":[\"Nc7+\",\"Kd7\",\"Nxa8\"],\"theme\":\"knight fork (king and rook)\"}",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-20b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"hint1\":\"Check if the knight can attack both the king and the rook at the same time.\",\"hint2\":\"Find a checking move that forces the king into a square where the rook is exposed.\"}",
+        "finishReason": "stop",
+        "ms": 563,
+        "providerModel": "openai/gpt-oss-20b",
+        "reasoning": "We need to produce two hints: hint1 gentle, hint2 stronger. Must not give solution move, not name square, not write chess notation. So we can't say \"Nc7+\" or \"Nxa8\" or \"Kd7\". We must describe idea. The puzzle: White knight on b5, black king on e8, black rook on a8. White to move. The solution: Knight to c7+ (check), black king moves to d7, then knight captures a8. So theme: knight fork (king and rook). Hint1: look for a way to attack both king and rook with the knight. Hint2: consider a move that gives check and forces the king into a position where the rook is exposed. Must not mention squares. So hint1: \"Check if the knight can attack both the king and the rook at the same time.\" hint2: \"Find a checking move that forces the king to a square where the rook is hanging.\" That should be fine. Ensure JSON compact.",
+        "usage": {
+          "queue_time": 0.243766794,
+          "prompt_tokens": 264,
+          "prompt_time": 0.015100143,
+          "completion_tokens": 261,
+          "completion_time": 0.289543281,
+          "total_tokens": 525,
+          "total_time": 0.304643424,
+          "completion_tokens_details": {
+            "reasoning_tokens": 210
+          }
+        }
+      }
+    }
+  ]
+}

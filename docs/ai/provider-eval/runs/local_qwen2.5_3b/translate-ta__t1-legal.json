@@ -1,0 +1,67 @@
+{
+  "feature": "Tamil translation of a review",
+  "item": "t1-legal",
+  "model": "local/qwen2.5:3b",
+  "startedAt": "2026-11-25T21:25:24.617Z",
+  "task": "translate-ta",
+  "checks": {
+    "json": true,
+    "tamilShare": 0
+  },
+  "ok": true,
+  "output": "...",
+  "ms": 10980,
+  "usage": {
+    "calls": 1,
+    "completion": 7,
+    "prompt": 176,
+    "reasoning": 0,
+    "total": 183
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:25:35.597Z",
+          "limits": {},
+          "ms": 10980,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 1200,
+        "messages": [
+          {
+            "content": "You translate a chess coach's short comment for a child and their parent in Tamil Nadu.\nTranslate into simple, natural spoken-style Tamil in Tamil script. Keep the meaning exactly; add nothing.\nChess piece names and words like checkmate may stay in English (in Tamil letters or English letters) as Tamil chess players say them.\nReturn only JSON: {\"tamil\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "You started well by bringing your bishop out early and pinning the knight. The big lesson is move 5: you took the queen with your bishop, but the engine shows that taking the knight with your pawn was much better, because winning the queen let White checkmate you. Before you grab a big piece, always check what your opponent can do next, especially checks. Practise this with five puzzles on checkmate patterns this week.",
+            "role": "user"
+          }
+        ],
+        "model": "qwen2.5:3b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "seed": 7,
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"tamil\": \"...\"}",
+        "finishReason": "stop",
+        "ms": 10980,
+        "providerModel": "qwen2.5:3b",
+        "reasoning": null,
+        "usage": {
+          "prompt_tokens": 176,
+          "prompt_tokens_details": {
+            "cached_tokens": 4
+          },
+          "completion_tokens": 7,
+          "total_tokens": 183
+        }
+      }
+    }
+  ]
+}

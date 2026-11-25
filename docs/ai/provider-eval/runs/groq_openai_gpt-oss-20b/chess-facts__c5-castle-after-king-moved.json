@@ -1,0 +1,94 @@
+{
+  "feature": "Chess facts answer",
+  "item": "c5-castle-after-king-moved",
+  "model": "groq/openai/gpt-oss-20b",
+  "startedAt": "2026-11-25T21:08:40.507Z",
+  "task": "chess-facts",
+  "checks": {
+    "json": true,
+    "mentions": true
+  },
+  "ok": true,
+  "output": {
+    "answer": "No, once the king has moved, even if it goes back to its starting square, you cannot castle."
+  },
+  "ms": 5495,
+  "usage": {
+    "calls": 1,
+    "completion": 82,
+    "prompt": 169,
+    "reasoning": 47,
+    "total": 251
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:08:40.522Z",
+          "error": "{\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-20b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7376, Requested 915. Please try again in 2.182499999s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+          "limits": {
+            "retry-after": "3",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "976",
+            "x-ratelimit-remaining-tokens": "624",
+            "x-ratelimit-reset-requests": "34m33.6s",
+            "x-ratelimit-reset-tokens": "55.32s"
+          },
+          "ms": 13,
+          "status": 429
+        },
+        {
+          "at": "2026-11-25T21:08:46.002Z",
+          "limits": {
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-requests": "975",
+            "x-ratelimit-remaining-tokens": "611",
+            "x-ratelimit-reset-requests": "36m0s",
+            "x-ratelimit-reset-tokens": "55.417s"
+          },
+          "ms": 478,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4250,
+        "messages": [
+          {
+            "content": "You answer a chess question from a child or a parent at a chess academy.\nAnswer correctly in 1 to 3 short sentences of simple English. If you are not sure, say so.\nReturn only JSON: {\"answer\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "My king moved one square and then went back to its first square. Can I still castle?",
+            "role": "user"
+          }
+        ],
+        "model": "openai/gpt-oss-20b",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"answer\":\"No, once the king has moved, even if it goes back to its starting square, you cannot castle.\"}",
+        "finishReason": "stop",
+        "ms": 478,
+        "providerModel": "openai/gpt-oss-20b",
+        "reasoning": "We need to answer: In chess, if king has moved, cannot castle. Even if it moved back to original square, it's considered moved. So answer: No, cannot castle. Provide JSON with answer. Ensure compact JSON.",
+        "usage": {
+          "queue_time": 0.367684251,
+          "prompt_tokens": 169,
+          "prompt_time": 0.008376618,
+          "completion_tokens": 82,
+          "completion_time": 0.085191934,
+          "total_tokens": 251,
+          "total_time": 0.093568552,
+          "completion_tokens_details": {
+            "reasoning_tokens": 47
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "feature": "Game review comment (AI play review)",
+  "item": "game-legal",
+  "model": "gemini/gemini-3.1-flash-lite",
+  "startedAt": "2026-11-25T21:06:43.422Z",
+  "task": "game-review",
+  "checks": {
+    "inventedMoves": []
+  },
+  "ok": true,
+  "output": "You did a great job developing your pieces early in the game to challenge your opponent. The engine shows that playing Nc6 instead of g6 would have been a stronger way to support your center. More importantly, you missed the chance to capture the knight with dxe5 after your opponent moved their knight, which would have kept the game balanced. To improve, practice looking for simple captures that remove your opponent's attacking pieces before you make your own moves.",
+  "ms": 1786,
+  "usage": {
+    "calls": 1,
+    "completion": 91,
+    "prompt": 283,
+    "reasoning": 0,
+    "total": 374
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:06:45.207Z",
+          "limits": {},
+          "ms": 1783,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4400,
+        "messages": [
+          {
+            "content": "You are a friendly chess coach writing to a young student about their own play. You get the positions, the moves (the student's own moves start with *) and what a chess engine found. Write 3 to 5 short sentences: one thing they did well, the most important lesson from the engine's findings (name the better move when given), and one concrete thing to practise. Use only the facts given; never invent moves or evaluations. Plain language, no headings, no lists, no emojis.",
+            "role": "system"
+          },
+          {
+            "content": "{\"accuracy\":74,\"findings\":[{\"better\":\"Nc6\",\"kind\":\"INACCURACY\",\"motif\":null,\"moveNumber\":4,\"played\":\"g6\",\"segment\":0},{\"better\":\"dxe5\",\"kind\":\"BLUNDER\",\"motif\":null,\"moveNumber\":5,\"played\":\"Bxd1\",\"segment\":0}],\"kind\":\"Own game\",\"segments\":[{\"label\":null,\"moves\":[\"e4\",\"*e5\",\"Bc4\",\"*d6\",\"Nf3\",\"*Bg4\",\"Nc3\",\"*g6\",\"Nxe5\",\"*Bxd1\",\"Bxf7+\",\"*Ke7\",\"Nd5#\"],\"playerSide\":\"black\",\"result\":\"1-0\",\"startFen\":\"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\"}]}",
+            "role": "user"
+          }
+        ],
+        "model": "gemini-3.1-flash-lite",
+        "temperature": 0.4
+      },
+      "response": {
+        "content": "You did a great job developing your pieces early in the game to challenge your opponent. The engine shows that playing Nc6 instead of g6 would have been a stronger way to support your center. More importantly, you missed the chance to capture the knight with dxe5 after your opponent moved their knight, which would have kept the game balanced. To improve, practice looking for simple captures that remove your opponent's attacking pieces before you make your own moves.",
+        "finishReason": "stop",
+        "ms": 1783,
+        "providerModel": "gemini-3.1-flash-lite",
+        "reasoning": null,
+        "usage": {
+          "completion_tokens": 91,
+          "prompt_tokens": 283,
+          "total_tokens": 374
+        }
+      }
+    }
+  ]
+}

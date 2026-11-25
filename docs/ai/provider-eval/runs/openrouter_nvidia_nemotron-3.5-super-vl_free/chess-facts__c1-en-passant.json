@@ -1,0 +1,83 @@
+{
+  "feature": "Chess facts answer",
+  "item": "c1-en-passant",
+  "model": "openrouter/nvidia/nemotron-3.5-super-vl:free",
+  "startedAt": "2026-11-25T21:17:50.594Z",
+  "task": "chess-facts",
+  "checks": {
+    "json": true,
+    "mentions": false
+  },
+  "ok": true,
+  "output": {
+    "answer": "En passant is a special pawn capture. If a pawn moves two squares and lands beside an enemy pawn, that enemy pawn can capture it as if it moved only one square. You must do it right away."
+  },
+  "ms": 1585,
+  "usage": {
+    "calls": 1,
+    "completion": 221,
+    "prompt": 70,
+    "reasoning": 172,
+    "total": 291
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:17:52.179Z",
+          "limits": {},
+          "ms": 1585,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4250,
+        "messages": [
+          {
+            "content": "You answer a chess question from a child or a parent at a chess academy.\nAnswer correctly in 1 to 3 short sentences of simple English. If you are not sure, say so.\nReturn only JSON: {\"answer\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "What is en passant?",
+            "role": "user"
+          }
+        ],
+        "model": "nvidia/nemotron-3.5-super-vl:free",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"answer\": \"En passant is a special pawn capture. If a pawn moves two squares and lands beside an enemy pawn, that enemy pawn can capture it as if it moved only one square. You must do it right away.\"}",
+        "finishReason": "stop",
+        "ms": 1585,
+        "providerModel": "nvidia/nemotron-3.5-super-vl:free",
+        "reasoning": "The user is asking \"What is en passant?\" and wants a response in 1-3 short sentences of simple English, formatted as JSON: {\"answer\": \"...\"}.\n\nI need to explain en passant simply:\n- It's a special pawn capture in chess.\n- Happens when a pawn moves two squares forward from its starting position and lands next to an enemy pawn.\n- The enemy pawn can capture it as if it had only moved one square.\n- Must be done immediately on the next move.\n\nKeep it to 1-3 short sentences, simple English.\n\nDraft:\n\"En passant is a special pawn capture. If a pawn moves two squares and lands beside an enemy pawn, that enemy pawn can capture it as if it moved only one square. You must do it right away.\"\n\nThat's 3 sentences. Simple English.\n\nJSON format only.",
+        "usage": {
+          "prompt_tokens": 70,
+          "completion_tokens": 221,
+          "total_tokens": 291,
+          "cost": 0,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0,
+            "upstream_inference_prompt_cost": 0,
+            "upstream_inference_completions_cost": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 172,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        }
+      }
+    }
+  ]
+}
