@@ -63,6 +63,14 @@ export interface RecapModels {
 
 export const RECAP_MODELS = Symbol("RECAP_MODELS");
 
+/**
+ * Extra answer room for an outside model. Many outside models "think" before
+ * answering and that thinking counts against `max_tokens`, so the recap's own
+ * limit alone leaves them with no text. Our own model doesn't think, and its
+ * limit stays tight so a runaway answer can't hold the CPU.
+ */
+export const OUTSIDE_THINKING_TOKENS = 4000;
+
 export class OpenAiCompatibleRecapModels implements RecapModels {
   private readonly logger = new Logger(OpenAiCompatibleRecapModels.name);
 
@@ -79,14 +87,16 @@ export class OpenAiCompatibleRecapModels implements RecapModels {
     const signal = AbortSignal.any([options.signal, AbortSignal.timeout(config.timeoutMs)]);
     const response = await fetch(`${config.url}/chat/completions`, {
       body: JSON.stringify({
-        max_tokens: options.maxTokens,
+        max_tokens: config.provider === "OUTSIDE" ? options.maxTokens + OUTSIDE_THINKING_TOKENS : options.maxTokens,
         messages: [
           { content: prompt.system, role: "system" },
           { content: prompt.user, role: "user" }
         ],
         model: config.model,
         response_format: { type: "json_object" },
-        seed: 7,
+        // Only our own server gets a seed: some outside APIs (Gemini's
+        // OpenAI-compatible one) refuse a request that carries it.
+        ...(config.provider === "LOCAL" ? { seed: 7 } : {}),
         temperature: 0
       }),
       headers: {

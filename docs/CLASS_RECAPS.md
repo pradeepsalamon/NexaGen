@@ -119,7 +119,13 @@ changes need the plan, reading doesn't (published recaps stay readable).
    `AI_LOCAL_MODEL_URL=http://127.0.0.1:<port>/v1` in `apps/api/.env`.
 2. **Outside AI**: `AI_REVIEW_PROVIDER_URL/_API_KEY/_MODEL/_NAME` (shared with
    the AI play review), name it in the privacy policy, and pick it in Admin →
-   Class recaps.
+   Class recaps. Any OpenAI-compatible chat API works. An outside call carries
+   no `seed` (Gemini refuses it) and gets `OUTSIDE_THINKING_TOKENS` (4,000)
+   extra answer room, because thinking models spend it before the answer.
+   Staging test 2026-11-25 (same sample transcript): Groq `openai/gpt-oss-120b`
+   1.5 s, OpenRouter `nvidia/nemotron-3.5-super-vl:free` 24 s, both one call
+   and better than `qwen2.5:3b`; Gemini's free tier answered 503 (overloaded).
+   Free tiers may train on what they're sent — not for real classes (minors).
 3. Turn on "Class transcript" for the classes (Admin → Live class settings, or
    per batch/class); each coach agrees once in the room (desktop Chrome).
 
