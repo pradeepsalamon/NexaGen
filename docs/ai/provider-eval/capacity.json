@@ -1,0 +1,701 @@
+{
+  "LIMITS": {
+    "gemini/gemini-3.1-flash-lite": {
+      "rpd": 500,
+      "rpm": 15,
+      "tpd": null
+    },
+    "gemini/gemini-3.5-flash": {
+      "rpd": 20,
+      "rpm": 5,
+      "tpd": null
+    },
+    "gemini/gemini-3.8-flash": {
+      "rpd": 20,
+      "rpm": 5,
+      "tpd": null
+    },
+    "groq/openai/gpt-oss-120b": {
+      "rpd": 1000,
+      "rpm": 30,
+      "tpd": 200000,
+      "tpm": 8000
+    },
+    "groq/openai/gpt-oss-20b": {
+      "rpd": 1000,
+      "rpm": 30,
+      "tpd": 200000,
+      "tpm": 8000
+    },
+    "groq/qwen/qwen3.8-27b": {
+      "rpd": 1000,
+      "rpm": 30,
+      "tpd": 200000,
+      "tpm": 8000
+    },
+    "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free": {
+      "rpd": 50,
+      "rpm": 20,
+      "shared": true,
+      "tpd": null
+    },
+    "openrouter/nvidia/nemotron-3.5-super-vl:free": {
+      "rpd": 50,
+      "rpm": 20,
+      "shared": true,
+      "tpd": null
+    }
+  },
+  "RECAP_SCALE": 2,
+  "VOLUME": {
+    "chess-facts": {
+      "day": 30,
+      "note": "upper bound: every WhatsApp question"
+    },
+    "coach-feedback": {
+      "day": 5,
+      "peak": 150,
+      "note": "one a student a month"
+    },
+    "game-review": {
+      "day": 64,
+      "note": "150 × 3 games / 7"
+    },
+    "progress-note": {
+      "day": 5,
+      "peak": 150,
+      "note": "one a student a month"
+    },
+    "puzzle-hint": {
+      "day": 214,
+      "note": "150 × 10 / 7, one hint per puzzle tried (uncached)"
+    },
+    "recap": {
+      "day": 20,
+      "note": "20 classes; tokens × 2 for a real 20-minute class"
+    },
+    "recap-tamil": {
+      "day": 20,
+      "note": "only if every class also gets a Tamil recap; tokens × 2"
+    },
+    "support-pick": {
+      "day": 30
+    },
+    "translate-ta": {
+      "day": 64,
+      "note": "every game review also in Tamil"
+    }
+  },
+  "cap": [
+    {
+      "calls": 1,
+      "model": "gemini/gemini-3.1-flash-lite",
+      "need": 30,
+      "peak": 30,
+      "perDay": 500,
+      "task": "chess-facts",
+      "tokens": 96,
+      "use": 6
+    },
+    {
+      "calls": 1,
+      "model": "groq/openai/gpt-oss-120b",
+      "need": 30,
+      "peak": 30,
+      "perDay": 671,
+      "task": "chess-facts",
+      "tokens": 298,
+      "use": 4
+    },
+    {
+      "calls": 1,
+      "model": "groq/openai/gpt-oss-20b",
+      "need": 30,
+      "peak": 30,
+      "perDay": 769,
+      "task": "chess-facts",
+      "tokens": 260,
+      "use": 4
+    },
+    {
+      "calls": 1,
+      "model": "groq/qwen/qwen3.8-27b",
+      "need": 30,
+      "peak": 30,
+      "perDay": 1000,
+      "task": "chess-facts",
+      "tokens": 108,
+      "use": 3
+    },
+    {
+      "calls": 1,
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "need": 30,
+      "peak": 30,
+      "perDay": 50,
+      "task": "chess-facts",
+      "tokens": 173,
+      "use": 60
+    },
+    {
+      "calls": 1,
+      "model": "openrouter/nvidia/nemotron-3.5-super-vl:free",
+      "need": 30,
+      "peak": 30,
+      "perDay": 50,
+      "task": "chess-facts",
+      "tokens": 289,
+      "use": 60
+    },
+    {
+      "calls": 1,
+      "model": "gemini/gemini-3.1-flash-lite",
+      "need": 5,
+      "peak": 150,
+      "perDay": 500,
+      "task": "coach-feedback",
+      "tokens": 260,
+      "use": 1
+    },
+    {
+      "calls": 1,
+      "model": "groq/openai/gpt-oss-120b",
+      "need": 5,
+      "peak": 150,
+      "perDay": 291,
+      "task": "coach-feedback",
+      "tokens": 686,
+      "use": 2
+    },
+    {
+      "calls": 1,
+      "model": "groq/openai/gpt-oss-20b",
+      "need": 5,
+      "peak": 150,
+      "perDay": 294,
+      "task": "coach-feedback",
+      "tokens": 680,
+      "use": 2
+    },
+    {
+      "calls": 1,
+      "model": "groq/qwen/qwen3.8-27b",
+      "need": 5,
+      "peak": 150,
+      "perDay": 738,
+      "task": "coach-feedback",
+      "tokens": 271,
+      "use": 1
+    },
+    {
+      "calls": 1,
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "need": 5,
+      "peak": 150,
+      "perDay": 50,
+      "task": "coach-feedback",
+      "tokens": 627,
+      "use": 10
+    },
+    {
+      "calls": 1,
+      "model": "openrouter/nvidia/nemotron-3.5-super-vl:free",
+      "need": 5,
+      "peak": 150,
+      "perDay": 50,
+      "task": "coach-feedback",
+      "tokens": 1636,
+      "use": 10
+    },
+    {
+      "calls": 1,
+      "model": "gemini/gemini-3.1-flash-lite",
+      "need": 64,
+      "peak": 64,
+      "perDay": 500,
+      "task": "game-review",
+      "tokens": 436,
+      "use": 13
+    },
+    {
+      "calls": 1,
+      "model": "gemini/gemini-3.5-flash",
+      "need": 64,
+      "peak": 64,
+      "perDay": 20,
+      "task": "game-review",
+      "tokens": 1637,
+      "use": 320
+    },
+    {
+      "calls": 1,
+      "model": "groq/openai/gpt-oss-120b",
+      "need": 64,
+      "peak": 64,
+      "perDay": 195,
+      "task": "game-review",
+      "tokens": 1025,
+      "use": 33
+    },
+    {
+      "calls": 1,
+      "model": "groq/openai/gpt-oss-20b",
+      "need": 64,
+      "peak": 64,
+      "perDay": 201,
+      "task": "game-review",
+      "tokens": 994,
+      "use": 32
+    },
+    {
+      "calls": 1,
+      "model": "groq/qwen/qwen3.8-27b",
+      "need": 64,
+      "peak": 64,
+      "perDay": 429,
+      "task": "game-review",
+      "tokens": 466,
+      "use": 15
+    },
+    {
+      "calls": 1,
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "need": 64,
+      "peak": 64,
+      "perDay": 50,
+      "task": "game-review",
+      "tokens": 946,
+      "use": 128
+    },
+    {
+      "calls": 1,
+      "model": "openrouter/nvidia/nemotron-3.5-super-vl:free",
+      "need": 64,
+      "peak": 64,
+      "perDay": 50,
+      "task": "game-review",
+      "tokens": 1405,
+      "use": 128
+    },
+    {
+      "calls": 1,
+      "model": "gemini/gemini-3.1-flash-lite",
+      "need": 5,
+      "peak": 150,
+      "perDay": 500,
+      "task": "progress-note",
+      "tokens": 432,
+      "use": 1
+    },
+    {
+      "calls": 1,
+      "model": "gemini/gemini-3.5-flash",
+      "need": 5,
+      "peak": 150,
+      "perDay": 20,
+      "task": "progress-note",
+      "tokens": 2133,
+      "use": 25
+    },
+    {
+      "calls": 1,
+      "model": "groq/openai/gpt-oss-120b",
+      "need": 5,
+      "peak": 150,
+      "perDay": 177,
+      "task": "progress-note",
+      "tokens": 1128,
+      "use": 3
+    },
+    {
+      "calls": 1,
+      "model": "groq/openai/gpt-oss-20b",
+      "need": 5,
+      "peak": 150,
+      "perDay": 227,
+      "task": "progress-note",
+      "tokens": 879,
+      "use": 2
+    },
+    {
+      "calls": 1,
+      "model": "groq/qwen/qwen3.8-27b",
+      "need": 5,
+      "peak": 150,
+      "perDay": 452,
+      "task": "progress-note",
+      "tokens": 442,
+      "use": 1
+    },
+    {
+      "calls": 1,
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "need": 5,
+      "peak": 150,
+      "perDay": 50,
+      "task": "progress-note",
+      "tokens": 1032,
+      "use": 10
+    },
+    {
+      "calls": 1,
+      "model": "openrouter/nvidia/nemotron-3.5-super-vl:free",
+      "need": 5,
+      "peak": 150,
+      "perDay": 50,
+      "task": "progress-note",
+      "tokens": 1495,
+      "use": 10
+    },
+    {
+      "calls": 1,
+      "model": "gemini/gemini-3.1-flash-lite",
+      "need": 214,
+      "peak": 214,
+      "perDay": 500,
+      "task": "puzzle-hint",
+      "tokens": 212,
+      "use": 43
+    },
+    {
+      "calls": 1,
+      "model": "gemini/gemini-3.5-flash",
+      "need": 214,
+      "peak": 214,
+      "perDay": 20,
+      "task": "puzzle-hint",
+      "tokens": 939,
+      "use": 1070
+    },
+    {
+      "calls": 1,
+      "model": "groq/openai/gpt-oss-120b",
+      "need": 214,
+      "peak": 214,
+      "perDay": 371,
+      "task": "puzzle-hint",
+      "tokens": 538,
+      "use": 58
+    },
+    {
+      "calls": 1,
+      "model": "groq/openai/gpt-oss-20b",
+      "need": 214,
+      "peak": 214,
+      "perDay": 280,
+      "task": "puzzle-hint",
+      "tokens": 714,
+      "use": 76
+    },
+    {
+      "calls": 1,
+      "model": "groq/qwen/qwen3.8-27b",
+      "need": 214,
+      "peak": 214,
+      "perDay": 900,
+      "task": "puzzle-hint",
+      "tokens": 222,
+      "use": 24
+    },
+    {
+      "calls": 1,
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "need": 214,
+      "peak": 214,
+      "perDay": 50,
+      "task": "puzzle-hint",
+      "tokens": 1612,
+      "use": 428
+    },
+    {
+      "calls": 1,
+      "model": "openrouter/nvidia/nemotron-3.5-super-vl:free",
+      "need": 214,
+      "peak": 214,
+      "perDay": 50,
+      "task": "puzzle-hint",
+      "tokens": 1335,
+      "use": 428
+    },
+    {
+      "calls": 2,
+      "model": "gemini/gemini-3.1-flash-lite",
+      "need": 20,
+      "peak": 20,
+      "perDay": 250,
+      "task": "recap",
+      "tokens": 3886,
+      "use": 8
+    },
+    {
+      "calls": 2,
+      "model": "gemini/gemini-3.5-flash",
+      "need": 20,
+      "peak": 20,
+      "perDay": 10,
+      "task": "recap",
+      "tokens": 6646,
+      "use": 200
+    },
+    {
+      "calls": 2,
+      "model": "gemini/gemini-3.8-flash",
+      "need": 20,
+      "peak": 20,
+      "perDay": 10,
+      "task": "recap",
+      "tokens": 6128,
+      "use": 200
+    },
+    {
+      "calls": 2,
+      "model": "groq/openai/gpt-oss-120b",
+      "need": 20,
+      "peak": 20,
+      "perDay": 38,
+      "task": "recap",
+      "tokens": 5218,
+      "use": 53
+    },
+    {
+      "calls": 2,
+      "model": "groq/openai/gpt-oss-20b",
+      "need": 20,
+      "peak": 20,
+      "perDay": 43,
+      "task": "recap",
+      "tokens": 4620,
+      "use": 47
+    },
+    {
+      "calls": 2,
+      "model": "groq/qwen/qwen3.8-27b",
+      "need": 20,
+      "peak": 20,
+      "perDay": 44,
+      "task": "recap",
+      "tokens": 4496,
+      "use": 45
+    },
+    {
+      "calls": 2,
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "need": 20,
+      "peak": 20,
+      "perDay": 25,
+      "task": "recap",
+      "tokens": 5694,
+      "use": 80
+    },
+    {
+      "calls": 2,
+      "model": "openrouter/nvidia/nemotron-3.5-super-vl:free",
+      "need": 20,
+      "peak": 20,
+      "perDay": 25,
+      "task": "recap",
+      "tokens": 7262,
+      "use": 80
+    },
+    {
+      "calls": 2,
+      "model": "gemini/gemini-3.1-flash-lite",
+      "need": 20,
+      "peak": 20,
+      "perDay": 250,
+      "task": "recap-tamil",
+      "tokens": 3518,
+      "use": 8
+    },
+    {
+      "calls": 2,
+      "model": "gemini/gemini-3.5-flash",
+      "need": 20,
+      "peak": 20,
+      "perDay": 10,
+      "task": "recap-tamil",
+      "tokens": 6468,
+      "use": 200
+    },
+    {
+      "calls": 2,
+      "model": "groq/openai/gpt-oss-120b",
+      "need": 20,
+      "peak": 20,
+      "perDay": 32,
+      "task": "recap-tamil",
+      "tokens": 6072,
+      "use": 63
+    },
+    {
+      "calls": 2,
+      "model": "groq/openai/gpt-oss-20b",
+      "need": 20,
+      "peak": 20,
+      "perDay": 41,
+      "task": "recap-tamil",
+      "tokens": 4878,
+      "use": 49
+    },
+    {
+      "calls": 2,
+      "model": "groq/qwen/qwen3.8-27b",
+      "need": 20,
+      "peak": 20,
+      "perDay": 36,
+      "task": "recap-tamil",
+      "tokens": 5538,
+      "use": 56
+    },
+    {
+      "calls": 2,
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "need": 20,
+      "peak": 20,
+      "perDay": 25,
+      "task": "recap-tamil",
+      "tokens": 6428,
+      "use": 80
+    },
+    {
+      "calls": 2,
+      "model": "openrouter/nvidia/nemotron-3.5-super-vl:free",
+      "need": 20,
+      "peak": 20,
+      "perDay": 25,
+      "task": "recap-tamil",
+      "tokens": 9460,
+      "use": 80
+    },
+    {
+      "calls": 1,
+      "model": "gemini/gemini-3.1-flash-lite",
+      "need": 30,
+      "peak": 30,
+      "perDay": 500,
+      "task": "support-pick",
+      "tokens": 522,
+      "use": 6
+    },
+    {
+      "calls": 1,
+      "model": "groq/openai/gpt-oss-120b",
+      "need": 30,
+      "peak": 30,
+      "perDay": 286,
+      "task": "support-pick",
+      "tokens": 697,
+      "use": 10
+    },
+    {
+      "calls": 1,
+      "model": "groq/openai/gpt-oss-20b",
+      "need": 30,
+      "peak": 30,
+      "perDay": 285,
+      "task": "support-pick",
+      "tokens": 701,
+      "use": 11
+    },
+    {
+      "calls": 1,
+      "model": "groq/qwen/qwen3.8-27b",
+      "need": 30,
+      "peak": 30,
+      "perDay": 389,
+      "task": "support-pick",
+      "tokens": 514,
+      "use": 8
+    },
+    {
+      "calls": 1,
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "need": 30,
+      "peak": 30,
+      "perDay": 50,
+      "task": "support-pick",
+      "tokens": 673,
+      "use": 60
+    },
+    {
+      "calls": 1,
+      "model": "openrouter/nvidia/nemotron-3.5-super-vl:free",
+      "need": 30,
+      "peak": 30,
+      "perDay": 50,
+      "task": "support-pick",
+      "tokens": 888,
+      "use": 60
+    },
+    {
+      "calls": 1,
+      "model": "gemini/gemini-3.1-flash-lite",
+      "need": 64,
+      "peak": 64,
+      "perDay": 500,
+      "task": "translate-ta",
+      "tokens": 296,
+      "use": 13
+    },
+    {
+      "calls": 1,
+      "model": "gemini/gemini-3.5-flash",
+      "need": 64,
+      "peak": 64,
+      "perDay": 20,
+      "task": "translate-ta",
+      "tokens": 1480,
+      "use": 320
+    },
+    {
+      "calls": 1,
+      "model": "groq/openai/gpt-oss-120b",
+      "need": 64,
+      "peak": 64,
+      "perDay": 186,
+      "task": "translate-ta",
+      "tokens": 1075,
+      "use": 34
+    },
+    {
+      "calls": 1,
+      "model": "groq/openai/gpt-oss-20b",
+      "need": 64,
+      "peak": 64,
+      "perDay": 154,
+      "task": "translate-ta",
+      "tokens": 1294,
+      "use": 42
+    },
+    {
+      "calls": 1,
+      "model": "groq/qwen/qwen3.8-27b",
+      "need": 64,
+      "peak": 64,
+      "perDay": 520,
+      "task": "translate-ta",
+      "tokens": 384,
+      "use": 12
+    },
+    {
+      "calls": 1,
+      "model": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free",
+      "need": 64,
+      "peak": 64,
+      "perDay": 50,
+      "task": "translate-ta",
+      "tokens": 1785,
+      "use": 128
+    },
+    {
+      "calls": 1,
+      "model": "openrouter/nvidia/nemotron-3.5-super-vl:free",
+      "need": 64,
+      "peak": 64,
+      "perDay": 50,
+      "task": "translate-ta",
+      "tokens": 3561,
+      "use": 128
+    }
+  ]
+}

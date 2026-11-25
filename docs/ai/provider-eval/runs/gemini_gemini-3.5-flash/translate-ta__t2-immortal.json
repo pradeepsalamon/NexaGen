@@ -1,0 +1,63 @@
+{
+  "feature": "Tamil translation of a review",
+  "item": "t2-immortal",
+  "model": "gemini/gemini-3.5-flash",
+  "startedAt": "2026-11-25T21:49:43.802Z",
+  "task": "translate-ta",
+  "checks": {
+    "json": true,
+    "tamilShare": 70
+  },
+  "ok": true,
+  "output": "நீங்க ஆரம்பத்துல இருந்தே ரொம்ப தைரியமா விளையாடி, black king-ஐ attack பண்ணீங்க. 18-வது move எஞ்சினுக்குப் பிடிக்கல; அங்க உங்க rook-ஐ விட்டுக்கொடுத்தது ரிஸ்க், அமைதியான ஒரு rook move பண்ணி அதை வச்சிருந்தா இன்னும் ஸ்ட்ராங்கா இருந்திருக்கும். ஆனாலும் king பக்கத்துல உங்க pieces எல்லாம் சேர்ந்து செயல்பட்டதால உங்க attack நல்லா வேலை செஞ்சது. இந்த வாரம், ஒரு piece-ஐ sacrifice பண்றதுக்கு முன்னாடி attackers மற்றும் defenders-ஐ எண்ணிப் பார்க்க பயிற்சி பண்ணுங்க.",
+  "ms": 12296,
+  "usage": {
+    "calls": 1,
+    "completion": 128,
+    "prompt": 151,
+    "reasoning": 0,
+    "total": 1071
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:49:56.098Z",
+          "limits": {},
+          "ms": 12296,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 5200,
+        "messages": [
+          {
+            "content": "You translate a chess coach's short comment for a child and their parent in Tamil Nadu.\nTranslate into simple, natural spoken-style Tamil in Tamil script. Keep the meaning exactly; add nothing.\nChess piece names and words like checkmate may stay in English (in Tamil letters or English letters) as Tamil chess players say them.\nReturn only JSON: {\"tamil\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "You played very bravely and attacked the black king from the start. The engine did not like move 18, where giving up your rook was risky, and keeping it with a calm rook move was stronger. Your attack still worked because your pieces worked together near the king. This week, practise counting attackers and defenders before you sacrifice a piece.",
+            "role": "user"
+          }
+        ],
+        "model": "gemini-3.5-flash",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"tamil\": \"நீங்க ஆரம்பத்துல இருந்தே ரொம்ப தைரியமா விளையாடி, black king-ஐ attack பண்ணீங்க. 18-வது move எஞ்சினுக்குப் பிடிக்கல; அங்க உங்க rook-ஐ விட்டுக்கொடுத்தது ரிஸ்க், அமைதியான ஒரு rook move பண்ணி அதை வச்சிருந்தா இன்னும் ஸ்ட்ராங்கா இருந்திருக்கும். ஆனாலும் king பக்கத்துல உங்க pieces எல்லாம் சேர்ந்து செயல்பட்டதால உங்க attack நல்லா வேலை செஞ்சது. இந்த வாரம், ஒரு piece-ஐ sacrifice பண்றதுக்கு முன்னாடி attackers மற்றும் defenders-ஐ எண்ணிப் பார்க்க பயிற்சி பண்ணுங்க.\"}",
+        "finishReason": "stop",
+        "ms": 12296,
+        "providerModel": "gemini-3.5-flash",
+        "reasoning": null,
+        "usage": {
+          "completion_tokens": 128,
+          "prompt_tokens": 151,
+          "total_tokens": 1071
+        }
+      }
+    }
+  ]
+}

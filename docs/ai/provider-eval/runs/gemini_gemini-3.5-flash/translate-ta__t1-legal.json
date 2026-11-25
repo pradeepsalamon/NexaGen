@@ -1,0 +1,63 @@
+{
+  "feature": "Tamil translation of a review",
+  "item": "t1-legal",
+  "model": "gemini/gemini-3.5-flash",
+  "startedAt": "2026-11-25T21:49:31.859Z",
+  "task": "translate-ta",
+  "checks": {
+    "json": true,
+    "tamilShare": 100
+  },
+  "ok": true,
+  "output": "ஆரம்பத்துல உங்க பீஷப்பை சீக்கிரமே வெளியே கொண்டுவந்து நைட்டை பின் பண்ணி நல்லா தொடங்குனீங்க. 5-வது மூவ்லதான் பெரிய பாடம் இருக்கு: நீங்க உங்க பீஷப்பால க்வீனை எடுத்தீங்க, ஆனா உங்க பானால நைட்டை எடுத்திருக்கிறதுதான் ரொம்ப நல்லதுன்னு எஞ்சின் காட்டுது, ஏன்னா க்வீனை எடுத்ததுனால ஒயிட் உங்களை செக்மேட் பண்ண முடிஞ்சது. ஒரு பெரிய பீஸை எடுக்குறதுக்கு முன்னாடி, அடுத்து உங்க ஆப்போனென்ட் என்ன பண்ண முடியும்னு எப்பவும் பாருங்க, குறிப்பா செக் வைப்பாங்களான்னு கவனியுங்க. இந்த வாரம் செக்மேட் பேட்டர்ன்ஸ் பற்றிய அஞ்சு பஸில்ஸ் வச்சு இதை பிராக்டீஸ் பண்ணுங்க.",
+  "ms": 11942,
+  "usage": {
+    "calls": 1,
+    "completion": 171,
+    "prompt": 169,
+    "reasoning": 0,
+    "total": 1889
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:49:43.801Z",
+          "limits": {},
+          "ms": 11942,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 5200,
+        "messages": [
+          {
+            "content": "You translate a chess coach's short comment for a child and their parent in Tamil Nadu.\nTranslate into simple, natural spoken-style Tamil in Tamil script. Keep the meaning exactly; add nothing.\nChess piece names and words like checkmate may stay in English (in Tamil letters or English letters) as Tamil chess players say them.\nReturn only JSON: {\"tamil\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "You started well by bringing your bishop out early and pinning the knight. The big lesson is move 5: you took the queen with your bishop, but the engine shows that taking the knight with your pawn was much better, because winning the queen let White checkmate you. Before you grab a big piece, always check what your opponent can do next, especially checks. Practise this with five puzzles on checkmate patterns this week.",
+            "role": "user"
+          }
+        ],
+        "model": "gemini-3.5-flash",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"tamil\": \"ஆரம்பத்துல உங்க பீஷப்பை சீக்கிரமே வெளியே கொண்டுவந்து நைட்டை பின் பண்ணி நல்லா தொடங்குனீங்க. 5-வது மூவ்லதான் பெரிய பாடம் இருக்கு: நீங்க உங்க பீஷப்பால க்வீனை எடுத்தீங்க, ஆனா உங்க பானால நைட்டை எடுத்திருக்கிறதுதான் ரொம்ப நல்லதுன்னு எஞ்சின் காட்டுது, ஏன்னா க்வீனை எடுத்ததுனால ஒயிட் உங்களை செக்மேட் பண்ண முடிஞ்சது. ஒரு பெரிய பீஸை எடுக்குறதுக்கு முன்னாடி, அடுத்து உங்க ஆப்போனென்ட் என்ன பண்ண முடியும்னு எப்பவும் பாருங்க, குறிப்பா செக் வைப்பாங்களான்னு கவனியுங்க. இந்த வாரம் செக்மேட் பேட்டர்ன்ஸ் பற்றிய அஞ்சு பஸில்ஸ் வச்சு இதை பிராக்டீஸ் பண்ணுங்க.\"}",
+        "finishReason": "stop",
+        "ms": 11942,
+        "providerModel": "gemini-3.5-flash",
+        "reasoning": null,
+        "usage": {
+          "completion_tokens": 171,
+          "prompt_tokens": 169,
+          "total_tokens": 1889
+        }
+      }
+    }
+  ]
+}

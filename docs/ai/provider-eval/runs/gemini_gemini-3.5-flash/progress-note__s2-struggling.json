@@ -1,0 +1,71 @@
+{
+  "feature": "Monthly progress note",
+  "item": "s2-struggling",
+  "model": "gemini/gemini-3.5-flash",
+  "startedAt": "2026-11-25T21:50:03.714Z",
+  "task": "progress-note",
+  "checks": {
+    "json": true,
+    "notation": false,
+    "numbersNotInInput": []
+  },
+  "ok": true,
+  "output": {
+    "note": "In October, your child learned how the pieces move, check and checkmate, and opening principles, demonstrating that they know the opening rules well. They had a great effort solving 20 out of 31 puzzles and reached a best score of 6 in Puzzle Storm. However, your child attended 4 of 8 classes, completed 1 of 6 homework assignments, and lost both of the 2 games they played. The coach noted that your child is quiet in class and needs encouragement, especially as their puzzle rating went from 950 to 930 and they tend to move the queen out too early. For next month, we suggest encouraging your child to complete their homework to help reinforce what they learn in class.",
+    "focusNextMonth": [
+      "Completing homework assignments",
+      "Avoiding early queen moves",
+      "Improving class attendance"
+    ]
+  },
+  "ms": 14321,
+  "usage": {
+    "calls": 1,
+    "completion": 177,
+    "prompt": 251,
+    "reasoning": 0,
+    "total": 2457
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:50:18.035Z",
+          "limits": {},
+          "ms": 14321,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4600,
+        "messages": [
+          {
+            "content": "You write a chess academy's monthly progress note to a parent about their child.\nYou get the month's numbers and the coach's note. Write 4 to 6 warm, honest sentences in simple English:\nwhat went well, what to work on, and one concrete suggestion for next month. Call the student 'your child'.\nUse only the facts given; never invent a number, a game or an event. No chess notation.\nReturn only JSON: {\"note\": \"...\", \"focusNextMonth\": [\"1 to 3 short items\"]}",
+            "role": "system"
+          },
+          {
+            "content": "{\"month\":\"October\",\"ageGroup\":\"7-9\",\"level\":\"Beginner\",\"classes\":{\"held\":8,\"attended\":4},\"homework\":{\"given\":6,\"done\":1},\"puzzles\":{\"attempted\":31,\"solved\":20,\"ratingStart\":950,\"ratingEnd\":930},\"puzzleStormBest\":6,\"games\":{\"played\":2,\"won\":0,\"lost\":2,\"drawn\":0},\"commonMistakes\":[\"moves the queen out too early\"],\"topicsCovered\":[\"how the pieces move\",\"check and checkmate\",\"opening principles\"],\"coachNote\":\"quiet in class, needs encouragement, knows the opening rules well\"}",
+            "role": "user"
+          }
+        ],
+        "model": "gemini-3.5-flash",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"note\": \"In October, your child learned how the pieces move, check and checkmate, and opening principles, demonstrating that they know the opening rules well. They had a great effort solving 20 out of 31 puzzles and reached a best score of 6 in Puzzle Storm. However, your child attended 4 of 8 classes, completed 1 of 6 homework assignments, and lost both of the 2 games they played. The coach noted that your child is quiet in class and needs encouragement, especially as their puzzle rating went from 950 to 930 and they tend to move the queen out too early. For next month, we suggest encouraging your child to complete their homework to help reinforce what they learn in class.\", \"focusNextMonth\": [\"Completing homework assignments\", \"Avoiding early queen moves\", \"Improving class attendance\"]}",
+        "finishReason": "stop",
+        "ms": 14321,
+        "providerModel": "gemini-3.5-flash",
+        "reasoning": null,
+        "usage": {
+          "completion_tokens": 177,
+          "prompt_tokens": 251,
+          "total_tokens": 2457
+        }
+      }
+    }
+  ]
+}

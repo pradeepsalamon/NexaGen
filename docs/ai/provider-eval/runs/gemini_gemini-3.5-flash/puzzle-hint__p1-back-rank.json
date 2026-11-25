@@ -1,0 +1,66 @@
+{
+  "feature": "Puzzle hint",
+  "item": "p1-back-rank",
+  "model": "gemini/gemini-3.5-flash",
+  "startedAt": "2026-11-25T21:50:18.036Z",
+  "task": "puzzle-hint",
+  "checks": {
+    "json": true,
+    "givesAway": false
+  },
+  "ok": true,
+  "output": {
+    "hint1": "Take a close look at how the enemy king is trapped behind its own pawns.",
+    "hint2": "Use your rook to slide all the way up and deliver a checkmate."
+  },
+  "ms": 5443,
+  "usage": {
+    "calls": 1,
+    "completion": 41,
+    "prompt": 153,
+    "reasoning": 0,
+    "total": 939
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:50:23.479Z",
+          "limits": {},
+          "ms": 5443,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4300,
+        "messages": [
+          {
+            "content": "You help a child who is stuck on a chess puzzle.\nYou get the position (FEN), the side to move, the solution and the theme.\nWrite two hints: the first gentle (what to look at), the second stronger (the idea), each one short sentence.\nNever give the solution move, never name the square the piece moves to, and never write chess notation.\nReturn only JSON: {\"hint1\": \"...\", \"hint2\": \"...\"}",
+            "role": "system"
+          },
+          {
+            "content": "{\"fen\":\"6k1/5ppp/8/8/8/8/r4PPP/3R2K1 w - - 0 1\",\"sideToMove\":\"white\",\"solution\":[\"Rd8#\"],\"theme\":\"back-rank mate\"}",
+            "role": "user"
+          }
+        ],
+        "model": "gemini-3.5-flash",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"hint1\":\"Take a close look at how the enemy king is trapped behind its own pawns.\",\"hint2\":\"Use your rook to slide all the way up and deliver a checkmate.\"}",
+        "finishReason": "stop",
+        "ms": 5443,
+        "providerModel": "gemini-3.5-flash",
+        "reasoning": null,
+        "usage": {
+          "completion_tokens": 41,
+          "prompt_tokens": 153,
+          "total_tokens": 939
+        }
+      }
+    }
+  ]
+}

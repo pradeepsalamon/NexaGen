@@ -1,0 +1,71 @@
+{
+  "feature": "Monthly progress note",
+  "item": "s1-active",
+  "model": "gemini/gemini-3.5-flash",
+  "startedAt": "2026-11-25T21:49:56.099Z",
+  "task": "progress-note",
+  "checks": {
+    "json": true,
+    "notation": false,
+    "numbersNotInInput": []
+  },
+  "ok": true,
+  "output": {
+    "note": "During October, your child showed wonderful enthusiasm by attending 7 out of 8 classes and actively participating as the first to answer questions. They made great progress by solving 82 out of 110 puzzles, raising their puzzle rating from 1180 to 1240, and winning 5 out of 9 games played. In class, we covered key topics including forks, pins and skewers, and back-rank mates. However, your child tends to rush moves in games, which leads to leaving pieces undefended in the middlegame and forgetting to make room for the king. Next month, we suggest encouraging your child to take a brief pause before each move to double-check that their pieces are secure.",
+    "focusNextMonth": [
+      "Slowing down to avoid rushing moves during games",
+      "Double-checking that middlegame pieces are defended",
+      "Making room for the king to avoid back-rank weakness"
+    ]
+  },
+  "ms": 7614,
+  "usage": {
+    "calls": 1,
+    "completion": 195,
+    "prompt": 274,
+    "reasoning": 0,
+    "total": 1808
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:50:03.713Z",
+          "limits": {},
+          "ms": 7614,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4600,
+        "messages": [
+          {
+            "content": "You write a chess academy's monthly progress note to a parent about their child.\nYou get the month's numbers and the coach's note. Write 4 to 6 warm, honest sentences in simple English:\nwhat went well, what to work on, and one concrete suggestion for next month. Call the student 'your child'.\nUse only the facts given; never invent a number, a game or an event. No chess notation.\nReturn only JSON: {\"note\": \"...\", \"focusNextMonth\": [\"1 to 3 short items\"]}",
+            "role": "system"
+          },
+          {
+            "content": "{\"month\":\"October\",\"ageGroup\":\"10-12\",\"level\":\"Intermediate\",\"classes\":{\"held\":8,\"attended\":7},\"homework\":{\"given\":6,\"done\":5},\"puzzles\":{\"attempted\":110,\"solved\":82,\"ratingStart\":1180,\"ratingEnd\":1240},\"puzzleStormBest\":18,\"games\":{\"played\":9,\"won\":5,\"lost\":3,\"drawn\":1},\"commonMistakes\":[\"leaves pieces undefended in the middlegame\",\"forgets to make room for the king (back-rank weakness)\"],\"topicsCovered\":[\"forks\",\"pins and skewers\",\"back-rank mate\"],\"coachNote\":\"very active in class, answers first, but rushes moves in games\"}",
+            "role": "user"
+          }
+        ],
+        "model": "gemini-3.5-flash",
+        "response_format": {
+          "type": "json_object"
+        },
+        "temperature": 0
+      },
+      "response": {
+        "content": "{\"note\": \"During October, your child showed wonderful enthusiasm by attending 7 out of 8 classes and actively participating as the first to answer questions. They made great progress by solving 82 out of 110 puzzles, raising their puzzle rating from 1180 to 1240, and winning 5 out of 9 games played. In class, we covered key topics including forks, pins and skewers, and back-rank mates. However, your child tends to rush moves in games, which leads to leaving pieces undefended in the middlegame and forgetting to make room for the king. Next month, we suggest encouraging your child to take a brief pause before each move to double-check that their pieces are secure.\", \"focusNextMonth\": [\"Slowing down to avoid rushing moves during games\", \"Double-checking that middlegame pieces are defended\", \"Making room for the king to avoid back-rank weakness\"]}",
+        "finishReason": "stop",
+        "ms": 7614,
+        "providerModel": "gemini-3.5-flash",
+        "reasoning": null,
+        "usage": {
+          "completion_tokens": 195,
+          "prompt_tokens": 274,
+          "total_tokens": 1808
+        }
+      }
+    }
+  ]
+}

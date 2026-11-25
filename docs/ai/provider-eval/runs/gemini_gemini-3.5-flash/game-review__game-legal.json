@@ -1,0 +1,101 @@
+{
+  "feature": "Game review comment (AI play review)",
+  "item": "game-legal",
+  "model": "gemini/gemini-3.5-flash",
+  "startedAt": "2026-11-25T21:12:55.418Z",
+  "task": "game-review",
+  "checks": {
+    "inventedMoves": []
+  },
+  "ok": true,
+  "output": "You did a nice job actively developing your pieces early in the game, like bringing your bishop out to Bg4. The most important lesson is to watch out for danger before capturing, as playing dxe5 on move five was the right choice instead of taking the queen with Bxd1. Earlier on move four, developing your knight with Nc6 was also better than g6. Practise checking your king's safety for checkmate threats before you capture an opponent's queen.",
+  "ms": 2012864,
+  "usage": {
+    "calls": 1,
+    "completion": 95,
+    "prompt": 283,
+    "reasoning": 0,
+    "total": 1751
+  },
+  "calls": [
+    {
+      "attempts": [
+        {
+          "at": "2026-11-25T21:13:02.610Z",
+          "error": "[{\n  \"error\": {\n    \"code\": 503,\n    \"message\": \"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\n    \"status\": \"UNAVAILABLE\"\n  }\n}\n]",
+          "limits": {},
+          "ms": 7192,
+          "status": 503
+        },
+        {
+          "at": "2026-11-25T21:13:46.731Z",
+          "error": "[{\n  \"error\": {\n    \"code\": 503,\n    \"message\": \"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\n    \"status\": \"UNAVAILABLE\"\n  }\n}\n]",
+          "limits": {},
+          "ms": 2121,
+          "status": 503
+        },
+        {
+          "at": "2026-11-25T21:17:25.874Z",
+          "error": "[{\n  \"error\": {\n    \"code\": 503,\n    \"message\": \"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\n    \"status\": \"UNAVAILABLE\"\n  }\n}\n]",
+          "limits": {},
+          "ms": 137123,
+          "status": 503
+        },
+        {
+          "at": "2026-11-25T21:20:13.981Z",
+          "error": "[{\n  \"error\": {\n    \"code\": 503,\n    \"message\": \"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\n    \"status\": \"UNAVAILABLE\"\n  }\n}\n]",
+          "limits": {},
+          "ms": 6083,
+          "status": 503
+        },
+        {
+          "at": "2026-11-25T21:25:57.500Z",
+          "error": "[{\n  \"error\": {\n    \"code\": 503,\n    \"message\": \"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\n    \"status\": \"UNAVAILABLE\"\n  }\n}\n]",
+          "limits": {},
+          "ms": 21519,
+          "status": 503
+        },
+        {
+          "at": "2026-11-25T21:36:06.888Z",
+          "error": "[{\n  \"error\": {\n    \"code\": 503,\n    \"message\": \"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\n    \"status\": \"UNAVAILABLE\"\n  }\n}\n]",
+          "limits": {},
+          "ms": 7307,
+          "status": 503
+        },
+        {
+          "at": "2026-11-25T21:46:28.281Z",
+          "limits": {},
+          "ms": 19297,
+          "status": 200
+        }
+      ],
+      "request": {
+        "max_tokens": 4400,
+        "messages": [
+          {
+            "content": "You are a friendly chess coach writing to a young student about their own play. You get the positions, the moves (the student's own moves start with *) and what a chess engine found. Write 3 to 5 short sentences: one thing they did well, the most important lesson from the engine's findings (name the better move when given), and one concrete thing to practise. Use only the facts given; never invent moves or evaluations. Plain language, no headings, no lists, no emojis.",
+            "role": "system"
+          },
+          {
+            "content": "{\"accuracy\":74,\"findings\":[{\"better\":\"Nc6\",\"kind\":\"INACCURACY\",\"motif\":null,\"moveNumber\":4,\"played\":\"g6\",\"segment\":0},{\"better\":\"dxe5\",\"kind\":\"BLUNDER\",\"motif\":null,\"moveNumber\":5,\"played\":\"Bxd1\",\"segment\":0}],\"kind\":\"Own game\",\"segments\":[{\"label\":null,\"moves\":[\"e4\",\"*e5\",\"Bc4\",\"*d6\",\"Nf3\",\"*Bg4\",\"Nc3\",\"*g6\",\"Nxe5\",\"*Bxd1\",\"Bxf7+\",\"*Ke7\",\"Nd5#\"],\"playerSide\":\"black\",\"result\":\"1-0\",\"startFen\":\"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\"}]}",
+            "role": "user"
+          }
+        ],
+        "model": "gemini-3.5-flash",
+        "temperature": 0.4
+      },
+      "response": {
+        "content": "You did a nice job actively developing your pieces early in the game, like bringing your bishop out to Bg4. The most important lesson is to watch out for danger before capturing, as playing dxe5 on move five was the right choice instead of taking the queen with Bxd1. Earlier on move four, developing your knight with Nc6 was also better than g6. Practise checking your king's safety for checkmate threats before you capture an opponent's queen.",
+        "finishReason": "stop",
+        "ms": 19297,
+        "providerModel": "gemini-3.5-flash",
+        "reasoning": null,
+        "usage": {
+          "completion_tokens": 95,
+          "prompt_tokens": 283,
+          "total_tokens": 1751
+        }
+      }
+    }
+  ]
+}
