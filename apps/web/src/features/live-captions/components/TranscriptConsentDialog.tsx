@@ -67,7 +67,13 @@ export function TranscriptConsentDialog({
           </li>
           <li>
             <strong>Kept for {TRANSCRIPT_RETENTION_DAYS} days.</strong> You and the academy&apos;s admins can read it
-            after the class, and it may be used to prepare a class summary. Students cannot see it.
+            after the class. Students cannot see it.
+          </li>
+          <li>
+            <strong>Used to draft a class recap.</strong> If the academy turns on AI class recaps, an AI model reads
+            the transcript, with students&apos; names and yours replaced by codes, and drafts a short recap for
+            students. It runs on the academy&apos;s own server unless the academy chooses an outside AI service. You or
+            an admin review every recap before students see it.
           </li>
           <li>
             <strong>You stay in control.</strong> Pause it or withdraw your consent at any time in Settings → Class

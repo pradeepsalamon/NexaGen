@@ -142,6 +142,25 @@ const apiEnvSchema = z.object({
   /** Shown to admins and students, and named in the privacy policy. */
   AI_REVIEW_PROVIDER_NAME: z.string().optional(),
   AI_REVIEW_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(30000),
+  // AI class recaps (docs/CLASS_RECAPS.md). The job is off until this is
+  // true; each academy then picks our own server (LOCAL: an OpenAI-compatible
+  // model server such as Ollama on the AI network, no key) or the outside AI
+  // above (OUTSIDE). LOCAL is set up once AI_LOCAL_MODEL_URL is set.
+  AI_CLASS_RECAPS_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  AI_LOCAL_MODEL_URL: z
+    .string()
+    .optional()
+    .refine((value) => !value?.trim() || /^https?:\/\//.test(value.trim()), {
+      message: "AI_LOCAL_MODEL_URL must start with http:// or https://."
+    }),
+  AI_LOCAL_MODEL: z.string().default("qwen2.5:3b"),
+  /** Estimated tokens of transcript per model call (keep under the model's context). */
+  AI_CLASS_RECAP_CHUNK_TOKENS: z.coerce.number().int().min(500).max(30000).default(2500),
+  /** One model call; a CPU-only local model is slow. */
+  AI_CLASS_RECAP_CALL_TIMEOUT_MS: z.coerce.number().int().min(10000).max(3600000).default(900000),
   COOKIE_DOMAIN: z.string().optional(),
   // Web and API are same-site subdomains, so Lax is enough and blocks cross-site form posts.
   // "none" only for a deployment where the API sits on a different registrable domain.

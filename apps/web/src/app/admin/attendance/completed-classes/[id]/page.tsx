@@ -15,6 +15,7 @@ import { CoachAttendanceCard } from "@/features/attendance/components/class-deta
 import { ClassStudentTable } from "@/features/attendance/components/class-detail/ClassStudentTable";
 import { StudentAttendanceDialog } from "@/features/attendance/components/StudentAttendanceDialog";
 import { Spinner } from "@/components/ui/Spinner";
+import { ClassRecapCard } from "@/features/class-recap/components/ClassRecapCard";
 
 export default function ClassDetailPage() {
   const params = useParams();
@@ -93,6 +94,8 @@ export default function ClassDetailPage() {
         }
         title={data.topic}
       />
+
+      <ClassRecapCard classId={classId} />
 
       <ClassSummaryCards data={data} />
 

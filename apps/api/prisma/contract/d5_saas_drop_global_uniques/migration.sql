@@ -725,3 +725,10 @@ ALTER TABLE "ai_play_comments" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_r
 
 -- AlterTable
 ALTER TABLE "live_class_board_moves" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();
+
+-- Added 2026-11-25 (AI class recaps, docs/CLASS_RECAPS.md). Found by src/tenancy/d5-contract.spec.ts.
+-- AlterTable
+ALTER TABLE "class_recaps" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();
+
+-- AlterTable
+ALTER TABLE "class_recap_settings" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();

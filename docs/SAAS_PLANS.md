@@ -50,6 +50,7 @@ attendance, assignments, the puzzle library, announcements, notifications.
 | `directChat` | `ChatController` |
 | `feeTracking` | manual (cash / UPI / bank) payments, offline methods, fee plans and batch pricing, the payments list and overview, invoices (`InvoicesController`, `InvoicesAdminController`), a student's billing page. `PaymentsAdminController` and `ManualPaymentController` at class level; on `PaymentsController` only `mine`, `invoice`, `invoiceDownload`. Every plan from Mini up. **Implied by `studentPayments`** (`IMPLIED_PLAN_FEATURES`) |
 | `gameAnalysis` | `GameAnalysisController`, `GameSourcesController` |
+| `aiClassRecaps` | `ClassRecapController` (every change; reads allowed), the recap job (`ClassRecapJob`) — [CLASS_RECAPS.md](CLASS_RECAPS.md) |
 | `aiPlayReview` | `PlayReviewSettingsController` (saving the switches; reads allowed), the outside-AI switch turned ON (service), the nightly engine review (`PlayReviewJob`) — [AI_PLAY_REVIEW.md](AI_PLAY_REVIEW.md) |
 | `gameLibrary` | `GameLibraryController` |
 | `interactiveClassroom` | simul, matches, move polls, puzzle rush, activity queue, chapters, classroom tools — **writes only** (`allowReads`), because the room reads their state on mount |

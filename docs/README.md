@@ -41,6 +41,7 @@ stay as written; the living doc for that area wins where they disagree.
 | [STUDENT_ACTIVITY_HISTORY.md](STUDENT_ACTIVITY_HISTORY.md) | Student activity history and progress summary |
 | [FEATURES.md](FEATURES.md) | Feedback, Game Library, chat, reminders, revision, analysis, PDF import, SEO (and the claude-seo audit tool), privacy |
 | [GAME_ANALYSIS.md](GAME_ANALYSIS.md) | Engine evaluation, move classification, accuracy, tactics |
+| [CLASS_RECAPS.md](CLASS_RECAPS.md) | AI class recaps from the coach's transcript: drafted between classes, reviewed and published by the coach or an admin |
 | [AI_PLAY_REVIEW.md](AI_PLAY_REVIEW.md) | One record of every board move, the nightly engine review, outside-AI comments behind a consent switch |
 | [GAME_SOURCES.md](GAME_SOURCES.md) | Importing a student's own games |
 | [TOURNAMENTS.md](TOURNAMENTS.md) | Tournament platform (Swiss, Arena, Round Robin, Knockout): assessment and phased plan — not built yet |

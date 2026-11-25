@@ -1170,6 +1170,7 @@ model CoachClass {
   cancellationReason String?
 
   liveSession              LiveSession?                     @relation("LiveSessionSchedule")
+  classRecap               ClassRecap?
   attendances              ClassAttendance[]
   coachAttendance          CoachAttendance?
   recordingWatchProgresses RecordingWatchProgress[]
@@ -9640,4 +9641,75 @@ model LiveClassBoardMove {
   @@unique([chessGameId, ply])
   @@index([studentId])
   @@map("live_class_board_moves")
+}
+
+enum ClassRecapStatus {
+  QUEUED
+  RUNNING
+  READY
+  PUBLISHED
+  DISCARDED
+  FAILED
+  SKIPPED
+}
+
+enum ClassRecapProvider {
+  LOCAL
+  OUTSIDE
+}
+
+/// The AI recap of one class, drafted from the coach's transcript
+/// (docs/CLASS_RECAPS.md). Students see `contentJson` only once PUBLISHED.
+/// Derived data: deleted with its class, never soft-deleted.
+model ClassRecap {
+  id            String              @id @default(cuid())
+  tenantId      String              @default("tenant_nexa")
+  classId       String              @unique
+  class         CoachClass          @relation(fields: [classId], references: [id], onDelete: Cascade)
+  status        ClassRecapStatus    @default(QUEUED)
+  /// Not picked up before this (the coach's last transcript lines may still arrive).
+  notBefore     DateTime            @default(now())
+  /// Runs started for the current draft; reset by a regeneration.
+  attempts      Int                 @default(0)
+  regenerations Int                 @default(0)
+  /// NO_TRANSCRIPT | TOO_SHORT | MODEL_ERROR | INVALID_OUTPUT | NO_PROVIDER
+  failureCode   String?
+  provider      ClassRecapProvider?
+  providerName  String?
+  model         String?
+  promptVersion String?
+  modelCalls    Int?
+  latencyMs     Int?
+  /// Sentences/items the clean-up removed (naming a student code or writing notation).
+  removedCount  Int?
+  /// The model's draft as generated (ClassRecapContent); never edited.
+  draftJson     Json?
+  /// What students see once published: the draft with the reviewer's edits.
+  contentJson   Json?
+  editedAt      DateTime?
+  editedById    String?
+  generatedAt   DateTime?
+  publishedAt   DateTime?
+  publishedById String?
+  /// The reviewer's thumbs: 1 up, -1 down.
+  rating        Int?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@index([status, notBefore])
+  @@index([tenantId, status, updatedAt])
+  @@map("class_recaps")
+}
+
+/// An academy's class recap switches (one row per academy; defaults when absent).
+model ClassRecapSettings {
+  id          String             @id @default(cuid())
+  tenantId    String             @unique @default("tenant_nexa")
+  enabled     Boolean            @default(true)
+  provider    ClassRecapProvider @default(LOCAL)
+  updatedById String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@map("class_recap_settings")
 }

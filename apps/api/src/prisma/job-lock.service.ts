@@ -10,6 +10,7 @@ export const JOB_LOCKS = {
   approvalExpiry: "approvals.expiry",
   attendanceHeartbeatSweep: "attendance.heartbeat-sweep",
   attendanceRoomPresenceSweep: "attendance.room-presence-sweep",
+  classRecaps: "class-recaps.run",
   dailyPuzzleWhatsApp: "daily-puzzle.whatsapp",
   demoReminders: "demo.reminders",
   demoScheduleTopUp: "demo-schedule.top-up",

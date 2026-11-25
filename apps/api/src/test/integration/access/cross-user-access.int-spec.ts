@@ -83,6 +83,12 @@ describe("cross-user access (real app, real Postgres)", () => {
     });
     expect(await t.prisma.liveChatMessage.count({ where: { senderId: a.student.id } })).toBe(0);
     expect(await t.prisma.liveClassTranscriptSegment.count()).toBe(0);
+    expect(await t.prisma.classRecap.findUnique({ where: { classId: b.class.id } })).toMatchObject({
+      contentJson: expect.objectContaining({ recap: expect.stringMatching(/^Recap .*B\.$/) }),
+      rating: null,
+      regenerations: 0,
+      status: "READY"
+    });
     expect(await t.prisma.aiReviewConsent.count()).toBe(0);
     expect(await t.prisma.coachProfile.count({ where: { transcriptConsentAt: { not: null } } })).toBe(0);
     expect(await t.prisma.chatMessage.count({ where: { senderId: a.student.id } })).toBe(0);

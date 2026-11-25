@@ -401,6 +401,14 @@ export const queryKeys = {
     policies: ["retention", "policies"] as const,
     preview: (category: string, days: number) => ["retention", "preview", category, days] as const,
   },
+  classRecaps: {
+    all: ["class-recaps"] as const,
+    list: (params: Record<string, unknown>) => ["class-recaps", "list", params] as const,
+    forClass: (classId: string) => ["class-recaps", "class", classId] as const,
+    feedMine: ["class-recaps", "feed", "me"] as const,
+    reviewCount: ["class-recaps", "review-count"] as const,
+    settings: ["class-recaps", "settings"] as const
+  },
   playReview: {
     all: ["play-review"] as const,
     feed: (studentId: string, source: string) => ["play-review", "feed", studentId, source] as const,

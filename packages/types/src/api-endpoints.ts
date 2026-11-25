@@ -1051,6 +1051,20 @@ export const API_ROUTES = {
   },
   // AI play review (docs/AI_PLAY_REVIEW.md): the play feed + engine review
   // (student own, their coach, admins), the outside-AI switch, academy settings.
+  // AI class recaps from the coach's transcript (docs/CLASS_RECAPS.md).
+  classRecaps: {
+    list: "/class-recaps",
+    reviewCount: "/class-recaps/review-count",
+    feedMine: "/class-recaps/me",
+    forClass: (classId: string = ":classId") => `/class-recaps/class/${classId}`,
+    publish: (classId: string = ":classId") => `/class-recaps/class/${classId}/publish`,
+    unpublish: (classId: string = ":classId") => `/class-recaps/class/${classId}/unpublish`,
+    discard: (classId: string = ":classId") => `/class-recaps/class/${classId}/discard`,
+    restore: (classId: string = ":classId") => `/class-recaps/class/${classId}/restore`,
+    regenerate: (classId: string = ":classId") => `/class-recaps/class/${classId}/regenerate`,
+    rating: (classId: string = ":classId") => `/class-recaps/class/${classId}/rating`,
+    settings: "/admin/class-recaps/settings"
+  },
   playReview: {
     feedMine: "/play-review/me/feed",
     feed: (id: string = ":id") => `/play-review/students/${id}/feed`,

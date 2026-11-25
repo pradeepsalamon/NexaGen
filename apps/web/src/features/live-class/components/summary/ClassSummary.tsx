@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/Badge";
 import { enumLabel } from "@/lib/utils";
 import { Spinner } from "@/components/ui/Spinner";
 import { ClassTranscriptCard } from "@/features/live-captions/components/ClassTranscriptCard";
+import { ClassRecapCard } from "@/features/class-recap/components/ClassRecapCard";
 
 function Shell({
   badge,
@@ -125,6 +126,9 @@ export function ClassSummary({ classId }: { classId: string }) {
       {data.status !== "CANCELLED" && data.viewerRole !== "STUDENT" ? (
         <ClassTranscriptCard classId={classId} topic={data.topic} />
       ) : null}
+
+      {/* The AI recap: staff see its status and review it; students see it once published. */}
+      {data.status !== "CANCELLED" ? <ClassRecapCard classId={classId} /> : null}
 
       {data.status === "CANCELLED" ? (
         <EmptyState icon={Ban} title="This class was cancelled" />

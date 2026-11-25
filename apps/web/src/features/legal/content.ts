@@ -73,6 +73,11 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       },
       {
         detail:
+          "If the academy turns it on, a class's transcript is used to draft a short recap of the class for its students: what was covered, the key ideas and what to practise. Students' names are replaced with codes before an AI model reads the text, and the recap never names a student. The model runs on the academy's own server unless the academy chooses an outside AI service. The class's coach or an academy admin reviews and can edit every recap; students see it only after it is published, always marked as prepared with AI assistance.",
+        label: "AI class recaps"
+      },
+      {
+        detail:
           "Orders, payments, invoices, refunds, subscriptions and your billing name and address (and GSTIN, if you give one). Card and UPI details are entered with the payment provider; we never see or store them.",
         label: "Payments"
       },
@@ -129,6 +134,11 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       },
       {
         detail:
+          "Only if an academy chooses an outside AI service for its class recaps instead of its own server: the coach's class transcript, with every student's and the coach's name replaced by a code, is sent to that service to draft the recap. Never an email, account id, batch or academy. The service may keep what it is sent under its own terms. None is in use yet; the service is named here before anything is sent.",
+        label: "Outside AI service (class recaps)"
+      },
+      {
+        detail:
           "Error reports go to Sentry with only an internal user ID and your role — never your name, email or messages.",
         label: "Sentry"
       },
@@ -179,6 +189,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       { detail: "Removed after 90 days.", label: "Help-centre searches" },
       { detail: "Our record of what was sent to Meta is removed after 180 days.", label: "Ad measurement events" },
       { detail: "Removed after 30 days.", label: "Class transcripts" },
+      { detail: "Kept with the class they describe; a coach or admin can unpublish one at any time.", label: "AI class recaps" },
       { detail: "Our copy is removed after a year.", label: "Emails academy staff write to you" },
       {
         detail: "Engine reviews of a student's play, and any outside-AI comments on them, are removed after a year. The moves themselves are kept with the class, puzzle or game they belong to.",

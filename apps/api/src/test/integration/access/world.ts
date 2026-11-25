@@ -47,6 +47,11 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
     }
   });
   await prisma.classAttendance.create({ data: { classId: klass.id, studentId: student.id } });
+  // An AI recap waiting for review (docs/CLASS_RECAPS.md).
+  const recapContent = { keyPoints: [`Idea ${label}`], practice: [], recap: `Recap ${label}.` };
+  await prisma.classRecap.create({
+    data: { classId: klass.id, contentJson: recapContent, draftJson: recapContent, status: "READY" }
+  });
 
   // The coach's own PRIVATE puzzle: visible to the author, admins and the author's students only.
   const privatePuzzle = await prisma.puzzle.create({
