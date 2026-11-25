@@ -117,7 +117,8 @@ Reviews are derived and kept a year (`RETENTION_RULES`). The weekly roll-up
 - **Provider**: any OpenAI-compatible chat API, from env
   (`AI_REVIEW_PROVIDER_URL`, `_API_KEY`, `_MODEL`, `_NAME`, `_TIMEOUT_MS`); all
   of URL/key/model unset = off. Not connected yet (no key): the owner picks a
-  provider later. Free tiers may train on what they're sent; pick one whose
+  provider later. Free models compared: [ai/PROVIDER_EVAL.md](ai/PROVIDER_EVAL.md)
+  (note: the comment call's `max_tokens: 400` is too small for thinking models). Free tiers may train on what they're sent; pick one whose
   terms the academy accepts, and **name it in the privacy policy before
   turning it on** (`features/legal/content.ts` says none is in use yet).
 - **Pseudonymised payload** (`pseudonymisePlay`): source kind, start FENs,

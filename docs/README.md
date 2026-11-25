@@ -57,6 +57,7 @@ stay as written; the living doc for that area wins where they disagree.
 | [UNIQUE_FEATURES_PROPOSAL.md](UNIQUE_FEATURES_PROPOSAL.md) | 6 unique differentiator features: AI Growth Card, Coach Co-Pilot, Repertoire Bot, Clan Battles, Highlights, WhatsApp Puzzle Streak |
 | [BUSINESS_GROWTH_PLAYBOOK.md](BUSINESS_GROWTH_PLAYBOOK.md) | Marketing & lead velocity: 3-tap WhatsApp booking, Meta ad angles, landing page quiz, no-show reduction, referral loops |
 | [ai/architecture/ROADMAP.md](ai/architecture/ROADMAP.md) | AI runtime plan; ADRs and phase specs live beside it |
+| [ai/PROVIDER_EVAL.md](ai/PROVIDER_EVAL.md) | Free outside-AI models compared per feature (Groq, Gemini, OpenRouter, local qwen): quality, tokens, free daily limits, best model per feature |
 
 ## Operations
 

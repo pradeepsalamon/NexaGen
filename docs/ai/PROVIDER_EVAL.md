@@ -14,14 +14,16 @@ the free quota carry an academy of medium size?
 **Short answer**
 
 - **Groq `qwen/qwen3.8-27b` is the best free default for almost everything.**
-  It was correct or nearly so on every task, the fastest by far (0.1–1.3 s),
-  the cheapest in tokens (it doesn't "think"), and its free quota (1,000
-  requests and PENDING_QWEN_TPD tokens a day) carries **all features together at medium
-  volume on one model**.
+  It was correct or nearly so on every task, the fastest by far (0.1–1.3 s)
+  and the cheapest in tokens (it doesn't "think"). Its free quota is 1,000
+  requests and 200,000 tokens a day; all features at medium volume would need
+  ~214,000, so it carries everything except the Tamil work and puzzle hints,
+  which go to Gemini Flash-Lite (§6). That split uses ~71% and ~64% of the
+  two free quotas.
 - **Gemini 3.1 Flash-Lite** is the best Tamil writer (translation and
-  Tamil-script recap) and a good second model; 15 requests a minute and
-  PENDING_LITE_RPD a day. It wrote a dishonest progress note for a struggling
-  student, so it should not write progress notes.
+  Tamil-script recap) and a good second model: 15 requests a minute, 500 a
+  day. It wrote a sugar-coated progress note for a struggling student, so it
+  should not write progress notes.
 - **Gemini 3.5 / 3.8 Flash** write the best English recaps, but the free tier
   gives **20 requests a day** and is overloaded (503) much of the time: fine
   for 10 recaps a day at most, not for production volume.
@@ -88,10 +90,10 @@ a real 20-minute class, so recap tokens are doubled in §5.
 |---|---|---|---|---|
 | Groq, each model separately | 30 requests, **8,000 tokens** | 1,000 requests | rolling | `x-ratelimit-*` headers |
 | Groq `gpt-oss-120b`, `gpt-oss-20b` | | **200,000 tokens** | rolling | run to the limit: 209 / 197 game reviews, then 429 "tokens per day (TPD): Limit 200000" |
-| Groq `qwen3.8-27b` | | PENDING_QWEN_LIMIT | rolling | run to the limit |
-| Gemini `3.1-flash-lite` | 15 requests | PENDING_LITE_RPD | 00:00 Pacific (08:00 UTC) | 429 quota bodies; run to the limit |
-| Gemini `3.8-flash` | PENDING | **20 requests** | 00:00 Pacific | 429 "requests per day … limit: 20" after 3 answers + 10 overload (503) answers + 2 per-minute 429s, so overload answers very likely count |
-| Gemini `3.5-flash` | PENDING | PENDING | 00:00 Pacific | |
+| Groq `qwen3.8-27b` | | **200,000 tokens** | rolling | run to the limit: 391 game reviews, then 429 "TPD: Limit 200000" |
+| Gemini `3.1-flash-lite` | 15 requests | **500 requests** | 00:00 Pacific (08:00 UTC) | run to the limit: 25 eval + 467 game reviews (≈ 200,000 tokens), then 429 "requests per day … limit: 500" |
+| Gemini `3.8-flash` | not reached | **20 requests** | 00:00 Pacific | 429 "requests per day … limit: 20" after 3 answers + 10 overload (503) answers + 2 per-minute 429s, so overload answers very likely count |
+| Gemini `3.5-flash` | not reached | **20 requests** | 00:00 Pacific | 429 "limit: 20" after 11 answers + 8 × 503 + 1 timeout: overload answers count |
 | OpenRouter, all `:free` models together | 20 requests | **50 requests for the whole account** | 00:00 UTC | the key's `free_model_daily_requests`; 429 "free-models-per-day" at exactly 50 |
 | Ours (`qwen2.5:3b`) | — | CPU-bound: ~11 s a game review, ~2 min an English recap, ~6 min a Tamil-script recap on 1.5 cores | — | 30 game reviews in 5 min 23 s |
 
@@ -123,7 +125,54 @@ Data Retention.
 ✓ correct and usable · ~ usable with a fault · ✗ wrong or unusable.
 Notes give the fault. Full outputs: `runs/<model>/<task>__<item>.json`.
 
-PENDING_QUALITY_TABLE
+Columns: Groq **120b** / **20b** (`gpt-oss`), **q3.8** (`qwen3.8-27b`);
+Gemini **Lite** (`3.1-flash-lite`), **3.5F** / **3.8F** (Flash); OpenRouter
+**Ultra** / **SVL** (Nemotron); **ours** (`qwen2.5:3b`).
+
+| Feature | 120b | 20b | q3.8 | Lite | 3.5F | 3.8F | Ultra | SVL | ours |
+|---|---|---|---|---|---|---|---|---|---|
+| Recap, English transcript | ✓ | ✓ | ✓ | ✓ | ✓ best | ✓ best | ✓ | ✓ | ✓ |
+| Recap, Tamil-English (Latin) | ✓ | ~ a | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ b |
+| Recap, Tamil-script transcript → English | ✗ c | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ d |
+| Recap written in Tamil script | ✗ c | ✓ | ~ e | ✓ | ✓ | PENDING_38_TA | ✓ | ✓ | ✗ d |
+| Game review | ✓ | ✗ f | ✓ | ✓ | ✓ | PENDING_38 | ~ g | ✓ best | ✗ h |
+| Tamil translation | ~ i | ~ j | ✓ | ✓ best | ✓ | PENDING_38 | ✗ k | ~ l | ✗ m |
+| Progress note | ~ n | ~ o | ✓ best | ✗ p | ✓ | PENDING_38 | ✓ | ✓ | ✗ q |
+| Puzzle hint (3) | ✓ | ~ r | ✓ | ✓ | PENDING_35 | PENDING_38 | ✓ | ~ s | ~ t |
+| Coach feedback (2) | ~ u | ✗ v | ✓ best | ✓ | PENDING_35 | PENDING_38 | ✓ | ✓ | ~ w |
+| Support pick (5) | 5/5 | 5/5 | 5/5 | 5/5 | PENDING_35 | PENDING_38 | 5/5 | 5/5 | 2/5 x |
+| Chess facts (5) | 5/5 | 4/5 y | 5/5 | 5/5 | PENDING_35 | PENDING_38 | 5/5 | PENDING_SVL | 4/5 z |
+
+- a: explains a pin as a piece "blocking a more powerful piece from attacking the king".
+- b: key points are bare topic labels; the skewer explanation is wrong.
+- c: read "பன்னிரண்டு" (twelve) as "two" and Saturday as Sunday for the homework — in both the English and the Tamil recap.
+- d: invents a class about "how the pieces move" / pawn promotion; nothing about the back-rank mate the coach taught. Each call took ~6 min.
+- e: "ஹெட் பான்" (head pawn) for the h-pawn.
+- f: praises the student for Bxf7+ and Nd5# — the opponent's moves (wrong side).
+- g: "checkmate on move 31" (the game ended on move 23); its Légal's-mate review was the best of all.
+- h: third person ("The student"), invents that "the rook takes on d1", writes Black's moves for the White player.
+- i: accurate but formal, English glosses in brackets, calls pieces "கற்கள்" (stones).
+- j: one of two failed: Groq JSON mode answered 400 `json_validate_failed`, twice (deterministic at temperature 0).
+- k: transliterates every word (க்னைட், பஸ்ல்ஸ்), broken grammar.
+- l: mixes Bengali words (দিয়ে) into the Tamil; typo.
+- m: one answer was "...", the other meaningless Tamil.
+- n: for the struggling student, hides the attendance and homework problems; "He/she".
+- o: honest but a cold list of numbers.
+- p: tells the parent of the struggling student it was "a productive October" and leaves out the attendance problem.
+- q: "did very well in October" for the struggling student; suggests a topic not in the data.
+- r: second hint nearly states the move.
+- s: knight-fork hints give the whole solution.
+- t: knight-fork hint 1 is misleading ("the knight is attacking the king and rook" — not yet).
+- u: Tamil-English notes: "about half of the homework" (coach said only 2 done); leaks "(rating 4)".
+- v: turned the Tamil-English notes upside down ("we will keep the camera off next time", "homework will be limited to two tasks").
+- w: generic; drops the forks and camera details.
+- x: answers "none" to every real question (even "how to join").
+- y: the 5th failed on JSON mode (see j).
+- z: en passant explained wrongly ("passed through your square").
+
+Every model that answered kept the student codes out, wrote no chess
+notation in recaps (the app's cleaner removed nothing except 3 items from
+ours), and invented no numbers in progress notes.
 
 ## 4. Tokens and time per unit
 
@@ -147,11 +196,65 @@ PENDING_CAPACITY_TABLES
 
 ## 6. Best model per feature
 
-PENDING_BEST
+Weighs quality (§3), free capacity at medium volume (§5) and speed. "Best
+quality" is the best answer seen regardless of quota.
+
+| Feature | Use (free) | Fallback | Best quality seen | Don't use |
+|---|---|---|---|---|
+| Class recap (English) | Groq `qwen3.8-27b` | Gemini Flash-Lite | Gemini 3.5 / 3.8 Flash (20 requests a day: ≤ 10 recaps) | ours for Tamil transcripts; `gpt-oss-120b` for Tamil-script transcripts |
+| Recap in Tamil script | Gemini Flash-Lite | Groq `gpt-oss-20b` | Gemini 3.5 Flash | `gpt-oss-120b`, ours |
+| Game review (play review) | Groq `qwen3.8-27b` | Gemini Flash-Lite | Nemotron Super-VL (50 a day) | `gpt-oss-20b` (wrong side), ours |
+| Tamil translation | Gemini Flash-Lite | Groq `qwen3.8-27b` | Gemini Flash-Lite | Nemotron Ultra, ours |
+| Monthly progress note | Groq `qwen3.8-27b` | Gemini 3.5 Flash (spread over days) | `qwen3.8-27b` | Gemini Flash-Lite (sugar-coats), ours |
+| Puzzle hint | Groq `qwen3.8-27b` | Gemini Flash-Lite | any but Super-VL | — |
+| Coach feedback message | Groq `qwen3.8-27b` | Gemini Flash-Lite | `qwen3.8-27b` | `gpt-oss-20b`, ours |
+| Support saved-answer pick | Groq `qwen3.8-27b` (0.1 s) | Gemini Flash-Lite | all outside models 5/5 | ours (2/5) |
+| Chess facts | Groq `qwen3.8-27b` | Gemini Flash-Lite | all outside models | — |
+
+**A plan that fits the free quotas at medium volume** (average day, recaps at
+real length):
+
+| Model | Features | Requests / limit | Tokens / limit |
+|---|---|---|---|
+| Groq `qwen3.8-27b` | recaps, game reviews, progress notes, coach feedback, support picks, chess facts | ~175 / 1,000 | ~142,000 / 200,000 (71%) |
+| Gemini Flash-Lite | Tamil translations, Tamil-script recaps, puzzle hints | ~320 / 500 (64%) | no daily token cap seen |
+
+On a month-end day, 150 progress notes + 150 feedback messages add ~107,000
+tokens to `qwen3.8-27b` — over its 200,000. Spread month-end notes over 2–3
+days, or let them fall back to the second model. Caching hints per puzzle
+(the library is shared) would cut the 214 hints a day to new puzzles only.
+Nothing else is needed for medium volume; at double volume the plan needs a
+paid tier or a third free model.
 
 ## 7. Things the app should change (found in this run)
 
-PENDING_CHANGES
+1. **Play review leaves thinking models no room.** `outside-ai.ts` sends
+   `max_tokens: 400`; `gpt-oss` used 470–490 thinking tokens on a review,
+   Gemini Flash ~1,100–1,450, Nemotron up to 1,400. With 400 they return
+   nothing or a cut answer. Give it the same `OUTSIDE_THINKING_TOKENS` room as
+   recaps (this run did), or pick a non-thinking model (`qwen3.8-27b`, Flash-Lite).
+2. **One outside provider for everything.** `AI_REVIEW_PROVIDER_*` serves
+   both recaps and the play review. The plan in §6 needs a model per
+   feature and a fallback provider (Groq → Gemini) when one answers 429/503.
+3. **Groq JSON mode can refuse** with 400 `json_validate_failed` (`gpt-oss-20b`,
+   2 of 25, same items every time). Treat it like an unusable answer: one
+   retry without `response_format` and parse with `parseModelJson`.
+4. **Gemini free tier: overload answers count against the 20 a day**
+   (3.5 Flash: 11 answers + 8 × 503 + 1 timeout = 20, then 429). Don't retry
+   Gemini Flash in a tight loop; Flash-Lite was overloaded only once in 25.
+5. **Recap chunk size.** All test recaps fit one call at 2,500 estimated
+   tokens; a real class takes 2–3 calls, each counting against the daily
+   requests. The outside models take far more context (Groq's limit is 8,000
+   tokens a minute, so ~6,000 a call is safe), so a separate, larger chunk for
+   outside models halves recap requests. `estimateTokens` overestimates
+   Tamil script by ~1.5× for these tokenizers (safe side).
+6. **Local `qwen2.5:3b`** should stay off for Tamil-script transcripts (it
+   invents a different lesson) and is too slow for daytime work (6 min a call
+   on Tamil). It's fine for English recaps at night.
+7. **Name the provider and switch on Zero Data Retention** before going live
+   (§2.1); decide whether Gemini's free terms are acceptable for
+   pseudonymised class text (logged as a question in
+   [BACKLOG.md](../BACKLOG.md)).
 
 ## 8. Caveats
 
