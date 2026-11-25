@@ -162,7 +162,9 @@ export function Combobox({
 
   return (
     <ComboboxContext.Provider value={contextValue}>
-      <div className={cn("relative", className)} ref={containerRef}>
+      {/* min-w-0: as a grid/flex item it may shrink below the input's natural width
+          (phones enlarge text, which otherwise widened the whole page). */}
+      <div className={cn("relative min-w-0", className)} ref={containerRef}>
         {children}
       </div>
     </ComboboxContext.Provider>
