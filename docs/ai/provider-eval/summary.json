@@ -3647,21 +3647,45 @@
       }
     },
     {
-      "checks": null,
+      "checks": {
+        "json": true,
+        "mentions": true
+      },
       "item": "c4-stalemate",
       "model": "openrouter/nvidia/nemotron-3.5-super-vl:free",
-      "ms": 25,
-      "modelMs": 0,
-      "ok": false,
-      "rateLimited": 1,
+      "ms": 1598,
+      "modelMs": 1596,
+      "ok": true,
+      "rateLimited": 0,
       "serverErrors": 0,
       "task": "chess-facts",
       "usage": {
-        "calls": 0,
-        "completion": 0,
-        "prompt": 0,
-        "reasoning": 0,
-        "total": 0
+        "calls": 1,
+        "completion": 162,
+        "prompt": 81,
+        "reasoning": 139,
+        "total": 243
+      }
+    },
+    {
+      "checks": {
+        "json": true,
+        "mentions": true
+      },
+      "item": "c5-castle-after-king-moved",
+      "model": "openrouter/nvidia/nemotron-3.5-super-vl:free",
+      "ms": 4798,
+      "modelMs": 4798,
+      "ok": true,
+      "rateLimited": 0,
+      "serverErrors": 0,
+      "task": "chess-facts",
+      "usage": {
+        "calls": 1,
+        "completion": 175,
+        "prompt": 84,
+        "reasoning": 146,
+        "total": 259
       }
     },
     {
@@ -4196,19 +4220,19 @@
     },
     {
       "callsPerUnit": 1,
-      "completionPerUnit": 215,
-      "failed": 1,
+      "completionPerUnit": 196,
+      "failed": 0,
       "failedTries": 1,
       "model": "openrouter/nvidia/nemotron-3.5-super-vl:free",
-      "ok": 3,
-      "promptPerUnit": 74,
-      "rateLimited": 1,
-      "reasoningPerUnit": 178,
-      "secondsPerUnit": 1.9,
+      "ok": 5,
+      "promptPerUnit": 77,
+      "rateLimited": 0,
+      "reasoningPerUnit": 164,
+      "secondsPerUnit": 2.4,
       "serverErrors": 0,
       "task": "chess-facts",
-      "totalPerUnit": 289,
-      "units": 4
+      "totalPerUnit": 274,
+      "units": 5
     },
     {
       "callsPerUnit": 1,

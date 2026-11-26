@@ -94,7 +94,7 @@ a real 20-minute class, so recap tokens are doubled in §5.
 | Gemini `3.1-flash-lite` | 15 requests | **500 requests** | 00:00 Pacific (08:00 UTC) | run to the limit: 25 eval + 467 game reviews (≈ 200,000 tokens), then 429 "requests per day … limit: 500" |
 | Gemini `3.8-flash` | not reached | **20 requests** | 00:00 Pacific | 429 "requests per day … limit: 20" after 3 answers + 10 overload (503) answers + 2 per-minute 429s, so overload answers very likely count |
 | Gemini `3.5-flash` | not reached | **20 requests** | 00:00 Pacific | 429 "limit: 20" after 11 answers + 8 × 503 + 1 timeout: overload answers count |
-| OpenRouter, all `:free` models together | 20 requests | **50 requests for the whole account** | 00:00 UTC | the key's `free_model_daily_requests`; 429 "free-models-per-day" at exactly 50 |
+| OpenRouter, all `:free` models together | 20 requests | **50 requests for the whole account** | 00:00 UTC | the key's `free_model_daily_requests`; day 1: 429 "free-models-per-day" at exactly 50 (one request at a time); day 2: both models together, 2 + 15 + 40 = 57 answered (the counter read "used 56, limit 50": parallel requests slip a few past the cap) |
 | Ours (`qwen2.5:3b`) | — | CPU-bound: ~11 s a game review, ~2 min an English recap, ~6 min a Tamil-script recap on 1.5 cores | — | 30 game reviews in 5 min 23 s |
 
 OpenRouter lifts its free cap to 1,000 requests a day after a one-time
@@ -141,7 +141,7 @@ Gemini **Lite** (`3.1-flash-lite`), **3.5F** / **3.8F** (Flash); OpenRouter
 | Puzzle hint (3) | ✓ | ~ r | ✓ | ✓ | PENDING_35 | PENDING_38 | ✓ | ~ s | ~ t |
 | Coach feedback (2) | ~ u | ✗ v | ✓ best | ✓ | PENDING_35 | PENDING_38 | ✓ | ✓ | ~ w |
 | Support pick (5) | 5/5 | 5/5 | 5/5 | 5/5 | PENDING_35 | PENDING_38 | 5/5 | 5/5 | 2/5 x |
-| Chess facts (5) | 5/5 | 4/5 y | 5/5 | 5/5 | PENDING_35 | PENDING_38 | 5/5 | PENDING_SVL | 4/5 z |
+| Chess facts (5) | 5/5 | 4/5 y | 5/5 | 5/5 | PENDING_35 | PENDING_38 | 5/5 | 5/5 | 4/5 z |
 
 - a: explains a pin as a piece "blocking a more powerful piece from attacking the king".
 - b: key points are bare topic labels; the skewer explanation is wrong.
@@ -183,7 +183,124 @@ own answer time, not rate-limit waits. Tamil script costs about 2.5× the
 tokens per word of English on gpt-oss and qwen (Gemini's tokenizer is
 cheaper: 1,431 vs 1,860 prompt tokens for the same Tamil class).
 
-PENDING_TOKEN_TABLES
+<!-- generated:tokens (scripts/ai/provider-eval/summarize.cjs) -->
+#### chess-facts
+
+| Model | OK | Failed tries | Calls/unit | Prompt | Answer | (thinking) | Total tokens/unit | s/unit | 429s | 5xx |
+|---|---|---|---|---|---|---|---|---|---|---|
+| gemini/gemini-3.1-flash-lite | 5/5 | 0 | 1 | 65 | 31 | 0 | 96 | 18.4 | 0 | 0 |
+| groq/openai/gpt-oss-120b | 5/5 | 0 | 1 | 162 | 136 | 95 | 298 | 0.6 | 2 | 0 |
+| groq/openai/gpt-oss-20b | 4/5 | 2 | 1 | 162 | 98 | 58 | 260 | 0.4 | 2 | 0 |
+| groq/qwen/qwen3.8-27b | 5/5 | 0 | 1 | 79 | 29 | 0 | 108 | 0.1 | 2 | 0 |
+| local/qwen2.5:3b | 5/5 | 0 | 1 | 73 | 24 | 0 | 97 | 12.7 | 0 | 0 |
+| openrouter/nvidia/nemotron-3-ultra-550b-a55b:free | 5/5 | 0 | 1 | 77 | 95 | 65 | 173 | 2 | 0 | 0 |
+| openrouter/nvidia/nemotron-3.5-super-vl:free | 5/5 | 1 | 1 | 77 | 196 | 164 | 274 | 2.4 | 0 | 0 |
+
+#### coach-feedback
+
+| Model | OK | Failed tries | Calls/unit | Prompt | Answer | (thinking) | Total tokens/unit | s/unit | 429s | 5xx |
+|---|---|---|---|---|---|---|---|---|---|---|
+| gemini/gemini-3.1-flash-lite | 2/2 | 0 | 1 | 176 | 84 | 0 | 260 | 5.2 | 0 | 0 |
+| groq/openai/gpt-oss-120b | 2/2 | 0 | 1 | 268 | 418 | 329 | 686 | 1.3 | 1 | 0 |
+| groq/openai/gpt-oss-20b | 2/2 | 0 | 1 | 268 | 412 | 350 | 680 | 0.8 | 1 | 0 |
+| groq/qwen/qwen3.8-27b | 2/2 | 0 | 1 | 190 | 81 | 0 | 271 | 0.2 | 0 | 0 |
+| local/qwen2.5:3b | 2/2 | 0 | 1 | 184 | 67 | 0 | 251 | 19.5 | 0 | 0 |
+| openrouter/nvidia/nemotron-3-ultra-550b-a55b:free | 2/2 | 0 | 1 | 191 | 436 | 365 | 627 | 12.7 | 0 | 0 |
+| openrouter/nvidia/nemotron-3.5-super-vl:free | 2/2 | 0 | 1 | 191 | 1446 | 1385 | 1636 | 11.2 | 0 | 0 |
+
+#### game-review
+
+| Model | OK | Failed tries | Calls/unit | Prompt | Answer | (thinking) | Total tokens/unit | s/unit | 429s | 5xx |
+|---|---|---|---|---|---|---|---|---|---|---|
+| gemini/gemini-3.1-flash-lite | 2/2 | 0 | 1 | 346 | 90 | 0 | 436 | 1.8 | 0 | 0 |
+| gemini/gemini-3.5-flash | 2/2 | 0 | 1 | 346 | 1291 | 1195 | 1637 | 101.4 | 0 | 6 |
+| gemini/gemini-3.8-flash | 0/1 | 1 | – | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
+| groq/openai/gpt-oss-120b | 2/2 | 0 | 1 | 433 | 593 | 491 | 1025 | 1.5 | 2 | 0 |
+| groq/openai/gpt-oss-20b | 2/2 | 0 | 1 | 433 | 561 | 470 | 994 | 0.9 | 2 | 0 |
+| groq/qwen/qwen3.8-27b | 2/2 | 0 | 1 | 383 | 84 | 0 | 466 | 0.3 | 3 | 0 |
+| local/qwen2.5:3b | 2/2 | 0 | 1 | 379 | 72 | 0 | 451 | 32.6 | 0 | 0 |
+| openrouter/nvidia/nemotron-3-ultra-550b-a55b:free | 2/2 | 0 | 1 | 396 | 550 | 462 | 946 | 14.1 | 0 | 0 |
+| openrouter/nvidia/nemotron-3.5-super-vl:free | 2/2 | 0 | 1 | 396 | 1009 | 927 | 1405 | 9.7 | 0 | 0 |
+
+#### progress-note
+
+| Model | OK | Failed tries | Calls/unit | Prompt | Answer | (thinking) | Total tokens/unit | s/unit | 429s | 5xx |
+|---|---|---|---|---|---|---|---|---|---|---|
+| gemini/gemini-3.1-flash-lite | 2/2 | 0 | 1 | 263 | 170 | 0 | 432 | 2.8 | 0 | 0 |
+| gemini/gemini-3.5-flash | 2/2 | 0 | 1 | 263 | 1870 | 1684 | 2133 | 11 | 0 | 0 |
+| groq/openai/gpt-oss-120b | 2/2 | 0 | 1 | 355 | 773 | 634 | 1128 | 1.8 | 2 | 0 |
+| groq/openai/gpt-oss-20b | 2/2 | 0 | 1 | 355 | 524 | 388 | 879 | 0.9 | 2 | 0 |
+| groq/qwen/qwen3.8-27b | 2/2 | 0 | 1 | 282 | 161 | 0 | 442 | 0.4 | 2 | 0 |
+| local/qwen2.5:3b | 2/2 | 0 | 1 | 274 | 118 | 0 | 392 | 35.7 | 0 | 0 |
+| openrouter/nvidia/nemotron-3-ultra-550b-a55b:free | 2/2 | 0 | 1 | 288 | 744 | 570 | 1032 | 21 | 0 | 0 |
+| openrouter/nvidia/nemotron-3.5-super-vl:free | 2/2 | 0 | 1 | 288 | 1207 | 1062 | 1495 | 9.2 | 0 | 0 |
+
+#### puzzle-hint
+
+| Model | OK | Failed tries | Calls/unit | Prompt | Answer | (thinking) | Total tokens/unit | s/unit | 429s | 5xx |
+|---|---|---|---|---|---|---|---|---|---|---|
+| gemini/gemini-3.1-flash-lite | 3/3 | 0 | 1 | 160 | 52 | 0 | 212 | 1.1 | 0 | 0 |
+| gemini/gemini-3.5-flash | 1/2 | 1 | 1 | 153 | 786 | 745 | 939 | 5.4 | 1 | 0 |
+| groq/openai/gpt-oss-120b | 3/3 | 0 | 1 | 258 | 280 | 236 | 538 | 0.9 | 2 | 0 |
+| groq/openai/gpt-oss-20b | 3/3 | 0 | 1 | 258 | 456 | 406 | 714 | 0.8 | 3 | 0 |
+| groq/qwen/qwen3.8-27b | 3/3 | 0 | 1 | 178 | 44 | 0 | 222 | 0.2 | 2 | 0 |
+| local/qwen2.5:3b | 3/3 | 0 | 1 | 170 | 43 | 0 | 213 | 13.5 | 0 | 0 |
+| openrouter/nvidia/nemotron-3-ultra-550b-a55b:free | 3/3 | 0 | 1 | 178 | 1433 | 1384 | 1612 | 34 | 0 | 0 |
+| openrouter/nvidia/nemotron-3.5-super-vl:free | 3/3 | 0 | 1 | 178 | 1156 | 1110 | 1335 | 13.3 | 0 | 0 |
+
+#### recap
+
+| Model | OK | Failed tries | Calls/unit | Prompt | Answer | (thinking) | Total tokens/unit | s/unit | 429s | 5xx |
+|---|---|---|---|---|---|---|---|---|---|---|
+| gemini/gemini-3.1-flash-lite | 3/3 | 0 | 1 | 1660 | 283 | 0 | 1943 | 2.4 | 0 | 0 |
+| gemini/gemini-3.5-flash | 3/3 | 0 | 1 | 1660 | 1663 | 1403 | 3323 | 52 | 0 | 2 |
+| gemini/gemini-3.8-flash | 3/3 | 0 | 1 | 1660 | 1404 | 1139 | 3064 | 143.8 | 0 | 7 |
+| groq/openai/gpt-oss-120b | 3/3 | 0 | 1 | 1842 | 768 | 502 | 2609 | 2.1 | 0 | 0 |
+| groq/openai/gpt-oss-20b | 3/3 | 0 | 1 | 1842 | 468 | 227 | 2310 | 0.9 | 0 | 0 |
+| groq/qwen/qwen3.8-27b | 3/3 | 0 | 1 | 1947 | 301 | 0 | 2248 | 0.8 | 0 | 0 |
+| local/qwen2.5:3b | 3/3 | 0 | 1 | 2727 | 150 | 0 | 2877 | 122.3 | 0 | 0 |
+| openrouter/nvidia/nemotron-3-ultra-550b-a55b:free | 3/3 | 0 | 1 | 1892 | 954 | 631 | 2847 | 39.2 | 0 | 0 |
+| openrouter/nvidia/nemotron-3.5-super-vl:free | 3/3 | 0 | 1 | 1892 | 1739 | 1507 | 3631 | 13.5 | 0 | 0 |
+
+#### recap-tamil
+
+| Model | OK | Failed tries | Calls/unit | Prompt | Answer | (thinking) | Total tokens/unit | s/unit | 429s | 5xx |
+|---|---|---|---|---|---|---|---|---|---|---|
+| gemini/gemini-3.1-flash-lite | 1/1 | 0 | 1 | 1431 | 328 | 0 | 1759 | 1.8 | 0 | 0 |
+| gemini/gemini-3.5-flash | 1/1 | 0 | 1 | 1431 | 1803 | 1448 | 3234 | 7.7 | 0 | 0 |
+| gemini/gemini-3.8-flash | 0/1 | 1 | – | 0 | 0 | 0 | 0 | 0 | 1 | 3 |
+| groq/openai/gpt-oss-120b | 1/1 | 0 | 1 | 1860 | 1176 | 724 | 3036 | 2.7 | 1 | 0 |
+| groq/openai/gpt-oss-20b | 1/1 | 0 | 1 | 1860 | 579 | 261 | 2439 | 0.9 | 1 | 0 |
+| groq/qwen/qwen3.8-27b | 1/1 | 0 | 1 | 2193 | 576 | 0 | 2769 | 1.3 | 1 | 0 |
+| local/qwen2.5:3b | 1/1 | 0 | 1 | 4521 | 142 | 0 | 4663 | 66.9 | 0 | 0 |
+| openrouter/nvidia/nemotron-3-ultra-550b-a55b:free | 1/1 | 0 | 1 | 2045 | 1169 | 734 | 3214 | 25.1 | 0 | 0 |
+| openrouter/nvidia/nemotron-3.5-super-vl:free | 1/1 | 0 | 1 | 2045 | 2685 | 2223 | 4730 | 19.4 | 0 | 0 |
+
+#### support-pick
+
+| Model | OK | Failed tries | Calls/unit | Prompt | Answer | (thinking) | Total tokens/unit | s/unit | 429s | 5xx |
+|---|---|---|---|---|---|---|---|---|---|---|
+| gemini/gemini-3.1-flash-lite | 5/5 | 0 | 1 | 487 | 36 | 0 | 522 | 1.9 | 1 | 1 |
+| groq/openai/gpt-oss-120b | 5/5 | 0 | 1 | 564 | 133 | 110 | 697 | 0.5 | 5 | 0 |
+| groq/openai/gpt-oss-20b | 5/5 | 0 | 1 | 564 | 137 | 115 | 701 | 0.5 | 3 | 0 |
+| groq/qwen/qwen3.8-27b | 5/5 | 0 | 1 | 494 | 20 | 0 | 514 | 0.1 | 2 | 0 |
+| local/qwen2.5:3b | 5/5 | 0 | 1 | 494 | 33 | 0 | 527 | 33.6 | 0 | 0 |
+| openrouter/nvidia/nemotron-3-ultra-550b-a55b:free | 5/5 | 0 | 1 | 514 | 158 | 128 | 673 | 5 | 0 | 0 |
+| openrouter/nvidia/nemotron-3.5-super-vl:free | 5/5 | 0 | 1 | 514 | 373 | 341 | 888 | 3.1 | 0 | 0 |
+
+#### translate-ta
+
+| Model | OK | Failed tries | Calls/unit | Prompt | Answer | (thinking) | Total tokens/unit | s/unit | 429s | 5xx |
+|---|---|---|---|---|---|---|---|---|---|---|
+| gemini/gemini-3.1-flash-lite | 2/2 | 0 | 1 | 160 | 136 | 0 | 296 | 2 | 0 | 0 |
+| gemini/gemini-3.5-flash | 2/2 | 0 | 1 | 160 | 1320 | 1171 | 1480 | 12.1 | 0 | 0 |
+| groq/openai/gpt-oss-120b | 2/2 | 0 | 1 | 256 | 819 | 633 | 1075 | 2 | 1 | 0 |
+| groq/openai/gpt-oss-20b | 1/2 | 2 | 1 | 265 | 1029 | 859 | 1294 | 1.5 | 1 | 0 |
+| groq/qwen/qwen3.8-27b | 2/2 | 0 | 1 | 175 | 209 | 0 | 384 | 0.5 | 0 | 0 |
+| local/qwen2.5:3b | 2/2 | 0 | 1 | 168 | 230 | 0 | 398 | 50.3 | 0 | 0 |
+| openrouter/nvidia/nemotron-3-ultra-550b-a55b:free | 2/2 | 0 | 1 | 175 | 1610 | 1410 | 1785 | 34.5 | 0 | 0 |
+| openrouter/nvidia/nemotron-3.5-super-vl:free | 2/2 | 0 | 1 | 175 | 3387 | 3191 | 3561 | 28.4 | 0 | 0 |
+<!-- /generated:tokens -->
 
 ## 5. Free daily capacity at medium volume
 
@@ -192,7 +309,32 @@ requests a day ÷ calls a unit and tokens a day ÷ tokens a unit; recaps at
 2× tokens). ✗ = less than the medium-volume need; "(peak ✗)" = enough on an
 average day but not for 150 month-end notes in one day.
 
-PENDING_CAPACITY_TABLES
+<!-- generated:capacity (scripts/ai/provider-eval/summarize.cjs) -->
+#### Free units a day per feature (each feature alone)
+
+| Feature (need/day) | gemini-3.1-flash-lite | gemini-3.5-flash | gemini-3.8-flash | openai/gpt-oss-120b | openai/gpt-oss-20b | qwen/qwen3.8-27b | nvidia/nemotron-3-ultra-550b-a55b:free | nvidia/nemotron-3.5-super-vl:free |
+|---|---|---|---|---|---|---|---|---|
+| chess-facts (30) | 500 | – | – | 671 | 769 | 1000 | 50 | 50 |
+| coach-feedback (5, peak 150) | 500 | – | – | 291 | 294 | 738 | 50 (peak ✗) | 50 (peak ✗) |
+| game-review (64) | 500 | 20 ✗ | – | 195 | 201 | 429 | 50 ✗ | 50 ✗ |
+| progress-note (5, peak 150) | 500 | 20 (peak ✗) | – | 177 | 227 | 452 | 50 (peak ✗) | 50 (peak ✗) |
+| puzzle-hint (214) | 500 | 20 ✗ | – | 371 | 280 | 900 | 50 ✗ | 50 ✗ |
+| recap (20) | 250 | 10 ✗ | 10 ✗ | 38 | 43 | 44 | 25 | 25 |
+| recap-tamil (20) | 250 | 10 ✗ | – | 32 | 41 | 36 | 25 | 25 |
+| support-pick (30) | 500 | – | – | 286 | 285 | 389 | 50 | 50 |
+| translate-ta (64) | 500 | 20 ✗ | – | 186 | 154 | 520 | 50 ✗ | 50 ✗ |
+
+#### All features together on one model, an average day
+
+| Model | Requests/day needed | Limit | Tokens/day needed | Limit | Fits? |
+|---|---|---|---|---|---|
+| gemini/gemini-3.1-flash-lite | 452 | 500 | 191,936 | not seen | yes |
+| groq/openai/gpt-oss-120b | 452 | 1000 | 392,812 | 200,000 | no |
+| groq/openai/gpt-oss-20b | 452 | 1000 | 428,253 | 200,000 | no |
+| groq/qwen/qwen3.8-27b | 452 | 1000 | 214,053 | 200,000 | no |
+| openrouter/nvidia/nemotron-3-ultra-550b-a55b:free | 452 | 50 (shared) | 667,307 | not seen | no |
+| openrouter/nvidia/nemotron-3.5-super-vl:free | 452 | 50 (shared) | 799,269 | not seen | no |
+<!-- /generated:capacity -->
 
 ## 6. Best model per feature
 
