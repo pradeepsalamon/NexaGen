@@ -216,6 +216,10 @@ Open, in order:
 6. **Moving the WhatsApp number from Frappe to NexaGen** (owner: after the release), then
    switching on, in order: `FRAPPE_CRM_STAGE_SYNC` (production; Frappe's stage names exist on
    crm.nexachess.in), `FRAPPE_CRM_STAGE_RETURN`, lead capture (bot stays off), the Conversions API
-   with a test event code, the Conversions API live, then the pixel. Owner checklist in
+   with a test event code, the Conversions API live, then the pixel.
+   **2026-11-26: production has `FRAPPE_CRM_STAGE_SYNC`, `FRAPPE_CRM_STAGE_RETURN` and
+   `SUPPORT_CAPTURE_LEADS` = true** (owner; Support settings never saved, so the env value
+   decides capture). Frappe "New Lead Welcome" was not changed. Off again = set them to `false`
+   in prod's `.env` and recreate only the API (`docker compose up -d --no-deps --no-build api`). Owner checklist in
    [BACKLOG.md](BACKLOG.md) § "Questions for the owner", 2026-11-22 night run.
 
