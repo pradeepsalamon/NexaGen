@@ -99,9 +99,9 @@ changes need the plan, reading doesn't (published recaps stay readable).
 
 - What leaves the server: nothing with the LOCAL model. With OUTSIDE, the
   pseudonymised transcript text goes to that service. Name it in
-  `features/legal/content.ts` before an academy uses it (the policy says none
-  is in use yet).
-- The policy (`features/legal/content.ts`, terms version 2026-11-25) and the
+  `features/legal/content.ts` before an academy uses it. Named: **Groq**
+  (2026-11-26); connect only Groq for recaps until another is named.
+- The policy (`features/legal/content.ts`, terms version 2026-11-26.2) and the
   coach's transcript consent (`TRANSCRIPT_CONSENT_VERSION` 2) say the
   transcript drafts recaps, maybe with an outside service; coaches are asked
   again.

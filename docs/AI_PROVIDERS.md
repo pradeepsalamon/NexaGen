@@ -76,8 +76,10 @@ and `completeOnRoute`. The console shows the new row by itself; no migration
   what they do with it (Gemini's free tier may use it with human review;
   Groq keeps nothing by default, switch on Zero Data Retention; OpenRouter
   depends on the account's privacy settings). **Name the provider in
-  `features/legal/content.ts` before connecting a key on production** (it
-  says none is in use yet).
+  `features/legal/content.ts` before connecting a key on production.**
+  Named so far: **Groq, for class recaps** (2026-11-26, terms 2026-11-26.2);
+  play review still says none is in use, so keep its academy switch off
+  until that entry names the service too.
 
 ## Free limits (measured 2026-11-25)
 
