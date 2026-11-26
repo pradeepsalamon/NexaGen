@@ -27,6 +27,11 @@ export function getErrorMessage(error: unknown, fallback: string = GENERIC) {
   return fallback;
 }
 
+/** `text` when it is written for people, else undefined (raw server, driver or runtime text). */
+export function readableErrorText(text: string | null | undefined): string | undefined {
+  return readable(text ?? undefined);
+}
+
 function readable(message: string | undefined) {
   const text = message?.trim();
   if (!text || text.length > 300 || TECHNICAL.test(text)) return undefined;

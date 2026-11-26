@@ -185,8 +185,9 @@ disagree.
 | Formatted text (messages, announcements, help articles) | `TextEditor`; show the result with `FormattedText` | Toolbar over a `Textarea`, stores readable text, never HTML. Only where the output is displayed through `FormattedText`, `markdownToPlainText`/`markdownToWhatsApp` or the email renderer, or readers see raw `**`. Everything else stays `Textarea`. |
 | Showing text someone typed | `LinkedText` (`components/ui/FormattedText.tsx`) | Chat, feedback, notes: addresses become underlined links and nothing else changes. `onColour` on a coloured surface like your own chat bubble. Never `dangerouslySetInnerHTML` or a local URL regex. |
 | Dates and times | `DatePicker`, `DateStringPicker` (for `"YYYY-MM-DD"` / `"YYYY-MM-DDTHH:mm"` state), `TimePicker`, `DateRangePicker` | Never `type="date|time|datetime-local"`. |
-| Tabs | `Tabs` / `TabsList` / `TabsTrigger` | Segmented style: clear track with a thin `border-app-border` outline (like the Storm/Racer leaderboard toggles), active tab is a solid primary chip that slides between tabs (`useSlidingIndicator`); `TabsContent` fades up (`animate-tab-panel-in`). A two-way switch may slide its content sideways instead (`animate-tab-in-left`/`-right`, register page). |
-| Inline messages / load errors | `Alert` (`error`, `warning`, `info`, `success`), `WidgetError` | Soft fill + `-ink` text. Correct `role`/`aria-live` built in. Toasts are solid fills instead (see Bulk actions). **Load errors are changing (owner 2026-11-26, see "Errors" below):** don't add new `WidgetError` boxes to page bodies. |
+| Tabs | `Tabs` / `TabsList` / `TabsTrigger` | Soft segmented style (owner 2026-11-26): a `bg-app-soft` grey track, the active tab a raised `bg-app-surface` chip (`shadow-card` + `ring-app-border`, dark text) that slides between tabs (`useSlidingIndicator`); never a solid primary chip; `TabsContent` fades up (`animate-tab-panel-in`). A two-way switch may slide its content sideways instead (`animate-tab-in-left`/`-right`, register page). |
+| Inline messages | `Alert` (`error`, `warning`, `info`, `success`) | Soft fill + `-ink` text. Correct `role`/`aria-live` built in. Toasts are solid fills instead (see Bulk actions). Not for load errors. |
+| A part of a page couldn't load | `WidgetError` (the shared error template) | Laid out like an empty state in a dashed frame: a large icon on top, a short title and one line, "Try again" centred below. Never raw server text. One per failed part, not one per query. See "Errors" below. |
 | Confirm before acting | `ConfirmationModal` (+ optional `icon`) | Never `window.confirm`. Undo policy: `lib/undo/README.md`. |
 | Forms in a popup | `Dialog` | Confirmations use `ConfirmationModal`/`AlertDialog`. |
 | Bulk actions on selected rows | `BulkActionsBar` + `useBulkAction` + `BulkResultDialog` | A neutral floating bar with a blue count chip; give every action a `tone` so it is a solid fill (white text, the same deep colours in both themes via `.solid-status`) coloured by meaning: `danger` delete, `success` publish/activate, `warning` archive (the gold accent), `info` move/email. Toasts use the same solid fills (`Toaster`, warning = gold). Selected rows and `DataTable` cards highlight themselves (globals.css: `data-state="selected"` or a ticked row checkbox), stronger than hover and with a blue leading edge. |
@@ -318,15 +319,26 @@ disagree.
   reaches a user word for word (FE review D4). ESLint enforces it
   (`no-restricted-syntax`); a device, file or local parse error whose own text is
   meant for people takes an `eslint-disable-next-line` comment saying so.
-- **Errors** (owner 2026-11-26, **not built yet**: [BACKLOG.md](BACKLOG.md) P2
-  "One shared error template"): today a failed load draws red `WidgetError`
-  boxes in the page body, one per failed query ("Internal server error" + Retry;
-  e.g. a student's Weekly reports tab shows two stacked). The rule from now on:
-  **every error raises a toast** (through `getErrorMessage`, never the raw
-  server text), and a part of the page that couldn't load shows **one shared
-  error template** in its place, not a red box per query. Until the template
-  exists, new code still uses `WidgetError` and also raises the toast, so the
-  move is one swap per site.
+- **Errors** (owner 2026-11-26): **every error raises a toast, and a part of a
+  page that couldn't load shows the one shared error template** — never a red box
+  with server text in the page body.
+  - The toast is automatic: the query client's `QueryCache` / `MutationCache`
+    call `reportErrorToast` (`lib/errorToast.ts`) for every failed query and
+    mutation, with `getErrorMessage`. Don't add a `useEffect` that toasts a
+    query's error. A screen may still raise its own toast for an action (a
+    better title, "Couldn't save the tip"): an error toast without an `id` is
+    keyed by its message, so it replaces the automatic one instead of stacking,
+    and one failure on several queries shows once.
+  - Not toasted: a network failure (the connection banner says it), a 401 (the
+    session refresh / sign-in redirect), a 402 (plan feature off; the screen
+    shows the upgrade prompt), an `apiFetch(…, { silent: true })` call
+    (background polling) and a query or mutation with `meta: { silentError: true }`
+    (use it only where failing is expected and the screen already explains it).
+  - In the page: `WidgetError` is the template. Its `message` becomes the title
+    only when written for people (`readableErrorText`); otherwise "This part
+    couldn't load". Show **one** per failed part: a tab whose two queries fail
+    shows one template whose Try again refetches both (see `WeeklyReportsPanel`).
+    A page that loads one record by the URL id still uses `ResourceLoadError`.
 - **Form errors** (owner 2026-11-24; replaces the 2026-11-17 under-the-field
   messages, `docs/FORM_VALIDATION_AUDIT.md`): **nothing is checked while typing or
   on leaving a field.** A blocked submit (1) turns every bad field red

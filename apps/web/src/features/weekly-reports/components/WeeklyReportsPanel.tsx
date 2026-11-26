@@ -19,6 +19,19 @@ export function WeeklyReportsPanel({ studentId }: { studentId: string }) {
   const reports = useStudentWeeklyReports(studentId);
   const items = reports.data?.pages.flatMap((page) => page.items) ?? [];
 
+  // One shared error template for the tab, not one per failed query (docs/UI_RULES.md § "Errors").
+  if (preview.isError || reports.isError) {
+    return (
+      <WidgetError
+        message="The weekly reports couldn't load"
+        onRetry={() => {
+          if (preview.isError) void preview.refetch();
+          if (reports.isError) void reports.refetch();
+        }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-5">
       <p className="text-sm text-app-muted">
@@ -27,9 +40,7 @@ export function WeeklyReportsPanel({ studentId }: { studentId: string }) {
       </p>
       {preview.isLoading ? (
         <Skeleton className="h-56 w-full rounded-panel" />
-      ) : preview.isError || !preview.data ? (
-        <WidgetError message={preview.error?.message} onRetry={() => void preview.refetch()} />
-      ) : (
+      ) : !preview.data ? null : (
         <WeeklyReportCard
           badge={<Badge variant="info">This week so far</Badge>}
           facts={preview.data.facts}
@@ -38,8 +49,6 @@ export function WeeklyReportsPanel({ studentId }: { studentId: string }) {
       )}
       {reports.isLoading ? (
         <Skeleton className="h-56 w-full rounded-panel" />
-      ) : reports.isError ? (
-        <WidgetError message={reports.error?.message} onRetry={() => void reports.refetch()} />
       ) : items.length === 0 ? (
         <EmptyState
           description="The first report is made on the Monday after the student's first week."

@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  MutationCache,
+  QueryCache,
   QueryClient,
   QueryClientProvider
 } from "@tanstack/react-query";
@@ -17,6 +19,7 @@ import { ChessAppearanceProvider } from "@/features/chess-appearance/context/Che
 import { PresenceBridge } from "@/features/presence/components/PresenceBridge";
 import { TypographySync } from "@/features/typography/context/TypographySync";
 import { isFinalClientError } from "@/lib/api";
+import { reportErrorToast } from "@/lib/errorToast";
 
 import { AcquisitionCapture } from "./AcquisitionCapture";
 import { SessionBootstrap } from "./SessionBootstrap";
@@ -56,6 +59,13 @@ export function AppProviders({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
+        // Every failed load and action raises a toast (docs/UI_RULES.md § "Errors").
+        mutationCache: new MutationCache({
+          onError: (error, _variables, _context, mutation) => reportErrorToast(error, "action", mutation.meta)
+        }),
+        queryCache: new QueryCache({
+          onError: (error, query) => reportErrorToast(error, "load", query.meta)
+        }),
         defaultOptions: {
           queries: {
             refetchOnWindowFocus: false,

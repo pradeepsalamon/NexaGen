@@ -158,12 +158,15 @@ export class ApiError extends Error {
   code?: string;
   /** HTTP status; undefined when no response arrived (network failure). */
   status?: number;
+  /** The call asked for `silent` (background polling): no error toast (lib/errorToast.ts). */
+  silent?: boolean;
 
-  constructor(message: string, code?: string, status?: number) {
+  constructor(message: string, code?: string, status?: number, silent?: boolean) {
     super(message);
     this.name = "ApiError";
     this.code = code;
     this.status = status;
+    this.silent = silent;
   }
 }
 
@@ -211,7 +214,7 @@ export async function apiFetch<TResponse>(
       else reportNetworkFailure(silent);
 
       const code = error.response?.data?.code;
-      throw new ApiError(message, typeof code === "string" ? code : undefined, error.response?.status);
+      throw new ApiError(message, typeof code === "string" ? code : undefined, error.response?.status, silent);
     }
 
     throw error;

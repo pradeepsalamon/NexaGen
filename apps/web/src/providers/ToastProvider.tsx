@@ -70,13 +70,21 @@ function getDefaultDuration(type: ToastType): number {
   }
 }
 
+/** The id an error toast gets when none is given: one toast per message. */
+function errorToastId(title: string, message?: string): string {
+  return `error:${message ?? title}`;
+}
+
 /** Module-level so non-component code (lib/forms) can raise the same toasts as useToast(). */
 export function showToast({ action, durationMs, id, message, title, type }: ToastInput): string | number {
+  // An error toast without an id is keyed by its message: the same failure raised
+  // twice (the query client and the screen, or two queries) shows once.
+  const toastId = id ?? (type === "error" ? errorToastId(title, message) : undefined);
   const options = {
     action,
     description: message,
     duration: durationMs ?? getDefaultDuration(type),
-    ...(id ? { id } : {})
+    ...(toastId ? { id: toastId } : {})
   };
 
   switch (type) {
