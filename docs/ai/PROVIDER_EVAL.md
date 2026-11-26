@@ -1,7 +1,8 @@
 # Outside-AI provider evaluation (free tiers)
 
-Run 2026-11-25 21:00 UTC → PENDING_END (owner's `/goal`, plan agreed the same
-day). Branch `ai/provider-eval`. Harness: [`scripts/ai/provider-eval/`](../../scripts/ai/provider-eval/README.md).
+Run 2026-11-25 21:00 UTC → 2026-11-26 00:12 UTC (owner's `/goal`, plan agreed the same
+day; closed early at the owner's call, so Gemini 3.5 Flash ran 11 and 3.8 Flash
+3 of the 25 units, §8). Branch `ai/provider-eval`. Harness: [`scripts/ai/provider-eval/`](../../scripts/ai/provider-eval/README.md).
 Every input is in [`provider-eval/inputs/`](provider-eval/inputs/), every
 request and answer in [`provider-eval/runs/`](provider-eval/runs/) (one file per
 model × item; capacity runs as JSONL in `runs/capacity/`), the tables below in
@@ -134,14 +135,18 @@ Gemini **Lite** (`3.1-flash-lite`), **3.5F** / **3.8F** (Flash); OpenRouter
 | Recap, English transcript | ✓ | ✓ | ✓ | ✓ | ✓ best | ✓ best | ✓ | ✓ | ✓ |
 | Recap, Tamil-English (Latin) | ✓ | ~ a | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ b |
 | Recap, Tamil-script transcript → English | ✗ c | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ d |
-| Recap written in Tamil script | ✗ c | ✓ | ~ e | ✓ | ✓ | PENDING_38_TA | ✓ | ✓ | ✗ d |
-| Game review | ✓ | ✗ f | ✓ | ✓ | ✓ | PENDING_38 | ~ g | ✓ best | ✗ h |
-| Tamil translation | ~ i | ~ j | ✓ | ✓ best | ✓ | PENDING_38 | ✗ k | ~ l | ✗ m |
-| Progress note | ~ n | ~ o | ✓ best | ✗ p | ✓ | PENDING_38 | ✓ | ✓ | ✗ q |
-| Puzzle hint (3) | ✓ | ~ r | ✓ | ✓ | PENDING_35 | PENDING_38 | ✓ | ~ s | ~ t |
-| Coach feedback (2) | ~ u | ✗ v | ✓ best | ✓ | PENDING_35 | PENDING_38 | ✓ | ✓ | ~ w |
-| Support pick (5) | 5/5 | 5/5 | 5/5 | 5/5 | PENDING_35 | PENDING_38 | 5/5 | 5/5 | 2/5 x |
-| Chess facts (5) | 5/5 | 4/5 y | 5/5 | 5/5 | PENDING_35 | PENDING_38 | 5/5 | 5/5 | 4/5 z |
+| Recap written in Tamil script | ✗ c | ✓ | ~ e | ✓ | ✓ | – | ✓ | ✓ | ✗ d |
+| Game review | ✓ | ✗ f | ✓ | ✓ | ✓ | – | ~ g | ✓ best | ✗ h |
+| Tamil translation | ~ i | ~ j | ✓ | ✓ best | ✓ | – | ✗ k | ~ l | ✗ m |
+| Progress note | ~ n | ~ o | ✓ best | ✗ p | ✓ | – | ✓ | ✓ | ✗ q |
+| Puzzle hint (3) | ✓ | ~ r | ✓ | ✓ | 1/1 ✓ | – | ✓ | ~ s | ~ t |
+| Coach feedback (2) | ~ u | ✗ v | ✓ best | ✓ | – | – | ✓ | ✓ | ~ w |
+| Support pick (5) | 5/5 | 5/5 | 5/5 | 5/5 | – | – | 5/5 | 5/5 | 2/5 x |
+| Chess facts (5) | 5/5 | 4/5 y | 5/5 | 5/5 | – | – | 5/5 | 5/5 | 4/5 z |
+
+– = not run: Gemini 3.5 / 3.8 Flash hit their 20-a-day free cap first
+(3.8 Flash after the three recaps; 3.5 Flash after 11 units) and the run was
+closed before the next reset.
 
 - a: explains a pin as a piece "blocking a more powerful piece from attacking the king".
 - b: key points are bare topic labels; the skewer explanation is wrong.
@@ -347,7 +352,7 @@ quality" is the best answer seen regardless of quota.
 | Recap in Tamil script | Gemini Flash-Lite | Groq `gpt-oss-20b` | Gemini 3.5 Flash | `gpt-oss-120b`, ours |
 | Game review (play review) | Groq `qwen3.8-27b` | Gemini Flash-Lite | Nemotron Super-VL (50 a day) | `gpt-oss-20b` (wrong side), ours |
 | Tamil translation | Gemini Flash-Lite | Groq `qwen3.8-27b` | Gemini Flash-Lite | Nemotron Ultra, ours |
-| Monthly progress note | Groq `qwen3.8-27b` | Gemini 3.5 Flash (spread over days) | `qwen3.8-27b` | Gemini Flash-Lite (sugar-coats), ours |
+| Monthly progress note | Groq `qwen3.8-27b` | Groq `gpt-oss-20b` (honest but terse) | `qwen3.8-27b` | Gemini Flash-Lite (sugar-coats), ours |
 | Puzzle hint | Groq `qwen3.8-27b` | Gemini Flash-Lite | any but Super-VL | — |
 | Coach feedback message | Groq `qwen3.8-27b` | Gemini Flash-Lite | `qwen3.8-27b` | `gpt-oss-20b`, ours |
 | Support saved-answer pick | Groq `qwen3.8-27b` (0.1 s) | Gemini Flash-Lite | all outside models 5/5 | ours (2/5) |
@@ -407,7 +412,12 @@ paid tier or a third free model.
   will take 2–3 calls with this setting.
 - Free quotas and model lists change without notice (Groq dropped
   llama-3.3-70b and Gemini 2.5 Flash closed between the trial and this run).
-- Gemini Flash results came over PENDING_DAYS days because of the 20-a-day cap and
-  503 overloads.
+- **Gemini 3.5 / 3.8 Flash are only partly tested**: 11 and 3 of 25 units.
+  The 20-a-day cap (overload answers included) would have taken 1–2 more
+  days; the owner closed the run instead. What ran (all recaps, 3.5 Flash's
+  reviews, translations and notes) was among the best, so a full run is
+  only worth it if a paid Gemini tier is on the table. Rerun with
+  `run.cjs --models gemini:gemini-3.8-flash,gemini:gemini-3.5-flash` (it
+  resumes) after 08:00 UTC.
 - The local model ran on the production box between 02:30 and 03:10 IST
   while LiveKit was idle (no class live); its container was removed after.
