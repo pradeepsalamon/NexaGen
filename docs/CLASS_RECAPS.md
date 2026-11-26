@@ -41,9 +41,12 @@ the plan has `aiClassRecaps` and the academy's switch is on:
    academy's chosen model. Nothing is written when the chosen one isn't set up.
    - The transcript is read oldest first; every student's name (first, last,
      full, username; anyone ever in the batch or who attended) becomes `S1`,
-     `S2`… (by user id) and the coach's becomes `Coach`. Names in Tamil script
-     aren't matched: the model is told never to name anyone and the reviewer
-     reads everything.
+     `S2`… (by user id) and the coach's becomes `Coach`. A two-letter name
+     ("Om") is replaced only when capitalised and never when it is a common
+     English word; one letter never. Spoken email addresses and phone numbers
+     become `[email]` / `[phone]` (`redactContactDetails`). Names in Tamil
+     script aren't matched: the model is told never to name anyone and the
+     reviewer reads everything.
    - Under 80 words: `SKIPPED` (`TOO_SHORT`).
    - Split into parts of about `AI_CLASS_RECAP_CHUNK_TOKENS` (2,500,
      estimated; Tamil script counts heavier). One part: one call writes the

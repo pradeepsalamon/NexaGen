@@ -134,7 +134,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       },
       {
         detail:
-          "Only if an academy chooses an outside AI service for its class recaps instead of its own server: the coach's class transcript, with every student's and the coach's name replaced by a code, is sent to that service to draft the recap. Never an email, account id, batch or academy. The service may keep what it is sent under its own terms. None is in use yet; the service is named here before anything is sent.",
+          "Only if an academy chooses an outside AI service for its class recaps instead of its own server: the coach's class transcript, with every student's and the coach's name replaced by a code and any spoken email address or phone number removed, is sent to that service to draft the recap. We add no account id, batch or academy to it; anything else the coach says aloud stays in the text. The service may keep what it is sent under its own terms. None is in use yet; the service is named here before anything is sent.",
         label: "Outside AI service (class recaps)"
       },
       {

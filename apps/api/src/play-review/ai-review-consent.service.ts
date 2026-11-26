@@ -1,4 +1,4 @@
-import { ForbiddenException, Inject, Injectable } from "@nestjs/common";
+import { ConflictException, ForbiddenException, Inject, Injectable } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import {
   AI_REVIEW_CONSENT_VERSION,
@@ -29,6 +29,11 @@ type ConsentRow = { allowed: boolean; version: number; providers: string[]; crea
  * switches. Recording and the engine review need no switch; this only gates
  * sending a student's (pseudonymised) play to the outside AI.
  */
+/** Same set of providers, order aside. */
+function sameProviders(a: readonly AiProviderId[], b: readonly AiProviderId[]): boolean {
+  return a.length === b.length && a.every((id) => b.includes(id));
+}
+
 @Injectable()
 export class AiReviewConsentService {
   constructor(
@@ -148,6 +153,12 @@ export class AiReviewConsentService {
   private async change(studentId: string, body: SetAiReviewConsentRequest, changedById: string, changedByRole: AiConsentChangedBy) {
     // Switching ON needs the plan; switching OFF is always possible.
     if (body.allowed) await this.entitlements.assertFeature("aiPlayReview");
+    // The providers the student was shown: play goes only to these. If the
+    // operator changed the route while the confirmation was open, ask again.
+    const providers = body.allowed ? this.routeProviders() : [];
+    if (body.allowed && !sameProviders(providers, body.providers ?? [])) {
+      throw new ConflictException("The outside AI service changed while this was open. Read it again before switching on.");
+    }
     await this.prisma.$transaction(async (tx) => {
       await tx.aiReviewConsent.create({
         data: {
@@ -155,8 +166,7 @@ export class AiReviewConsentService {
           changedById,
           changedByRole,
           guardianConfirmed: body.allowed ? body.guardianConfirmed === true : false,
-          // The providers the student was shown: play goes only to these.
-          providers: body.allowed ? this.routeProviders() : [],
+          providers,
           studentId,
           version: AI_REVIEW_CONSENT_VERSION
         }
@@ -190,7 +200,8 @@ export class AiReviewConsentService {
       needsReconsent,
       planIncludes,
       providerConfigured,
-      providerName: aiProviderNames(providers)
+      providerName: aiProviderNames(providers),
+      providers
     };
   }
 

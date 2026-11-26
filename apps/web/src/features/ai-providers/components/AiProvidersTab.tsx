@@ -100,7 +100,13 @@ function ProviderForm({ models, provider }: { provider: AiProviderView; models: 
       </div>
       <div className="grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
         <FormField hint={hasKey ? "Saved. Leave blank to keep it." : "The key is checked with the provider before it is saved."} id={`${id}-key`} label="API key">
-          <PasswordInput autoComplete="off" id={`${id}-key`} onChange={(event) => setApiKey(event.target.value)} value={apiKey} />
+          <PasswordInput
+            autoComplete="off"
+            disabled={save.isPending}
+            id={`${id}-key`}
+            onChange={(event) => setApiKey(event.target.value)}
+            value={apiKey}
+          />
         </FormField>
         <a
           className="inline-flex min-h-[var(--control-h)] items-center gap-1 text-sm font-semibold text-primary-ink underline-offset-2 hover:underline"
@@ -112,7 +118,8 @@ function ProviderForm({ models, provider }: { provider: AiProviderView; models: 
           <ExternalLink aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
         </a>
       </div>
-      <Switch checked={enabled} id={`${id}-enabled`} label="Use this provider" onCheckedChange={setEnabled} />
+      {/* A save re-mounts this form with the stored values, so nothing is typed while it runs. */}
+      <Switch checked={enabled} disabled={save.isPending} id={`${id}-enabled`} label="Use this provider" onCheckedChange={setEnabled} />
       {provider.connected ? (
         <div className="flex flex-wrap items-center gap-2 text-xs text-app-muted">
           {models ? (
@@ -205,10 +212,24 @@ function itemPick(options: ModelOptions, item: string): ModelPick {
   return options.byItem.get(item) ?? "AUTO";
 }
 
-function ModelPicker({ id, items, label, onChange, value }: { id: string; label: string; items: string[]; value: string; onChange: (v: string) => void }) {
+function ModelPicker({
+  disabled,
+  id,
+  items,
+  label,
+  onChange,
+  value
+}: {
+  disabled: boolean;
+  id: string;
+  label: string;
+  items: string[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
   return (
     <FormField id={id} label={label}>
-      <Combobox id={id} items={items} onValueChange={onChange} value={value}>
+      <Combobox disabled={disabled} id={id} items={items} onValueChange={onChange} value={value}>
         <ComboboxInput placeholder="Search models" />
         <ComboboxContent>
           <ComboboxEmpty>No model matches.</ComboboxEmpty>
@@ -304,6 +325,7 @@ function FeatureForm({ connected, feature, lists }: { feature: AiFeatureView; co
         <>
           <div className="grid gap-3 sm:grid-cols-2">
             <ModelPicker
+              disabled={save.isPending}
               id={`${id}-primary`}
               items={[AUTO_ITEM, ...options.items]}
               label="Main model"
@@ -311,6 +333,7 @@ function FeatureForm({ connected, feature, lists }: { feature: AiFeatureView; co
               value={pickItem(options, primary)}
             />
             <ModelPicker
+              disabled={save.isPending}
               id={`${id}-fallback`}
               items={[AUTO_ITEM, NO_FALLBACK_ITEM, ...options.items]}
               label="Fallback (when the main one is out of quota or down)"

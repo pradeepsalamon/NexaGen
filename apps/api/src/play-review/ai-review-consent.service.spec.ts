@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { AI_REVIEW_CONSENT_VERSION } from "@nexa-chess/types";
 import { authenticateUser } from "../auth/authenticate";
 import { PlanRestrictionException } from "../platform/plan-restriction.exception";
@@ -49,7 +49,7 @@ describe("AiReviewConsentService", () => {
   it("a student switches it on with a guardian's agreement, recorded with the current version", async () => {
     authenticate.mockResolvedValue(student as never);
     const { inAcademy, service, tx } = setup();
-    await inAcademy(() => service.setMine("t", { allowed: true, guardianConfirmed: true }));
+    await inAcademy(() => service.setMine("t", { allowed: true, guardianConfirmed: true, providers: ["GROQ"] }));
     expect(tx.aiReviewConsent.create).toHaveBeenCalledWith({
       data: {
         allowed: true,
@@ -63,6 +63,19 @@ describe("AiReviewConsentService", () => {
       }
     });
     expect(tx.aiPlayComment.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("refuses (409) when the providers shown are no longer the ones in use", async () => {
+    authenticate.mockResolvedValue(student as never);
+    const { inAcademy, service, tx } = setup();
+    // The confirmation named Gemini; the operator has since moved the route to Groq.
+    await expect(
+      inAcademy(() => service.setMine("t", { allowed: true, guardianConfirmed: true, providers: ["GEMINI"] }))
+    ).rejects.toBeInstanceOf(ConflictException);
+    await expect(inAcademy(() => service.setMine("t", { allowed: true, guardianConfirmed: true, providers: [] }))).rejects.toBeInstanceOf(
+      ConflictException
+    );
+    expect(tx.aiReviewConsent.create).not.toHaveBeenCalled();
   });
 
   it("switching off deletes the outside AI's comments in the same transaction, even without the plan", async () => {
@@ -79,7 +92,7 @@ describe("AiReviewConsentService", () => {
   it("switching on needs the plan feature (402)", async () => {
     authenticate.mockResolvedValue(student as never);
     const { inAcademy, service, tx } = setup({ hasFeature: false });
-    await expect(inAcademy(() => service.setMine("t", { allowed: true, guardianConfirmed: true }))).rejects.toBeInstanceOf(
+    await expect(inAcademy(() => service.setMine("t", { allowed: true, guardianConfirmed: true, providers: ["GROQ"] }))).rejects.toBeInstanceOf(
       PlanRestrictionException
     );
     expect(tx.aiReviewConsent.create).not.toHaveBeenCalled();
@@ -94,14 +107,14 @@ describe("AiReviewConsentService", () => {
   it("their coach may switch it after a parent agreed, recorded as the coach", async () => {
     authenticate.mockResolvedValue(coach as never);
     const { inAcademy, service, tx } = setup();
-    await inAcademy(() => service.setFor("t", "s1", { allowed: true, guardianConfirmed: true }));
+    await inAcademy(() => service.setFor("t", "s1", { allowed: true, guardianConfirmed: true, providers: ["GROQ"] }));
     expect(tx.aiReviewConsent.create).toHaveBeenCalledWith({ data: expect.objectContaining({ changedById: "c1", changedByRole: "COACH", studentId: "s1" }) });
   });
 
   it("a coach who doesn't teach the student can't", async () => {
     authenticate.mockResolvedValue(coach as never);
     const { inAcademy, service, tx } = setup({ coachShares: false });
-    await expect(inAcademy(() => service.setFor("t", "s1", { allowed: true, guardianConfirmed: true }))).rejects.toBeInstanceOf(
+    await expect(inAcademy(() => service.setFor("t", "s1", { allowed: true, guardianConfirmed: true, providers: ["GROQ"] }))).rejects.toBeInstanceOf(
       ForbiddenException
     );
     expect(tx.aiReviewConsent.create).not.toHaveBeenCalled();
@@ -117,7 +130,7 @@ describe("AiReviewConsentService", () => {
   it("a student can't use the staff route for themselves", async () => {
     authenticate.mockResolvedValue(student as never);
     const { inAcademy, service } = setup();
-    await expect(inAcademy(() => service.setFor("t", "s1", { allowed: true, guardianConfirmed: true }))).rejects.toBeInstanceOf(
+    await expect(inAcademy(() => service.setFor("t", "s1", { allowed: true, guardianConfirmed: true, providers: ["GROQ"] }))).rejects.toBeInstanceOf(
       ForbiddenException
     );
   });
@@ -129,7 +142,8 @@ describe("AiReviewConsentService", () => {
       active: true,
       allowed: true,
       needsReconsent: false,
-      providerName: "Groq"
+      providerName: "Groq",
+      providers: ["GROQ"]
     });
 
     const noKey = setup({ latest: { allowed: true, providers: ["GROQ"], version: AI_REVIEW_CONSENT_VERSION }, providerConfigured: false });

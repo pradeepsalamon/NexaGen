@@ -140,9 +140,19 @@ export function UpcomingClassesClient() {
     return [...byDay.entries()];
   }, [batchClasses, batchId, demoClasses, kind, timeZone]);
 
-  const loading = batchQuery.isLoading || (showDemo && demoQuery.isLoading);
-  const failed = batchQuery.isError || (showDemo && demoQuery.isError);
-  const refresh = () => setAnchor(startOfMinute(Date.now()));
+  const loading = batchQuery.isLoading || batchesQuery.isLoading || (showDemo && demoQuery.isLoading);
+  const failed = batchQuery.isError || batchesQuery.isError || (showDemo && demoQuery.isError);
+  // A new anchor only changes the query key once a minute has passed, so
+  // fetch again explicitly: every click (and Retry) asks the server.
+  const refresh = () => {
+    const next = startOfMinute(Date.now());
+    setAnchor(next);
+    if (next === anchor) {
+      void batchQuery.refetch();
+      if (showDemo) void demoQuery.refetch();
+    }
+    void batchesQuery.refetch();
+  };
   const rangeLabel = RANGE_OPTIONS.find((option) => option.value === days)?.label.toLowerCase() ?? "";
 
   return (
