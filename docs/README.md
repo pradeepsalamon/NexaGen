@@ -43,6 +43,7 @@ stay as written; the living doc for that area wins where they disagree.
 | [GAME_ANALYSIS.md](GAME_ANALYSIS.md) | Engine evaluation, move classification, accuracy, tactics |
 | [CLASS_RECAPS.md](CLASS_RECAPS.md) | AI class recaps from the coach's transcript: drafted between classes, reviewed and published by the coach or an admin |
 | [AI_PLAY_REVIEW.md](AI_PLAY_REVIEW.md) | One record of every board move, the nightly engine review, outside-AI comments behind a consent switch |
+| [WEAK_SPOTS_PLAN.md](WEAK_SPOTS_PLAN.md) | Plan (not built): each student's weak spots from all play, practice picks, Make homework |
 | [AI_PROVIDERS.md](AI_PROVIDERS.md) | Outside AI keys (Groq, Gemini, OpenRouter) entered by platform operators in the console, and the main + fallback model per AI feature (Auto by default) |
 | [GAME_SOURCES.md](GAME_SOURCES.md) | Importing a student's own games |
 | [TOURNAMENTS.md](TOURNAMENTS.md) | Tournament platform (Swiss, Arena, Round Robin, Knockout): assessment and phased plan — not built yet |
@@ -89,3 +90,4 @@ stay as written; the living doc for that area wins where they disagree.
 | [WHATSAPP_SUPPORT.md](WHATSAPP_SUPPORT.md) | WhatsApp support bot and `/admin/support` inbox: as built (Phases 1–2) and the plan |
 | [WHATSAPP_SUPPORT_MODES_PLAN.md](WHATSAPP_SUPPORT_MODES_PLAN.md) | Proposal: multi-academy WhatsApp, conversation ownership, Native / External helpdesk / Hybrid support modes; decisions first |
 | [PARENT_REPORTS.md](PARENT_REPORTS.md) | Parent reports — deferred, and why |
+| [FAMILY_PROGRESS_REPORT_PLAN.md](FAMILY_PROGRESS_REPORT_PLAN.md) | Plan (not built): weekly progress report in the student's account, coach-approved, AI paragraph |
