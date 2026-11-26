@@ -64,7 +64,7 @@ function setup(options: { row?: Record<string, unknown> | null; studentOfClass?:
     user: { findUnique: jest.fn(async () => ({ firstName: "Meena", lastName: "Raj" })) }
   };
   const entitlements = { hasFeature: jest.fn(async () => true) };
-  const models = { complete: jest.fn(), local: { model: "qwen2.5:3b" }, outside: null };
+  const models = { complete: jest.fn(), local: { model: "qwen2.5:3b" }, outsideRoute: () => [] };
   const service = new ClassRecapService({} as never, prisma as never, entitlements as never, models as never);
   const inAcademy = <T>(fn: () => Promise<T>) => runInTenant("tenant_nexa", "spec", fn);
   return { inAcademy, prisma, service };

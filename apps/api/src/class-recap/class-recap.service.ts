@@ -310,14 +310,11 @@ export class ClassRecapService {
 
   private async settingsView(): Promise<ClassRecapSettings> {
     const [settings, planIncludes] = await Promise.all([this.academySettings(), this.entitlements.hasFeature("aiClassRecaps")]);
+    const [outside] = this.models.outsideRoute();
     return {
       enabled: settings.enabled,
       local: { configured: this.models.local !== null, model: this.models.local?.model ?? null },
-      outside: {
-        configured: this.models.outside !== null,
-        model: this.models.outside?.model ?? null,
-        name: this.models.outside?.name ?? null
-      },
+      outside: { configured: !!outside, model: outside?.model ?? null, name: outside?.name ?? null },
       planIncludes,
       provider: settings.provider,
       serverEnabled: getApiEnv().AI_CLASS_RECAPS_ENABLED

@@ -23,6 +23,7 @@ const LOCAL: ChatModelConfig = {
   model: "stub-model",
   name: "Our server",
   provider: "LOCAL",
+  providerId: null,
   timeoutMs: 5000,
   url: "http://127.0.0.1:9"
 };
@@ -50,7 +51,7 @@ describe("AI class recaps (real app, real Postgres)", () => {
     // The local model is a stub: no server is reached.
     const models = t.app.get<RecapModels>(RECAP_MODELS);
     (models as { local: ChatModelConfig | null }).local = LOCAL;
-    complete = jest.spyOn(models, "complete").mockResolvedValue(JSON.stringify(DRAFT));
+    complete = jest.spyOn(models, "complete").mockResolvedValue({ servedBy: LOCAL, text: JSON.stringify(DRAFT) });
     job = t.app.get(ClassRecapJob);
 
     // A class that ran for an hour and ended 10 minutes ago, with the coach's transcript.

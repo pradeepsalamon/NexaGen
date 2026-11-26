@@ -1,38 +1,15 @@
-import { Logger } from "@nestjs/common";
-import { getApiEnv } from "@nexa-chess/config/api";
 import { PLAY_SOURCE_LABELS, type PlayFinding, type PlayItem } from "@nexa-chess/types";
+import { completeOnRoute, type ChatAnswer, type ChatModelConfig } from "../chat-model";
 
 // ──────────────────────────────────────────────────────────────
-// The outside AI of the AI play review (docs/AI_PLAY_REVIEW.md §3.3): an
-// OpenAI-compatible chat API that writes short coach-style comments on top of
-// our own engine review. Provider-neutral: URL, key and model from env, all
-// unset = off. Called ONLY for students whose switch is on
-// (`outsideAiAllowed`), with PSEUDONYMISED play — positions, moves and the
-// engine's findings. Never a name, id, batch, academy or date.
+// The outside AI of the AI play review (docs/AI_PLAY_REVIEW.md §3.3): writes
+// short coach-style comments on top of our own engine review, with the model
+// the platform maps to "AI play review comments" (docs/AI_PROVIDERS.md).
+// Called ONLY for students whose switch is on (`outsideAiAllowed`), and only
+// with the providers their consent named, with PSEUDONYMISED play —
+// positions, moves and the engine's findings. Never a name, id, batch,
+// academy or date.
 // ──────────────────────────────────────────────────────────────
-
-export type OutsideAiConfig = {
-  url: string;
-  apiKey: string;
-  model: string;
-  name: string;
-  timeoutMs: number;
-};
-
-/** The provider settings, or null when any of URL / key / model is missing. */
-export function outsideAiConfigFromEnv(env: ReturnType<typeof getApiEnv> = getApiEnv()): OutsideAiConfig | null {
-  const url = env.AI_REVIEW_PROVIDER_URL?.trim();
-  const apiKey = env.AI_REVIEW_PROVIDER_API_KEY?.trim();
-  const model = env.AI_REVIEW_PROVIDER_MODEL?.trim();
-  if (!url || !apiKey || !model) return null;
-  return {
-    apiKey,
-    model,
-    name: env.AI_REVIEW_PROVIDER_NAME?.trim() || new URL(url).hostname,
-    timeoutMs: env.AI_REVIEW_PROVIDER_TIMEOUT_MS,
-    url: url.replace(/\/+$/, "")
-  };
-}
 
 /** Everything the outside AI is told. Built only by `pseudonymisePlay`. */
 export type PseudonymisedPlay = {
@@ -108,45 +85,30 @@ export function outsideAiUserPrompt(play: PseudonymisedPlay): string {
 export const MAX_COMMENT_LENGTH = 1500;
 
 export interface OutsideAiProvider {
-  /** Null when the outside AI isn't configured (nothing is ever sent). */
-  readonly config: OutsideAiConfig | null;
-  comment(play: PseudonymisedPlay, signal?: AbortSignal): Promise<string>;
+  /** The models mapped to play review comments, main first; empty when none is connected (nothing is sent). */
+  route(): ChatModelConfig[];
+  comment(route: readonly ChatModelConfig[], play: PseudonymisedPlay, signal: AbortSignal): Promise<ChatAnswer>;
 }
 
 export const OUTSIDE_AI_PROVIDER = Symbol("OUTSIDE_AI_PROVIDER");
 
-/** OpenAI-compatible chat completions (`POST <url>/chat/completions`). Built by a factory provider. */
+/** The comment's own answer room (thinking models get `OUTSIDE_THINKING_TOKENS` on top). */
+const COMMENT_MAX_TOKENS = 400;
+
+/** Play review comments through the platform's route. Built by a factory provider. */
 export class OpenAiCompatibleProvider implements OutsideAiProvider {
-  private readonly logger = new Logger(OpenAiCompatibleProvider.name);
+  constructor(private readonly routeFor: () => ChatModelConfig[]) {}
 
-  constructor(readonly config: OutsideAiConfig | null) {}
+  route(): ChatModelConfig[] {
+    return this.routeFor();
+  }
 
-  async comment(play: PseudonymisedPlay, signal?: AbortSignal): Promise<string> {
-    const config = this.config;
-    if (!config) throw new Error("The outside AI is not configured.");
-    const timeout = AbortSignal.timeout(config.timeoutMs);
-    const response = await fetch(`${config.url}/chat/completions`, {
-      body: JSON.stringify({
-        max_tokens: 400,
-        messages: [
-          { content: OUTSIDE_AI_SYSTEM_PROMPT, role: "system" },
-          { content: outsideAiUserPrompt(play), role: "user" }
-        ],
-        model: config.model,
-        temperature: 0.4
-      }),
-      headers: { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" },
-      method: "POST",
-      signal: signal ? AbortSignal.any([signal, timeout]) : timeout
-    });
-    if (!response.ok) {
-      // The body may echo the request; only the status is logged.
-      this.logger.warn(`Outside AI answered ${response.status}`);
-      throw new Error(`The outside AI answered ${response.status}.`);
-    }
-    const body = (await response.json()) as { choices?: { message?: { content?: unknown } }[] };
-    const text = body.choices?.[0]?.message?.content;
-    if (typeof text !== "string" || !text.trim()) throw new Error("The outside AI returned no text.");
-    return text.trim().slice(0, MAX_COMMENT_LENGTH);
+  async comment(route: readonly ChatModelConfig[], play: PseudonymisedPlay, signal: AbortSignal): Promise<ChatAnswer> {
+    const answer = await completeOnRoute(
+      route,
+      { json: false, maxTokens: COMMENT_MAX_TOKENS, system: OUTSIDE_AI_SYSTEM_PROMPT, temperature: 0.4, user: outsideAiUserPrompt(play) },
+      signal
+    );
+    return { servedBy: answer.servedBy, text: answer.text.trim().slice(0, MAX_COMMENT_LENGTH) };
   }
 }

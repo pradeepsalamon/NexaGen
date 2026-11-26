@@ -13,7 +13,7 @@ decisions in [ai/architecture/DECISIONS.md](ai/architecture/DECISIONS.md) §4,
 | Input | The coach's stored transcript only ([LIVE_CLASS.md](LIVE_CLASS.md) § "Class transcript"). No board, chat or student audio in v1 |
 | Output | English only: a recap paragraph, key ideas, things to practise. **No chess moves or squares** (speech recognition gets notation wrong) and **never a student** |
 | Who sees it | Draft and published: the class's coach and the academy's admins. Published only: the class's students (its batch, or anyone who attended) |
-| Where the AI runs | Each academy chooses (Admin → Class recaps): **our own server** (default; a local model, nothing leaves) or **an outside AI service** (the AI play review's provider) |
+| Where the AI runs | Each academy chooses (Admin → Class recaps): **our own server** (default; a local model, nothing leaves) or **an outside AI service** (the model the platform console maps to class recaps, [AI_PROVIDERS.md](AI_PROVIDERS.md)) |
 | Switches | Server `AI_CLASS_RECAPS_ENABLED` (off by default) → plan feature `aiClassRecaps` (Enterprise by default; operators change plans in the console) → the academy's switch (on by default) → the class setting "Class transcript" + the coach's consent |
 
 ## Where things are
@@ -22,7 +22,7 @@ decisions in [ai/architecture/DECISIONS.md](ai/architecture/DECISIONS.md) §4,
 |---|---|
 | Contract and rules | `packages/types/src/class-recap.ts` (schemas, views, `pseudonymiseTranscript`, `chunkTranscript`, prompts, `cleanRecapDraft`, `classRecapContentIssues`), routes `API_ROUTES.classRecaps` |
 | API module | `apps/api/src/class-recap/` (`ClassRecapService` access + reviewer actions + settings, `ClassRecapJob`, `generateRecap`) |
-| Model client | `apps/api/src/ai/chat-model.ts` (`RECAP_MODELS`: LOCAL from `AI_LOCAL_MODEL_URL`, OUTSIDE from `AI_REVIEW_PROVIDER_*`; any OpenAI-compatible chat API) |
+| Model client | `apps/api/src/ai/chat-model.ts` (`RECAP_MODELS`: LOCAL from `AI_LOCAL_MODEL_URL`; OUTSIDE = the `CLASS_RECAP` route of `AiProvidersService`, main model then fallback; `callChatModel` / `completeOnRoute`) |
 | Web | `features/class-recap/`: `/admin/class-recaps` (settings + every recap), `/coach/class-recaps` (own classes), `/student/class-recaps` (published feed); `ClassRecapCard` on the after-class screen and the admin completed-class page; "Class recap" row action in Class history; nav badge = drafts waiting for review |
 | Tables | `class_recaps` (one per class, deleted with it), `class_recap_settings` (one per academy); migration `20261125162512_class_recaps` |
 | Local model | `compose.ai.yml` service `ollama` (pinned image, internal network, 1.5 CPU / 5 GB), weights via `scripts/ai/pull-model.sh` |
@@ -117,15 +117,22 @@ changes need the plan, reading doesn't (published recaps stay readable).
    `AI_LOCAL_MODEL_URL=http://ollama:11434/v1`. Outside Docker (staging dev
    mode): run the same image with a published port and set
    `AI_LOCAL_MODEL_URL=http://127.0.0.1:<port>/v1` in `apps/api/.env`.
-2. **Outside AI**: `AI_REVIEW_PROVIDER_URL/_API_KEY/_MODEL/_NAME` (shared with
-   the AI play review), name it in the privacy policy, and pick it in Admin →
-   Class recaps. Any OpenAI-compatible chat API works. An outside call carries
-   no `seed` (Gemini refuses it) and gets `OUTSIDE_THINKING_TOKENS` (4,000)
-   extra answer room, because thinking models spend it before the answer.
-   Staging test 2026-11-25 (same sample transcript): Groq `openai/gpt-oss-120b`
-   1.5 s, OpenRouter `nvidia/nemotron-3.5-super-vl:free` 24 s, both one call
-   and better than `qwen2.5:3b`; Gemini's free tier answered 503 (overloaded).
-   Free tiers may train on what they're sent — not for real classes (minors).
+2. **Outside AI**: a platform operator connects a provider's key in the
+   platform console → AI and leaves "AI class recaps" on Auto (or picks a
+   main model and a fallback) — [AI_PROVIDERS.md](AI_PROVIDERS.md). Name the
+   provider in the privacy policy, then the academy picks it in Admin → Class
+   recaps. An outside call carries no `seed` (Gemini refuses it), gets
+   `OUTSIDE_THINKING_TOKENS` (4,000) extra answer room (thinking models spend
+   it before the answer) and reads `AI_CLASS_RECAP_OUTSIDE_CHUNK_TOKENS`
+   (5,000) of transcript per call instead of 2,500, so a real class takes 1–2
+   requests of the free daily quota. When the main model fails (429 quota,
+   503 overload, timeout, bad key) the same call goes to the fallback; the
+   recap stores the model that actually answered. Staging test 2026-11-25
+   (same sample transcript): Groq `openai/gpt-oss-120b` 1.5 s, OpenRouter
+   `nvidia/nemotron-3.5-super-vl:free` 24 s, both one call and better than
+   `qwen2.5:3b`; Gemini's free tier answered 503 (overloaded). The full
+   comparison is `docs/ai/PROVIDER_EVAL.md` on branch `ai/provider-eval`. Free tiers may train on what they're sent — not for
+   real classes (minors) without accepting that.
 3. Turn on "Class transcript" for the classes (Admin → Live class settings, or
    per batch/class); each coach agrees once in the room (desktop Chrome).
 

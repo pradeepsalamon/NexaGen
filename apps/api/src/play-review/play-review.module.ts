@@ -1,6 +1,8 @@
 import { Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
-import { OUTSIDE_AI_PROVIDER, OpenAiCompatibleProvider, outsideAiConfigFromEnv } from "../ai/outside/outside-ai";
+import { OUTSIDE_AI_PROVIDER, OpenAiCompatibleProvider } from "../ai/outside/outside-ai";
+import { AiProvidersModule } from "../ai/providers/ai-providers.module";
+import { AiProvidersService } from "../ai/providers/ai-providers.service";
 import { PrismaModule } from "../prisma/prisma.module";
 import { StockfishModule } from "../stockfish/stockfish.module";
 import { AiReviewConsentService } from "./ai-review-consent.service";
@@ -12,13 +14,17 @@ import { PlayReviewService } from "./play-review.service";
 /** AI play review: the play feed, the nightly engine review, the outside-AI switch (docs/AI_PLAY_REVIEW.md). */
 @Module({
   controllers: [PlayReviewController, PlayReviewSettingsController],
-  imports: [JwtModule.register({}), PrismaModule, StockfishModule],
+  imports: [AiProvidersModule, JwtModule.register({}), PrismaModule, StockfishModule],
   providers: [
     AiReviewConsentService,
     PlayItemLoader,
     PlayReviewJob,
     PlayReviewService,
-    { provide: OUTSIDE_AI_PROVIDER, useFactory: () => new OpenAiCompatibleProvider(outsideAiConfigFromEnv()) }
+    {
+      inject: [AiProvidersService],
+      provide: OUTSIDE_AI_PROVIDER,
+      useFactory: (providers: AiProvidersService) => new OpenAiCompatibleProvider(() => providers.routeConfigs("PLAY_REVIEW_COMMENT"))
+    }
   ]
 })
 export class PlayReviewModule {}

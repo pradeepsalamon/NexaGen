@@ -931,6 +931,14 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.platformAuditLog;
   }
 
+  get aiProviderCredential() {
+    return this.client.aiProviderCredential;
+  }
+
+  get aiFeatureModel() {
+    return this.client.aiFeatureModel;
+  }
+
   get platformPlanVersion() {
     return this.client.platformPlanVersion;
   }

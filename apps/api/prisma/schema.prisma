@@ -9543,6 +9543,9 @@ model AiReviewConsent {
   allowed           Boolean
   /// AI_REVIEW_CONSENT_VERSION the person agreed to (or withdrew from).
   version           Int
+  /// The outside AI providers named when the person agreed (`AiProvider` values);
+  /// play only goes to these (`aiConsentCoveredProviders`).
+  providers         String[]           @default([])
   /// "My parent or guardian agrees" (student) / "a parent agreed" (staff).
   guardianConfirmed Boolean            @default(false)
   changedById       String?
@@ -9712,4 +9715,46 @@ model ClassRecapSettings {
   updatedAt   DateTime           @updatedAt
 
   @@map("class_recap_settings")
+}
+
+/// An outside AI provider the platform's AI features may call (docs/AI_PROVIDERS.md).
+enum AiProvider {
+  GROQ
+  GEMINI
+  OPENROUTER
+}
+
+/// A provider's API key, connected by a platform operator in the console and
+/// used by every academy. Platform table (no tenantId).
+model AiProviderCredential {
+  id              String     @id @default(cuid())
+  provider        AiProvider @unique
+  enabled         Boolean    @default(true)
+  /// AES-256-GCM encrypted key (`AiProvidersService`); never returned.
+  apiKeyEncrypted String
+  /// The key's last 4 characters, to recognise it in the console.
+  keyHint         String
+  updatedById     String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@map("ai_provider_credentials")
+}
+
+/// The model a platform AI feature uses (`resolveAiFeatureRoute`). No row, or
+/// a null model, means "Auto". Platform table (no tenantId).
+model AiFeatureModel {
+  id               String      @id @default(cuid())
+  /// `AiFeatureId` in @nexa-chess/types (text, so a new feature needs no migration).
+  feature          String      @unique
+  primaryProvider  AiProvider?
+  primaryModel     String?
+  fallbackProvider AiProvider?
+  fallbackModel    String?
+  fallbackOff      Boolean     @default(false)
+  updatedById      String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@map("ai_feature_models")
 }

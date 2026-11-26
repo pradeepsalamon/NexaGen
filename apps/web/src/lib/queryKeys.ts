@@ -274,6 +274,9 @@ export const queryKeys = {
   },
   platform: {
     all: ["platform"] as const,
+    ai: ["platform", "ai"] as const,
+    aiModels: (provider: string) => ["platform", "ai", "models", provider] as const,
+    aiModelsAll: ["platform", "ai", "models"] as const,
     audit: (tenantId?: string) => ["platform", "audit", tenantId ?? "all"] as const,
     closures: (params: { page?: number; status?: string; tenantId?: string }) => ["platform", "closures", params] as const,
     contentPacks: ["platform", "content-packs"] as const,

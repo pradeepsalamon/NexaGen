@@ -1,5 +1,6 @@
 import type { PlayItem } from "@nexa-chess/types";
-import { OpenAiCompatibleProvider, outsideAiConfigFromEnv, pseudonymisePlay } from "./outside-ai";
+import type { ChatModelConfig } from "../chat-model";
+import { OpenAiCompatibleProvider, pseudonymisePlay } from "./outside-ai";
 
 const item: PlayItem = {
   batchId: "batch_secret",
@@ -45,36 +46,59 @@ describe("pseudonymisePlay", () => {
 });
 
 describe("outside AI provider", () => {
-  const env = (over: Record<string, unknown>) =>
-    ({ AI_REVIEW_PROVIDER_TIMEOUT_MS: 30000, ...over }) as unknown as Parameters<typeof outsideAiConfigFromEnv>[0];
-
-  it("is off unless URL, key and model are all set", () => {
-    expect(outsideAiConfigFromEnv(env({}))).toBeNull();
-    expect(outsideAiConfigFromEnv(env({ AI_REVIEW_PROVIDER_API_KEY: "k", AI_REVIEW_PROVIDER_URL: "https://llm.example/v1" }))).toBeNull();
-    expect(
-      outsideAiConfigFromEnv(env({ AI_REVIEW_PROVIDER_API_KEY: "k", AI_REVIEW_PROVIDER_MODEL: "m", AI_REVIEW_PROVIDER_URL: "https://llm.example/v1/" }))
-    ).toMatchObject({ model: "m", name: "llm.example", url: "https://llm.example/v1" });
+  const config = (over: Partial<ChatModelConfig> = {}): ChatModelConfig => ({
+    apiKey: "key",
+    model: "m1",
+    name: "Groq",
+    provider: "OUTSIDE",
+    providerId: "GROQ",
+    timeoutMs: 5000,
+    url: "https://llm.example/v1",
+    ...over
   });
+  const play = pseudonymisePlay(item, { accuracy: null, findings: [] });
+  const ok = (content: string) => new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 });
 
-  it("never calls out without a configuration", async () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it("never calls out with an empty route", async () => {
     const fetchSpy = jest.spyOn(global, "fetch");
-    await expect(new OpenAiCompatibleProvider(null).comment(pseudonymisePlay(item, { accuracy: null, findings: [] }))).rejects.toThrow(
-      "not configured"
-    );
+    await expect(new OpenAiCompatibleProvider(() => []).comment([], play, new AbortController().signal)).rejects.toThrow("No model");
     expect(fetchSpy).not.toHaveBeenCalled();
-    fetchSpy.mockRestore();
   });
 
-  it("posts the pseudonymised play to <url>/chat/completions and returns the text", async () => {
-    const fetchSpy = jest.spyOn(global, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ choices: [{ message: { content: "  Nice opening!  " } }] }), { status: 200 })
-    );
-    const provider = new OpenAiCompatibleProvider({ apiKey: "key", model: "m1", name: "Test AI", timeoutMs: 5000, url: "https://llm.example/v1" });
-    await expect(provider.comment(pseudonymisePlay(item, { accuracy: null, findings: [] }))).resolves.toBe("Nice opening!");
+  it("posts the pseudonymised play to <url>/chat/completions with room for thinking", async () => {
+    const fetchSpy = jest.spyOn(global, "fetch").mockResolvedValue(ok("  Nice opening!  "));
+    const answer = await new OpenAiCompatibleProvider(() => []).comment([config()], play, new AbortController().signal);
+    expect(answer.text).toBe("Nice opening!");
     const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("https://llm.example/v1/chat/completions");
+    const body = JSON.parse(String(init.body)) as { max_tokens: number; seed?: number };
     expect(String(init.body)).not.toContain("Ananya");
+    // 400 of its own + the outside thinking room (docs/ai/PROVIDER_EVAL.md §7.1).
+    expect(body.max_tokens).toBe(4400);
+    expect(body.seed).toBeUndefined();
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer key");
-    fetchSpy.mockRestore();
+  });
+
+  it("falls back to the second model when the first is out of quota", async () => {
+    const fetchSpy = jest
+      .spyOn(global, "fetch")
+      .mockResolvedValueOnce(new Response("rate limited", { status: 429 }))
+      .mockResolvedValueOnce(ok("From the fallback."));
+    const answer = await new OpenAiCompatibleProvider(() => []).comment(
+      [config(), config({ model: "m2", name: "Google Gemini", providerId: "GEMINI", url: "https://other.example/v1" })],
+      play,
+      new AbortController().signal
+    );
+    expect(answer).toMatchObject({ servedBy: { model: "m2", providerId: "GEMINI" }, text: "From the fallback." });
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("throws the last error when every model fails", async () => {
+    jest.spyOn(global, "fetch").mockResolvedValue(new Response("overloaded", { status: 503 }));
+    await expect(
+      new OpenAiCompatibleProvider(() => []).comment([config(), config({ model: "m2" })], play, new AbortController().signal)
+    ).rejects.toThrow("503");
   });
 });

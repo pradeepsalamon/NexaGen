@@ -1215,7 +1215,14 @@ export const API_ROUTES = {
     closureReopen: (id: string = ":id") => `/platform/closures/${id}/reopen`,
     /** POST: record a request made by email/phone and decide it at once. */
     tenantClose: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/close`,
-    tenantExport: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/export`
+    tenantExport: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/export`,
+    // Outside AI keys and the model per feature (docs/AI_PROVIDERS.md), platform operators only.
+    ai: "/platform/ai",
+    aiProvider: (provider: string = ":provider") => `/platform/ai/providers/${provider}`,
+    aiProviderModels: (provider: string = ":provider") => `/platform/ai/providers/${provider}/models`,
+    aiFeature: (feature: string = ":feature") => `/platform/ai/features/${feature}`,
+    /** POST {provider, model}: one tiny request, to check a key and model work. */
+    aiTest: "/platform/ai/test"
   },
   // The owner's gateway account (SaaS Phase 6): public, signature-verified.
   platformBilling: {

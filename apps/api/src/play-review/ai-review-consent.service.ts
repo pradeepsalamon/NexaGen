@@ -2,8 +2,11 @@ import { ForbiddenException, Inject, Injectable } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import {
   AI_REVIEW_CONSENT_VERSION,
+  aiConsentCoveredProviders,
   aiConsentIsCurrent,
+  aiProviderNames,
   outsideAiAllowed,
+  type AiProviderId,
   type AiConsentChangedBy,
   type AiPlayReviewSettings,
   type AiReviewConsentState,
@@ -11,6 +14,7 @@ import {
   type UpdateAiPlayReviewSettingsRequest
 } from "@nexa-chess/types";
 import { UserRole, type User } from "@prisma/client";
+import { routeProviderIds } from "../ai/chat-model";
 import { OUTSIDE_AI_PROVIDER, type OutsideAiProvider } from "../ai/outside/outside-ai";
 import { authenticateUser } from "../auth/authenticate";
 import { EntitlementService } from "../platform/entitlement.service";
@@ -18,7 +22,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { assertCanViewStudent } from "../progress/student-access";
 import { requireTenantId } from "../tenancy/tenant-sql";
 
-type ConsentRow = { allowed: boolean; version: number; createdAt: Date; changedByRole: AiConsentChangedBy };
+type ConsentRow = { allowed: boolean; version: number; providers: string[]; createdAt: Date; changedByRole: AiConsentChangedBy };
 
 /**
  * The outside-AI switch (docs/AI_PLAY_REVIEW.md §3.1) and the academy's two
@@ -105,20 +109,38 @@ export class AiReviewConsentService {
     const rows = await this.prisma.aiReviewConsent.findMany({
       distinct: ["studentId"],
       orderBy: [{ studentId: "asc" }, { createdAt: "desc" }, { id: "desc" }],
-      select: { allowed: true, changedByRole: true, createdAt: true, studentId: true, version: true },
+      select: { allowed: true, changedByRole: true, createdAt: true, providers: true, studentId: true, version: true },
       where: { studentId: { in: studentIds } }
     });
     return new Map(rows.map((r) => [r.studentId, r]));
   }
 
-  /** Students whose current consent is on (the nightly comment pass). */
-  async consentedStudentIds(): Promise<string[]> {
-    const rows = await this.prisma.aiReviewConsent.findMany({
+  /**
+   * Students whose current consent covers at least one of `routeProviders`,
+   * with the providers it covers (the nightly comment pass sends only to those).
+   */
+  async coveredProvidersByStudent(routeProviders: readonly AiProviderId[]): Promise<Map<string, AiProviderId[]>> {
+    const rows = await this.latestConsentRows();
+    const covered = new Map<string, AiProviderId[]>();
+    for (const row of rows) {
+      const ids = aiConsentCoveredProviders(row, routeProviders);
+      if (ids.length > 0) covered.set(row.studentId, ids);
+    }
+    return covered;
+  }
+
+  /** Every student's latest consent row. */
+  private latestConsentRows() {
+    return this.prisma.aiReviewConsent.findMany({
       distinct: ["studentId"],
       orderBy: [{ studentId: "asc" }, { createdAt: "desc" }, { id: "desc" }],
-      select: { allowed: true, studentId: true, version: true }
+      select: { allowed: true, providers: true, studentId: true, version: true }
     });
-    return rows.filter((r) => aiConsentIsCurrent(r)).map((r) => r.studentId);
+  }
+
+  /** The providers play review comments would go to now, main first. */
+  private routeProviders(): AiProviderId[] {
+    return routeProviderIds(this.provider.route());
   }
 
   // ── Internals ──────────────────────────────────────────────
@@ -133,6 +155,8 @@ export class AiReviewConsentService {
           changedById,
           changedByRole,
           guardianConfirmed: body.allowed ? body.guardianConfirmed === true : false,
+          // The providers the student was shown: play goes only to these.
+          providers: body.allowed ? this.routeProviders() : [],
           studentId,
           version: AI_REVIEW_CONSENT_VERSION
         }
@@ -148,34 +172,42 @@ export class AiReviewConsentService {
       this.academySwitches(),
       this.entitlements.hasFeature("aiPlayReview")
     ]);
-    const providerConfigured = this.provider.config !== null;
+    const providers = this.routeProviders();
+    const covered = aiConsentCoveredProviders(latest, providers);
+    const providerConfigured = providers.length > 0;
+    // On, but for older wording or without a provider now in use: asked again.
+    const needsReconsent =
+      !!latest && latest.allowed && (latest.version !== AI_REVIEW_CONSENT_VERSION || covered.length < providers.length);
     return {
       academyEnabled: switches.outsideAiEnabled,
-      active: outsideAiAllowed({ academyEnabled: switches.outsideAiEnabled, consent: latest, planIncludes, providerConfigured }),
-      allowed: aiConsentIsCurrent(latest),
+      active:
+        covered.length > 0 &&
+        outsideAiAllowed({ academyEnabled: switches.outsideAiEnabled, consent: latest, planIncludes, providerConfigured }),
+      allowed: aiConsentIsCurrent(latest) && (covered.length > 0 || !providerConfigured),
       changedAt: latest ? latest.createdAt.toISOString() : null,
       changedBy: latest ? latest.changedByRole : null,
       currentVersion: AI_REVIEW_CONSENT_VERSION,
-      needsReconsent: !!latest && latest.allowed && latest.version !== AI_REVIEW_CONSENT_VERSION,
+      needsReconsent,
       planIncludes,
       providerConfigured,
-      providerName: this.provider.config?.name ?? null
+      providerName: aiProviderNames(providers)
     };
   }
 
   private async settingsView(): Promise<AiPlayReviewSettings> {
+    const providers = this.routeProviders();
     const [switches, planIncludes, consented] = await Promise.all([
       this.academySwitches(),
       this.entitlements.hasFeature("aiPlayReview"),
-      this.consentedStudentIds()
+      this.coveredProvidersByStudent(providers)
     ]);
     return {
-      consentedStudents: consented.length,
+      consentedStudents: consented.size,
       engineReviewEnabled: switches.engineReviewEnabled,
       outsideAiEnabled: switches.outsideAiEnabled,
       planIncludes,
-      providerConfigured: this.provider.config !== null,
-      providerName: this.provider.config?.name ?? null
+      providerConfigured: providers.length > 0,
+      providerName: aiProviderNames(providers)
     };
   }
 

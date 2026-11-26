@@ -6,12 +6,13 @@ import {
   PLAY_REVIEW_NIGHTLY_BUDGET_MS,
   PLAY_REVIEW_NIGHTLY_COMMENT_CAP,
   PLAY_REVIEW_NIGHTLY_ITEM_CAP,
-  aiConsentIsCurrent,
+  aiConsentCoveredProviders,
   type GameEngineAnalysis,
   type PlayFinding,
   type PlayItem
 } from "@nexa-chess/types";
 import { AiPlayReviewStatus, LiveSessionStatus, Prisma } from "@prisma/client";
+import { routeProviderIds, type ChatAnswer, type ChatModelConfig } from "../ai/chat-model";
 import { OUTSIDE_AI_PROVIDER, pseudonymisePlay, type OutsideAiProvider } from "../ai/outside/outside-ai";
 import { EntitlementService } from "../platform/entitlement.service";
 import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
@@ -124,7 +125,7 @@ export class PlayReviewJob {
       }
     }
 
-    if (switches.outsideAiEnabled && this.provider.config && !result.stoppedBy) {
+    if (switches.outsideAiEnabled && this.provider.route().length > 0 && !result.stoppedBy) {
       result.commented = await this.commentPass(signal, options.deadline, now);
     }
     return result;
@@ -173,7 +174,10 @@ export class PlayReviewJob {
    * none yet (past play included), newest first.
    */
   async commentPass(signal: AbortSignal, deadline: number, now: () => number = Date.now): Promise<number> {
-    const students = await this.consent.consentedStudentIds();
+    const route = this.provider.route();
+    // Each student's consent names the providers it covers; only those are used.
+    const covered = await this.consent.coveredProvidersByStudent(routeProviderIds(route));
+    const students = [...covered.keys()];
     if (students.length === 0) return 0;
     const reviews = await this.prisma.aiPlayReview.findMany({
       orderBy: { playedAt: "desc" },
@@ -188,7 +192,8 @@ export class PlayReviewJob {
         { playedAt: review.playedAt, source: review.source, sourceId: review.sourceId, studentId: review.studentId }
       ]);
       if (!item) continue;
-      if (await this.writeComment(review, item, signal)) written += 1;
+      const studentRoute = route.filter((c) => c.providerId && covered.get(review.studentId)?.includes(c.providerId));
+      if (await this.writeComment(review, item, studentRoute, signal)) written += 1;
     }
     return written;
   }
@@ -196,14 +201,14 @@ export class PlayReviewJob {
   private async writeComment(
     review: { id: string; studentId: string; accuracy: number | null; findingsJson: Prisma.JsonValue },
     item: PlayItem,
+    route: readonly ChatModelConfig[],
     signal: AbortSignal
   ): Promise<boolean> {
-    const config = this.provider.config;
-    if (!config) return false;
+    if (route.length === 0) return false;
     const findings = (Array.isArray(review.findingsJson) ? review.findingsJson : []) as unknown as PlayFinding[];
-    let text: string;
+    let answer: ChatAnswer;
     try {
-      text = await this.provider.comment(pseudonymisePlay(item, { accuracy: review.accuracy, findings }), signal);
+      answer = await this.provider.comment(route, pseudonymisePlay(item, { accuracy: review.accuracy, findings }), signal);
     } catch (error) {
       this.logger.warn(`Outside AI comment failed: ${(error as Error).message}`);
       return false;
@@ -213,13 +218,20 @@ export class PlayReviewJob {
     return this.prisma.$transaction(async (tx) => {
       const latest = await tx.aiReviewConsent.findFirst({
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        select: { allowed: true, version: true },
+        select: { allowed: true, providers: true, version: true },
         where: { studentId: review.studentId }
       });
-      if (!aiConsentIsCurrent(latest)) return false;
+      const servedBy = answer.servedBy.providerId;
+      if (!servedBy || aiConsentCoveredProviders(latest, [servedBy]).length === 0) return false;
       try {
         await tx.aiPlayComment.create({
-          data: { model: config.model, provider: config.name, reviewId: review.id, studentId: review.studentId, text }
+          data: {
+            model: answer.servedBy.model,
+            provider: answer.servedBy.name,
+            reviewId: review.id,
+            studentId: review.studentId,
+            text: answer.text
+          }
         });
         return true;
       } catch (error) {

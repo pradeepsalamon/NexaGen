@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { AiProviderId } from "./ai-providers";
 
 // ──────────────────────────────────────────────────────────────
 // AI play review (docs/AI_PLAY_REVIEW.md).
@@ -15,8 +16,10 @@ import { z } from "zod";
 
 /**
  * The consent text shown before the outside-AI switch is turned on. Bump it
- * whenever the wording, the outside provider or the retention changes: a
- * student who agreed to an older version counts as "off" until asked again.
+ * whenever the wording or the retention changes: a student who agreed to an
+ * older version counts as "off" until asked again. The providers are not part
+ * of the version: each consent row records the providers it named
+ * (`providers`), and play only goes to those (`aiConsentCoveredProviders`).
  */
 export const AI_REVIEW_CONSENT_VERSION = 1;
 
@@ -220,6 +223,7 @@ export type AiReviewConsentState = {
   academyEnabled: boolean;
   planIncludes: boolean;
   providerConfigured: boolean;
+  /** The providers the student's play would go to now, named ("Groq or Google Gemini"). */
   providerName: string | null;
 };
 
@@ -259,6 +263,19 @@ export type OutsideAiInput = {
 /** A consent row counts only when it switched the AI on for the current wording. */
 export function aiConsentIsCurrent(consent: { allowed: boolean; version: number } | null): boolean {
   return !!consent && consent.allowed && consent.version === AI_REVIEW_CONSENT_VERSION;
+}
+
+/**
+ * The providers a student's play may go to: those of the feature's current
+ * route that the student's current consent named. A provider the operator
+ * added later is left out until the student agrees again.
+ */
+export function aiConsentCoveredProviders(
+  consent: { allowed: boolean; version: number; providers: readonly string[] } | null,
+  routeProviders: readonly AiProviderId[]
+): AiProviderId[] {
+  if (!consent || !aiConsentIsCurrent(consent)) return [];
+  return routeProviders.filter((id) => consent.providers.includes(id));
 }
 
 /**

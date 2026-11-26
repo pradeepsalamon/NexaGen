@@ -7,8 +7,12 @@ const FINAL = JSON.stringify({
   practice: [],
   recap: "Today you learned about the opening."
 });
-const LOCAL = { apiKey: null, model: "qwen2.5:3b", name: "Our server", provider: "LOCAL" as const, timeoutMs: 1000, url: "http://ollama:11434/v1" };
-const OUTSIDE = { ...LOCAL, apiKey: "k", model: "m", name: "Outside", provider: "OUTSIDE" as const, url: "https://x" };
+type Config = { apiKey: string | null; model: string; name: string; provider: "LOCAL" | "OUTSIDE"; providerId: string | null; timeoutMs: number; url: string };
+const LOCAL: Config = { apiKey: null, model: "qwen2.5:3b", name: "Our server", provider: "LOCAL", providerId: null, timeoutMs: 1000, url: "http://ollama:11434/v1" };
+const OUTSIDE: Config = { ...LOCAL, apiKey: "k", model: "m", name: "Groq", provider: "OUTSIDE", providerId: "GROQ", url: "https://x" };
+const FALLBACK: Config = { ...OUTSIDE, model: "lite", name: "Google Gemini", providerId: "GEMINI" };
+/** The model answers with the final recap, written by the route's first model. */
+const answers = () => jest.fn(async (route: Config[]) => ({ servedBy: route[0], text: FINAL }));
 
 const transcriptWords = (n: number) => Array.from({ length: n }, (_, i) => `word${i}`).join(" ");
 
@@ -48,7 +52,12 @@ function setup(options: {
     withDeleted: { batchStudent: { findMany: jest.fn(async () => []) } }
   };
   const recaps = { academySettings: jest.fn(async () => options.settings ?? { enabled: true, provider: "LOCAL" }) };
-  const models = { complete: options.complete ?? jest.fn(async () => FINAL), local: LOCAL, outside: null as typeof OUTSIDE | null };
+  const models = {
+    complete: options.complete ?? answers(),
+    local: LOCAL,
+    outside: [] as Config[],
+    outsideRoute: () => models.outside
+  };
   const entitlements = { hasFeature: jest.fn(async () => options.hasFeature ?? true) };
   const job = new ClassRecapJob(prisma as never, {} as never, entitlements as never, recaps as never, models as never);
   const run = () => runInTenant("tenant_nexa", "spec", () => job.runForAcademy(new AbortController().signal, () => NOW));
@@ -126,13 +135,25 @@ describe("ClassRecapJob", () => {
     });
   });
 
-  it("the outside AI runs even while a class is live", async () => {
-    const complete = jest.fn(async () => FINAL);
+  it("the outside AI runs even while a class is live, with the main model and its fallback", async () => {
+    const complete = answers();
     const { models, run } = setup({ complete, live: 1, settings: { enabled: true, provider: "OUTSIDE" } });
-    models.outside = OUTSIDE;
+    models.outside = [OUTSIDE, FALLBACK];
     const result = await run();
     expect(result.ready).toBe(1);
-    expect((complete.mock.calls[0] as unknown as [{ provider: string }])[0].provider).toBe("OUTSIDE");
+    expect((complete.mock.calls[0] as unknown as [Config[]])[0]).toEqual([OUTSIDE, FALLBACK]);
+  });
+
+  it("the recap names the model that wrote it (the fallback, when the main one failed)", async () => {
+    const complete = jest.fn(async () => ({ servedBy: FALLBACK, text: FINAL }));
+    const { models, prisma, run } = setup({ complete, settings: { enabled: true, provider: "OUTSIDE" } });
+    models.outside = [OUTSIDE, FALLBACK];
+    await run();
+    expect(prisma.classRecap.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ model: "lite", provider: "OUTSIDE", providerName: "Google Gemini", status: "READY" })
+      })
+    );
   });
 
   it("the outside AI chosen but not set up: nothing is written", async () => {

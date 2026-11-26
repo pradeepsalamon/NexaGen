@@ -2776,6 +2776,7 @@ export * from "./class-requests";
 export * from "./progress";
 export * from "./student-activity";
 export * from "./ai-review";
+export * from "./ai-providers";
 export * from "./class-recap";
 export * from "./revision";
 

@@ -36,10 +36,8 @@ function setup(options: { hasFeature?: boolean; latest?: Record<string, unknown>
     }),
     hasFeature: jest.fn(async () => options.hasFeature ?? true)
   };
-  const provider = {
-    comment: jest.fn(),
-    config: options.providerConfigured === false ? null : { apiKey: "k", model: "m", name: "Test AI", timeoutMs: 1000, url: "https://x" }
-  };
+  const groq = { apiKey: "k", model: "m", name: "Groq", provider: "OUTSIDE", providerId: "GROQ", timeoutMs: 1000, url: "https://x" };
+  const provider = { comment: jest.fn(), route: () => (options.providerConfigured === false ? [] : [groq]) };
   const service = new AiReviewConsentService({} as never, prisma as never, entitlements as never, provider as never);
   const inAcademy = <T>(fn: () => Promise<T>) => runInTenant("tenant_nexa", "spec", fn);
   return { entitlements, inAcademy, prisma, service, tx };
@@ -53,7 +51,16 @@ describe("AiReviewConsentService", () => {
     const { inAcademy, service, tx } = setup();
     await inAcademy(() => service.setMine("t", { allowed: true, guardianConfirmed: true }));
     expect(tx.aiReviewConsent.create).toHaveBeenCalledWith({
-      data: { allowed: true, changedById: "s1", changedByRole: "STUDENT", guardianConfirmed: true, studentId: "s1", version: AI_REVIEW_CONSENT_VERSION }
+      data: {
+        allowed: true,
+        changedById: "s1",
+        changedByRole: "STUDENT",
+        guardianConfirmed: true,
+        // The providers shown to the student: play goes only to these.
+        providers: ["GROQ"],
+        studentId: "s1",
+        version: AI_REVIEW_CONSENT_VERSION
+      }
     });
     expect(tx.aiPlayComment.deleteMany).not.toHaveBeenCalled();
   });
@@ -63,7 +70,9 @@ describe("AiReviewConsentService", () => {
     const { entitlements, inAcademy, service, tx } = setup({ hasFeature: false });
     await inAcademy(() => service.setMine("t", { allowed: false }));
     expect(entitlements.assertFeature).not.toHaveBeenCalled();
-    expect(tx.aiReviewConsent.create).toHaveBeenCalledWith({ data: expect.objectContaining({ allowed: false, guardianConfirmed: false }) });
+    expect(tx.aiReviewConsent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ allowed: false, guardianConfirmed: false, providers: [] })
+    });
     expect(tx.aiPlayComment.deleteMany).toHaveBeenCalledWith({ where: { studentId: "s1" } });
   });
 
@@ -115,13 +124,26 @@ describe("AiReviewConsentService", () => {
 
   it("reports the state and why it's idle", async () => {
     authenticate.mockResolvedValue(student as never);
-    const on = setup({ latest: { allowed: true, version: AI_REVIEW_CONSENT_VERSION } });
-    await expect(on.inAcademy(() => on.service.getMine("t"))).resolves.toMatchObject({ active: true, allowed: true, providerName: "Test AI" });
+    const on = setup({ latest: { allowed: true, providers: ["GROQ"], version: AI_REVIEW_CONSENT_VERSION } });
+    await expect(on.inAcademy(() => on.service.getMine("t"))).resolves.toMatchObject({
+      active: true,
+      allowed: true,
+      needsReconsent: false,
+      providerName: "Groq"
+    });
 
-    const noKey = setup({ latest: { allowed: true, version: AI_REVIEW_CONSENT_VERSION }, providerConfigured: false });
+    const noKey = setup({ latest: { allowed: true, providers: ["GROQ"], version: AI_REVIEW_CONSENT_VERSION }, providerConfigured: false });
     await expect(noKey.inAcademy(() => noKey.service.getMine("t"))).resolves.toMatchObject({ active: false, allowed: true, providerConfigured: false });
 
-    const old = setup({ latest: { allowed: true, version: AI_REVIEW_CONSENT_VERSION - 1 } });
+    // Agreed when only Gemini was used; the platform now uses Groq: asked again, nothing sent.
+    const otherProvider = setup({ latest: { allowed: true, providers: ["GEMINI"], version: AI_REVIEW_CONSENT_VERSION } });
+    await expect(otherProvider.inAcademy(() => otherProvider.service.getMine("t"))).resolves.toMatchObject({
+      active: false,
+      allowed: false,
+      needsReconsent: true
+    });
+
+    const old = setup({ latest: { allowed: true, providers: ["GROQ"], version: AI_REVIEW_CONSENT_VERSION - 1 } });
     await expect(old.inAcademy(() => old.service.getMine("t"))).resolves.toMatchObject({ active: false, allowed: false, needsReconsent: true });
   });
 

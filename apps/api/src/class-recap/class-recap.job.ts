@@ -94,12 +94,13 @@ export class ClassRecapJob {
     await this.prisma.classRecap.updateMany({ data: { status: ClassRecapStatus.QUEUED }, where: { status: ClassRecapStatus.RUNNING } });
     result.queued = await this.discover(now());
 
-    const provider = usableRecapProvider(settings.provider, { local: this.models.local !== null, outside: this.models.outside !== null });
-    const config = provider === "LOCAL" ? this.models.local : provider === "OUTSIDE" ? this.models.outside : null;
-    if (!config) return result;
+    const outside = this.models.outsideRoute();
+    const provider = usableRecapProvider(settings.provider, { local: this.models.local !== null, outside: outside.length > 0 });
+    const route = provider === "LOCAL" && this.models.local ? [this.models.local] : provider === "OUTSIDE" ? outside : [];
+    if (route.length === 0) return result;
 
     for (let i = 0; i < RECAPS_PER_RUN && !signal.aborted; i += 1) {
-      if (config.provider === "LOCAL" && (await this.anyClassLive())) {
+      if (route[0].provider === "LOCAL" && (await this.anyClassLive())) {
         result.deferred = true;
         break;
       }
@@ -109,7 +110,7 @@ export class ClassRecapJob {
         where: { notBefore: { lte: now() }, status: ClassRecapStatus.QUEUED }
       });
       if (!row) break;
-      const outcome = await this.makeRecap(row.id, config, signal, now);
+      const outcome = await this.makeRecap(row.id, route, signal, now);
       if (outcome === "DEFERRED") {
         result.deferred = true;
         break;
@@ -153,10 +154,10 @@ export class ClassRecapJob {
     return sessions.filter(isLongEnough).length;
   }
 
-  /** Claims one QUEUED row and writes its draft. */
+  /** Claims one QUEUED row and writes its draft with the route (main model, then its fallback). */
   async makeRecap(
     id: string,
-    config: ChatModelConfig,
+    route: readonly ChatModelConfig[],
     signal: AbortSignal,
     now: () => Date = () => new Date()
   ): Promise<"READY" | "FAILED" | "SKIPPED" | "DEFERRED" | "LOST"> {
@@ -172,7 +173,9 @@ export class ClassRecapJob {
     if (countWords(input.lines.join(" ")) < CLASS_RECAP_MIN_WORDS) return this.finish(id, ClassRecapStatus.SKIPPED, "TOO_SHORT");
 
     const started = Date.now();
-    const local = config.provider === "LOCAL";
+    const local = route[0]?.provider === "LOCAL";
+    // The model that wrote the final answer is the one the recap names.
+    let servedBy: ChatModelConfig | null = null;
     try {
       const generated = await this.withLiveClassWatch(local, signal, (callSignal) =>
         generateRecap({
@@ -181,10 +184,12 @@ export class ClassRecapJob {
                 if (await this.anyClassLive()) throw new RecapDeferredError("A class is live.");
               }
             : undefined,
-          chunkTokens: getApiEnv().AI_CLASS_RECAP_CHUNK_TOKENS,
+          chunkTokens: local ? getApiEnv().AI_CLASS_RECAP_CHUNK_TOKENS : getApiEnv().AI_CLASS_RECAP_OUTSIDE_CHUNK_TOKENS,
           complete: async (prompt, maxTokens) => {
             try {
-              return await this.models.complete(config, prompt, { maxTokens, signal: callSignal });
+              const answer = await this.models.complete(route, prompt, { maxTokens, signal: callSignal });
+              servedBy = answer.servedBy;
+              return answer.text;
             } catch (error) {
               // Stopped because a class started, or the job's lease was lost: try again later.
               if (callSignal.aborted) throw new RecapDeferredError("Stopped.");
@@ -202,11 +207,11 @@ export class ClassRecapJob {
           failureCode: null,
           generatedAt: now(),
           latencyMs: Date.now() - started,
-          model: config.model,
+          model: (servedBy ?? route[0]).model,
           modelCalls: generated.calls,
           promptVersion: CLASS_RECAP_PROMPT_VERSION,
-          provider: config.provider,
-          providerName: config.name,
+          provider: (servedBy ?? route[0]).provider,
+          providerName: (servedBy ?? route[0]).name,
           removedCount: generated.removed,
           status: ClassRecapStatus.READY
         },

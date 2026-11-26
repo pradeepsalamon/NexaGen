@@ -109,7 +109,7 @@ export function AiReviewConsentCard({ studentId, compact = false }: { studentId:
             </p>
           ) : null}
           {state.needsReconsent ? (
-            <Alert variant="warning">The wording changed since this was switched on. Switch it on again to keep the comments coming.</Alert>
+            <Alert variant="warning">The wording or the AI service changed since this was switched on. Switch it on again to keep the comments coming.</Alert>
           ) : null}
           {idleReason(state) ? <Alert variant="info">{idleReason(state)}</Alert> : null}
         </div>

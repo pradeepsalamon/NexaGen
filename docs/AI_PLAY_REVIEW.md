@@ -20,7 +20,7 @@ as the progress pages).
 |---|---|
 | Contract | `packages/types/src/ai-review.ts` (`PlayItem`, `outsideAiAllowed`, `AI_REVIEW_CONSENT_VERSION`, caps), routes `API_ROUTES.playReview` |
 | API module | `apps/api/src/play-review/` (controller, `PlayReviewService`, `AiReviewConsentService`, `PlayItemLoader`, `play-feed.sql.ts`, `play-review.rules.ts`, `PlayReviewJob`) |
-| Outside AI adapter | `apps/api/src/ai/outside/outside-ai.ts` (`pseudonymisePlay`, `OpenAiCompatibleProvider`) |
+| Outside AI adapter | `apps/api/src/ai/outside/outside-ai.ts` (`pseudonymisePlay`, `OpenAiCompatibleProvider` on the `PLAY_REVIEW_COMMENT` route of `AiProvidersService`) |
 | Gap A (Storm/Racer moves) | `apps/api/src/puzzle-rush/rush-played.ts`; web `features/live-class/lib/puzzleRushRun.ts` (`played`, `tried`) |
 | Gap B (class board credit) | `GameRecorderService.recordBoardCredits`; web `useBoardSync` → `creditMove` in `createBoardStore`, saved via `toLiveBoardState().moveCredits` |
 | Web | `features/play-review/` (Board play tab on the student progress pages, `AiReviewConsentCard` on Profile and the staff student page, `AiPlayReviewSettingsCard` on `/admin/game-sync`) |
@@ -105,8 +105,15 @@ Reviews are derived and kept a year (`RETENTION_RULES`). The weekly roll-up
 - **The one rule** `outsideAiAllowed` (`@nexa-chess/types`): academy
   `outsideAiEnabled` **and** plan `aiPlayReview` **and** a provider configured
   **and** `aiConsentIsCurrent` (latest consent row on, for the current
-  `AI_REVIEW_CONSENT_VERSION`). Bump the version when the wording, the provider
-  or the retention changes: everyone is asked again.
+  `AI_REVIEW_CONSENT_VERSION`). Bump the version when the wording or the
+  retention changes: everyone is asked again.
+- **Consent names its providers**: each row stores the providers of the
+  "AI play review comments" route when the student agreed (`providers`), and
+  play goes only to those (`aiConsentCoveredProviders`, re-checked in the
+  write transaction against the provider that actually answered). If an
+  operator later maps the feature to a provider the consent didn't name, that
+  student's play goes only to the named ones (or nowhere) and they are asked
+  again (`needsReconsent`). Rows from before 2026-11-26 name none.
 - **Consent** is append-only (`ai_review_consents`, latest row = state). The
   student switches it on in Profile after ticking "My parent or guardian
   agrees"; their coach or an admin can switch it on from the student page
@@ -114,12 +121,14 @@ Reviews are derived and kept a year (`RETENTION_RULES`). The weekly roll-up
   the plan feature (402); switching **off** always works, and deletes the
   student's comments in the same transaction. A comment whose request was
   still running is dropped (consent re-checked in the write transaction).
-- **Provider**: any OpenAI-compatible chat API, from env
-  (`AI_REVIEW_PROVIDER_URL`, `_API_KEY`, `_MODEL`, `_NAME`, `_TIMEOUT_MS`); all
-  of URL/key/model unset = off. Not connected yet (no key): the owner picks a
-  provider later. Free tiers may train on what they're sent; pick one whose
-  terms the academy accepts, and **name it in the privacy policy before
-  turning it on** (`features/legal/content.ts` says none is in use yet).
+- **Provider**: the "AI play review comments" route of the platform console
+  → AI ([AI_PROVIDERS.md](AI_PROVIDERS.md)): Groq, Gemini or OpenRouter, a
+  main model and a fallback (Auto: Groq `qwen/qwen3.8-27b`, then Gemini
+  `gemini-3.1-flash-lite`). Nothing connected = off. The comment gets 400
+  tokens of its own plus `OUTSIDE_THINKING_TOKENS`, so thinking models aren't
+  cut off (`docs/ai/PROVIDER_EVAL.md` §7.1 on branch `ai/provider-eval`). Free tiers may train
+  on what they're sent; **name the provider in the privacy policy before
+  connecting it** (`features/legal/content.ts` says none is in use yet).
 - **Pseudonymised payload** (`pseudonymisePlay`): source kind, start FENs,
   SAN moves (the student's marked `*`), results, accuracy and findings. Never a
   name, id, title, class, batch, academy or date (spec-checked). Only status

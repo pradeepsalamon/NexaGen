@@ -47,15 +47,18 @@ function setup(options: {
   liveClasses?: number;
   rows?: { source: string; source_id: string; student_id: string; played_at: Date }[];
   items?: PlayItem[];
-  provider?: { config: unknown; comment: jest.Mock } ;
-  consentedStudents?: string[];
-  latestConsent?: { allowed: boolean; version: number } | null;
+  provider?: { route: () => unknown[]; comment: jest.Mock };
+  /** Student → the providers their consent covers. */
+  consentedStudents?: string[] | Record<string, string[]>;
+  latestConsent?: { allowed: boolean; version: number; providers: string[] } | null;
 } = {}) {
   const upserts: unknown[] = [];
   const comments: unknown[] = [];
   const tx = {
     aiPlayComment: { create: jest.fn(async (args: unknown) => comments.push(args)) },
-    aiReviewConsent: { findFirst: jest.fn(async () => options.latestConsent ?? { allowed: true, version: AI_REVIEW_CONSENT_VERSION }) }
+    aiReviewConsent: {
+      findFirst: jest.fn(async () => options.latestConsent ?? { allowed: true, providers: ["GROQ", "GEMINI"], version: AI_REVIEW_CONSENT_VERSION })
+    }
   };
   const prisma = {
     $queryRaw: jest.fn(async () => options.rows ?? []),
@@ -70,7 +73,11 @@ function setup(options: {
   };
   const loader = { load: jest.fn(async (refs: PlayRef[]) => (options.items ?? refs.map((r) => playItem({ source: r.source, sourceId: r.sourceId })))) };
   const engine = { analyzeGame: jest.fn(async (input: { startFen: string; movesUci: string[] }) => emptyEngine(input.startFen, input.movesUci)) };
-  const provider = options.provider ?? { comment: jest.fn(), config: null };
+  const provider = options.provider ?? { comment: jest.fn(), route: () => [] };
+  const consented = options.consentedStudents ?? [];
+  const covered = new Map<string, string[]>(
+    Array.isArray(consented) ? consented.map((id): [string, string[]] => [id, ["GROQ", "GEMINI"]]) : Object.entries(consented)
+  );
   const job = new PlayReviewJob(
     prisma as never,
     {} as never,
@@ -80,7 +87,7 @@ function setup(options: {
         engineReviewEnabled: options.engineReviewEnabled ?? true,
         outsideAiEnabled: options.outsideAiEnabled ?? false
       })),
-      consentedStudentIds: jest.fn(async () => options.consentedStudents ?? [])
+      coveredProvidersByStudent: jest.fn(async () => covered)
     } as never,
     loader as never,
     engine as never,
@@ -152,9 +159,11 @@ describe("PlayReviewJob.runForAcademy", () => {
 });
 
 describe("outside-AI comment pass", () => {
+  const GROQ = { apiKey: "k", model: "m1", name: "Groq", provider: "OUTSIDE", providerId: "GROQ", timeoutMs: 1000, url: "https://llm.example" };
+  const GEMINI = { ...GROQ, model: "lite", name: "Google Gemini", providerId: "GEMINI", url: "https://other.example" };
   const configured = () => ({
-    comment: jest.fn(async () => "Well played."),
-    config: { apiKey: "k", model: "m1", name: "Test AI", timeoutMs: 1000, url: "https://llm.example" }
+    comment: jest.fn(async (route: (typeof GROQ)[]) => ({ servedBy: route[0], text: "Well played." })),
+    route: () => [GROQ, GEMINI]
   });
 
   it("sends nothing while the academy switch is off", async () => {
@@ -165,7 +174,7 @@ describe("outside-AI comment pass", () => {
   });
 
   it("sends nothing without a configured provider (no key)", async () => {
-    const provider = { comment: jest.fn(), config: null };
+    const provider = { comment: jest.fn(), route: () => [] };
     const { run } = setup({ consentedStudents: ["s1"], outsideAiEnabled: true, provider, rows: [] });
     await run();
     expect(provider.comment).not.toHaveBeenCalled();
@@ -184,17 +193,37 @@ describe("outside-AI comment pass", () => {
     const { comments, prisma, run } = setup({ consentedStudents: ["s1"], outsideAiEnabled: true, provider, rows: [] });
     await expect(run()).resolves.toMatchObject({ commented: 1 });
     expect(prisma.aiPlayReview.findMany.mock.calls[0]).toMatchObject([{ where: { comment: null, status: "DONE", studentId: { in: ["s1"] } } }]);
-    const sent = JSON.stringify((provider.comment.mock.calls[0] as unknown[])[0]);
+    const sent = JSON.stringify((provider.comment.mock.calls[0] as unknown[])[1]);
     expect(sent).not.toContain("s1");
     expect(sent).not.toContain("a1");
-    expect(comments[0]).toMatchObject({ data: { model: "m1", provider: "Test AI", reviewId: "rev1", studentId: "s1", text: "Well played." } });
+    expect(comments[0]).toMatchObject({ data: { model: "m1", provider: "Groq", reviewId: "rev1", studentId: "s1", text: "Well played." } });
+  });
+
+  it("sends only to the providers the student's consent named", async () => {
+    const provider = configured();
+    const { run } = setup({ consentedStudents: { s1: ["GEMINI"] }, outsideAiEnabled: true, provider, rows: [] });
+    await run();
+    expect((provider.comment.mock.calls[0] as unknown[])[0]).toEqual([GEMINI]);
+  });
+
+  it("drops a comment from a provider the latest consent doesn't name", async () => {
+    const provider = configured();
+    const { comments, run } = setup({
+      consentedStudents: ["s1"],
+      latestConsent: { allowed: true, providers: ["GEMINI"], version: AI_REVIEW_CONSENT_VERSION },
+      outsideAiEnabled: true,
+      provider,
+      rows: []
+    });
+    await expect(run()).resolves.toMatchObject({ commented: 0 });
+    expect(comments).toEqual([]);
   });
 
   it("drops the comment when the switch was turned off while the request ran", async () => {
     const provider = configured();
     const { comments, run } = setup({
       consentedStudents: ["s1"],
-      latestConsent: { allowed: false, version: AI_REVIEW_CONSENT_VERSION },
+      latestConsent: { allowed: false, providers: [], version: AI_REVIEW_CONSENT_VERSION },
       outsideAiEnabled: true,
       provider,
       rows: []
