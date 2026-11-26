@@ -1,6 +1,10 @@
 # Weak spots and practice picks — plan
 
-**Status: plan only (2026-11-26).** Nothing built. Roadmap phase 4
+**Status: phase A built 2026-11-26 ([WEAK_SPOTS.md](WEAK_SPOTS.md)); B and C
+not started.** Owner 2026-11-26: "go with recommended" for WS-1…WS-6. Phase A
+differs from §3.2 in one way: game-analysis rows are not added (the same games
+are already play-review `OWN_GAME` items), and older reviews get their chance
+counts by a nightly re-review. Roadmap phase 4
 ("chess explanations and deterministic recommendations",
 [ai/architecture/ROADMAP.md](ai/architecture/ROADMAP.md)), narrowed to what the
 data we already collect can support. Owner decisions are at the end (WS-1…WS-6).

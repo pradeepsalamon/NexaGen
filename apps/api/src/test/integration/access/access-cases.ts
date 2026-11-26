@@ -129,6 +129,8 @@ export const CROSS_USER: Case[] = [
   { name: "coach reads a play item of another coach's student", as: (w) => w.a.coach, path: (w) => API_ROUTES.playReview.item(w.b.student.id, "PUZZLE", w.b.attempt.id) },
   { name: "student reads another student's play item as their own", as: (w) => w.a.student, path: (w) => API_ROUTES.playReview.itemMine("PUZZLE", w.b.attempt.id) },
   { name: "coach reads the weekly review of another coach's student", as: (w) => w.a.coach, path: (w) => API_ROUTES.playReview.rollup(w.b.student.id) },
+  { name: "coach reads the weak spots of another coach's student", as: (w) => w.a.coach, path: (w) => API_ROUTES.playReview.weakSpots(w.b.student.id) },
+  { name: "student reads another student's weak spots", as: (w) => w.a.student, path: (w) => API_ROUTES.playReview.weakSpots(w.b.student.id) },
   { name: "coach reads another coach's student's AI switch", as: (w) => w.a.coach, path: (w) => API_ROUTES.playReview.consent(w.b.student.id) },
   { name: "coach switches on the outside AI for another coach's student", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.playReview.consent(w.b.student.id), body: { allowed: true, guardianConfirmed: true, providers: [] } },
   // AI class recaps (docs/CLASS_RECAPS.md): the class's coach and admins review; its students read once published
@@ -301,6 +303,7 @@ export const OWN_CASES: Case[] = [
   { name: "student reads own AI switch", as: (w) => w.a.student, path: () => API_ROUTES.playReview.consentMine },
   { name: "coach reads own student's board play", as: (w) => w.a.coach, path: (w) => API_ROUTES.playReview.feed(w.a.student.id) },
   { name: "coach reads own student's weekly review", as: (w) => w.a.coach, path: (w) => API_ROUTES.playReview.rollup(w.a.student.id) },
+  { name: "coach reads own student's weak spots", as: (w) => w.a.coach, path: (w) => API_ROUTES.playReview.weakSpots(w.a.student.id) },
   { name: "coach reads own student's AI switch", as: (w) => w.a.coach, path: (w) => API_ROUTES.playReview.consent(w.a.student.id) },
   { name: "coach reads own class's transcript", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.transcript(w.a.liveClass.id) },
   { name: "coach reads own class's recap", as: (w) => w.a.coach, path: (w) => API_ROUTES.classRecaps.forClass(w.a.class.id) },
@@ -394,6 +397,8 @@ export function rushReport(rushId: string) {
 }
 
 export const WRONG_ROLE: Case[] = [
+  // Weak spots phase A (docs/WEAK_SPOTS.md): coaches and admins only; the student's card is phase B.
+  { name: "student reads their own weak spots", as: (w) => w.a.student, path: (w) => API_ROUTES.playReview.weakSpots(w.a.student.id) },
   // Review F1: a student can't set their own rating, date of birth or level.
   { name: "student sets their own rating", as: (w) => w.a.student, method: "PATCH", path: (w) => API_ROUTES.progress.playingProfile(w.a.student.id), body: { chessRating: 2400, dateOfBirth: null, experienceLevel: "ADVANCED" } },
   // Closing an academy (docs/ACADEMY_CLOSURE.md): the academy's own super admin, and operators.

@@ -10,6 +10,7 @@ import { PlayItemLoader } from "./play-item.loader";
 import { PlayReviewController, PlayReviewSettingsController } from "./play-review.controller";
 import { PlayReviewJob } from "./play-review.job";
 import { PlayReviewService } from "./play-review.service";
+import { WeakSpotsService } from "./weak-spots.service";
 
 /** AI play review: the play feed, the nightly engine review, the outside-AI switch (docs/AI_PLAY_REVIEW.md). */
 @Module({
@@ -20,6 +21,7 @@ import { PlayReviewService } from "./play-review.service";
     PlayItemLoader,
     PlayReviewJob,
     PlayReviewService,
+    WeakSpotsService,
     {
       inject: [AiProvidersService],
       provide: OUTSIDE_AI_PROVIDER,

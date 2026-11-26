@@ -150,16 +150,29 @@ export function feedPageSql(filter: FeedFilter, cursor: FeedCursor | null, take:
  * review yet (or a FAILED one still under `maxAttempts`), newest first.
  */
 export function unreviewedSql(filter: FeedFilter, maxAttempts: number, take: number): Prisma.Sql {
+  // Never reviewed, or FAILED under the attempt cap: first. Then DONE reviews
+  // without chance counts (written before weak spots), reviewed again so
+  // their counts fill in (docs/WEAK_SPOTS.md); a refresh never retries.
   return Prisma.sql`
-    SELECT f.source, f.source_id, f.student_id, f.played_at
+    SELECT f.source, f.source_id, f.student_id, f.played_at,
+      EXISTS (
+        SELECT 1 FROM ai_play_reviews d
+        WHERE ${tenantFilter("d")}
+          AND d."studentId" = f.student_id AND d.source::text = f.source AND d."sourceId" = f.source_id
+          AND d.status = 'DONE'
+      ) AS refresh
     FROM (${feedUnion(filter)}) AS f (source, source_id, student_id, played_at)
     WHERE NOT EXISTS (
       SELECT 1 FROM ai_play_reviews r
       WHERE ${tenantFilter("r")}
         AND r."studentId" = f.student_id AND r.source::text = f.source AND r."sourceId" = f.source_id
-        AND (r.status <> 'FAILED' OR r.attempts >= ${maxAttempts}::int)
+        AND (
+          (r.status = 'DONE' AND r."tacticsJson" IS NOT NULL)
+          OR r.status NOT IN ('DONE', 'FAILED')
+          OR (r.status = 'FAILED' AND r.attempts >= ${maxAttempts}::int)
+        )
     )
-    ORDER BY f.played_at DESC, f.source || ':' || f.source_id DESC
+    ORDER BY refresh ASC, f.played_at DESC, f.source || ':' || f.source_id DESC
     LIMIT ${take}`;
 }
 
@@ -170,7 +183,10 @@ export function queryFeedPage(prisma: RawRunner, filter: FeedFilter, cursor: Fee
   return prisma.$queryRaw<FeedRow[]>(feedPageSql(filter, cursor, take));
 }
 
+/** One to-do row: `refresh` = a DONE review from before chance counts were stored. */
+export type UnreviewedRow = FeedRow & { refresh: boolean };
+
 /** The nightly review's to-do list. */
 export function queryUnreviewed(prisma: RawRunner, filter: FeedFilter, maxAttempts: number, take: number) {
-  return prisma.$queryRaw<FeedRow[]>(unreviewedSql(filter, maxAttempts, take));
+  return prisma.$queryRaw<UnreviewedRow[]>(unreviewedSql(filter, maxAttempts, take));
 }

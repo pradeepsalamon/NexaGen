@@ -3,7 +3,8 @@ import {
   DEFAULT_TENANT_ID,
   type AiReviewConsentState,
   type PlayFeedResponse,
-  type PlayItemDetailResponse
+  type PlayItemDetailResponse,
+  type WeakSpotProfileResponse
 } from "@nexa-chess/types";
 import { runInTenant } from "../tenancy/tenant-context";
 import { createTestApp, type TestApp } from "../test/integration/app";
@@ -162,15 +163,22 @@ describe("AI play review: play feed, Storm moves, switch (real app, real Postgre
     expect((await t.call(w.b.student, "GET", API_ROUTES.playReview.itemMine("CLASS_BOARD", w.a.boardGame.id))).status).toBe(404);
   });
 
-  it("the nightly to-do list skips reviewed items and stays inside the academy", async () => {
+  it("the nightly to-do list skips reviewed items, refreshes old ones last, and stays inside the academy", async () => {
+    // Reviewed with chance counts: done. Reviewed before counts were stored: refreshed, after new play.
     await t.prisma.aiPlayReview.create({
-      data: { playedAt: new Date(), source: "PUZZLE", sourceId: ids.puzzle, status: "DONE", studentId: w.a.student.id }
+      data: { playedAt: new Date(), source: "PUZZLE", sourceId: ids.puzzle, status: "DONE", studentId: w.a.student.id, tacticsJson: {} }
+    });
+    await t.prisma.aiPlayReview.create({
+      data: { playedAt: new Date(), source: "PUZZLE", sourceId: ids.otherPuzzle, status: "DONE", studentId: w.b.student.id }
     });
     const rows = await runInTenant(DEFAULT_TENANT_ID, "int", () =>
       queryUnreviewed(t.prisma, { since: new Date(Date.now() - 86_400_000) }, 3, 100)
     );
     const keys = rows.map((r) => `${r.student_id}|${r.source}:${r.source_id}`);
     expect(keys).not.toContain(`${w.a.student.id}|PUZZLE:${ids.puzzle}`);
+    const refresh = rows.filter((r) => r.refresh).map((r) => `${r.student_id}|${r.source}:${r.source_id}`);
+    expect(refresh).toEqual([`${w.b.student.id}|PUZZLE:${ids.otherPuzzle}`]);
+    expect(keys[keys.length - 1]).toBe(refresh[0]);
     expect(keys).toContain(`${w.a.student.id}|MATCH:${ids.match}`);
     // B played the same match: it is on B's list too.
     expect(keys).toContain(`${w.b.student.id}|MATCH:${ids.match}`);
@@ -180,6 +188,35 @@ describe("AI play review: play feed, Storm moves, switch (real app, real Postgre
       queryUnreviewed(t.prisma, { since: new Date(Date.now() - 86_400_000) }, 3, 100)
     );
     expect(elsewhere).toEqual([]);
+  });
+
+  it("weak spots: the coach sees what the student keeps missing, from stored chance counts", async () => {
+    const fen = "r1bqkbnr/pppp1ppp/8/4p3/2BnP3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4";
+    for (const [i, days] of [1, 2, 3].entries()) {
+      await t.prisma.aiPlayReview.create({
+        data: {
+          findingsJson: [{ bestMoveSan: "Nxe5", fenBefore: fen, kind: "MISSED_TACTIC", motif: "FORK", playedSan: "a3", ply: 7, segment: 0, winPercentLoss: 25 }],
+          playedAt: new Date(Date.now() - days * 86_400_000),
+          source: "CLASS_BOARD",
+          sourceId: `weak-spot-${i}`,
+          status: "DONE",
+          studentId: w.a.student.id,
+          tacticsJson: { FORK: { allowed: 0, alternative: 0, found: 0, missed: 2 }, PIN: { allowed: 0, alternative: 0, found: 2, missed: 0 } }
+        }
+      });
+    }
+    const res = await t.call(w.a.coach, "GET", API_ROUTES.playReview.weakSpots(w.a.student.id));
+    expect(res.status).toBe(200);
+    const profile = res.body as WeakSpotProfileResponse;
+    expect(profile.weakSpots[0]).toMatchObject({ itemsWithMiss: 3, missed: 6, motif: "FORK", verdict: "WEAKNESS" });
+    expect(profile.weakSpots[0].examples[0]).toMatchObject({ bestMoveUci: "f3e5", playedUci: "a2a3", source: "CLASS_BOARD" });
+    expect(profile.strengths.map((m) => m.motif)).toEqual(["PIN"]);
+
+    // A coach who doesn't teach the student, and the student themselves in phase A: refused.
+    expect((await t.call(w.b.coach, "GET", API_ROUTES.playReview.weakSpots(w.a.student.id))).status).toBeGreaterThanOrEqual(403);
+    expect((await t.call(w.a.student, "GET", API_ROUTES.playReview.weakSpots(w.a.student.id))).status).toBe(403);
+    // The tests share one world: leave the reviews as they were.
+    await t.prisma.aiPlayReview.deleteMany({ where: { sourceId: { startsWith: "weak-spot-" } } });
   });
 
   it("the switch: on with a guardian's agreement, off deletes the outside AI's comments", async () => {

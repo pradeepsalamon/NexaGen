@@ -1075,6 +1075,8 @@ export const API_ROUTES = {
     rollup: (id: string = ":id") => `/play-review/students/${id}/rollup`,
     consentMine: "/play-review/me/consent",
     consent: (id: string = ":id") => `/play-review/students/${id}/consent`,
+    // Weak spots (docs/WEAK_SPOTS.md): coach / admin in phase A.
+    weakSpots: (id: string = ":id") => `/play-review/students/${id}/weak-spots`,
     settings: "/admin/play-review/settings"
   },
   progress: {

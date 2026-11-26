@@ -8,7 +8,8 @@ import {
   type MoveClassification,
   type PlayFinding,
   type PlayFindingKind,
-  type PlayItem
+  type PlayItem,
+  type PlayTacticStats
 } from "@nexa-chess/types";
 import { detectGameTactics } from "../game-analysis/tactics/detect-tactics";
 
@@ -21,6 +22,8 @@ export type BuiltPlayReview = {
   missedTactics: number;
   studentMoves: number;
   findings: PlayFinding[];
+  /** The student's chances per motif (weak spots, docs/WEAK_SPOTS.md). */
+  tactics: PlayTacticStats;
   versions: Record<string, string>;
 };
 
@@ -55,6 +58,8 @@ export function buildPlayReview(
   const judged: ClassifiedGameMove[] = [];
   const findings: PlayFinding[] = [];
   let missedTactics = 0;
+  const tacticStats: PlayTacticStats = {};
+  const statsFor = (motif: keyof PlayTacticStats) => (tacticStats[motif] ??= { allowed: 0, alternative: 0, found: 0, missed: 0 });
   const versions: Record<string, string> = { engine: engineName, rules: PLAY_REVIEW_RULES_VERSION };
 
   for (const { segment: index, engine } of analysed) {
@@ -87,7 +92,16 @@ export function buildPlayReview(
       });
     }
     for (const chance of tactics.opportunities) {
-      if (chance.outcome !== "MISSED" || !byStudent(chance.ply)) continue;
+      if (!byStudent(chance.ply)) {
+        // The opponent's chance that the student's own move handed over (as game analysis counts it).
+        if (chance.allowedByPly !== null && byStudent(chance.allowedByPly)) statsFor(chance.primaryMotif).allowed += 1;
+        continue;
+      }
+      // UNKNOWN (the move wasn't classified) counts nowhere, as in game insights.
+      if (chance.outcome === "FOUND") statsFor(chance.primaryMotif).found += 1;
+      else if (chance.outcome === "ALTERNATIVE") statsFor(chance.primaryMotif).alternative += 1;
+      else if (chance.outcome === "MISSED") statsFor(chance.primaryMotif).missed += 1;
+      if (chance.outcome !== "MISSED") continue;
       missedTactics += 1;
       const played = classification.moves.find((m) => m.ply === chance.ply);
       findings.push({
@@ -112,6 +126,7 @@ export function buildPlayReview(
     missedTactics,
     mistakes: count("MISTAKE", "MISSED_WIN", "MISSED_MATE", "MISSED_DRAW"),
     studentMoves: judged.length,
+    tactics: tacticStats,
     versions
   };
 }

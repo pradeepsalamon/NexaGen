@@ -95,7 +95,11 @@ never credited; a taken-back move drops out.
   pure `buildPlayReview`: `classifyGame` (White-relative, versions stored) and
   `detectGameTactics`, judging **only the student's moves**;
 - writes one `ai_play_reviews` row per item (DONE / SKIPPED / FAILED; unique
-  per academy + student + source + id), with up to 8 findings worst first.
+  per academy + student + source + id), with up to 8 findings worst first,
+  and the student's chances per motif (`tacticsJson`, rules `play-review-v2`)
+  for [WEAK_SPOTS.md](WEAK_SPOTS.md); DONE reviews from before those counts
+  (`tacticsJson` NULL) are reviewed again after all new play, and a refresh
+  that fails keeps the old review (`tacticsJson = {}`).
 
 Reviews are derived and kept a year (`RETENTION_RULES`). The weekly roll-up
 (`/rollup`) averages the last 7 days by source and counts finding themes.

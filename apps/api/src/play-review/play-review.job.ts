@@ -115,7 +115,8 @@ export class PlayReviewJob {
         }
         const outcome = await this.reviewOne(
           { playedAt: row.played_at, source: row.source, sourceId: row.source_id, studentId: row.student_id },
-          signal
+          signal,
+          { refresh: row.refresh }
         );
         if (outcome === "ABORTED") {
           result.stoppedBy = "ABORTED";
@@ -131,12 +132,22 @@ export class PlayReviewJob {
     return result;
   }
 
-  /** Review one item and store the row (DONE / SKIPPED / FAILED). */
-  async reviewOne(ref: PlayRef, signal: AbortSignal): Promise<"DONE" | "SKIPPED" | "FAILED" | "ABORTED"> {
+  /**
+   * Review one item and store the row (DONE / SKIPPED / FAILED). `refresh`:
+   * a DONE review from before chance counts were stored is reviewed again;
+   * if that can't be done the old review stays and is marked `tacticsJson: {}`
+   * so it isn't tried every night.
+   */
+  async reviewOne(
+    ref: PlayRef,
+    signal: AbortSignal,
+    options: { refresh?: boolean } = {}
+  ): Promise<"DONE" | "SKIPPED" | "FAILED" | "ABORTED"> {
     const [item] = await this.loader.load([ref]);
     const segments = item ? reviewableSegments(item).slice(0, MAX_SEGMENTS_PER_REVIEW) : [];
     if (!item || segments.length === 0) {
-      await this.store(ref, { status: AiPlayReviewStatus.SKIPPED });
+      if (options.refresh) await this.markRefreshed(ref);
+      else await this.store(ref, { status: AiPlayReviewStatus.SKIPPED });
       return "SKIPPED";
     }
     try {
@@ -157,11 +168,17 @@ export class PlayReviewJob {
         mistakes: built.mistakes,
         status: AiPlayReviewStatus.DONE,
         studentMoves: built.studentMoves,
+        tacticsJson: built.tactics as unknown as Prisma.InputJsonValue,
         versionsJson: built.versions
       });
       return "DONE";
     } catch (error) {
       if (error instanceof AnalysisAbortedError || signal.aborted) return "ABORTED";
+      if (options.refresh) {
+        await this.markRefreshed(ref);
+        this.logger.warn(`Re-review of ${ref.source} failed: ${(error as Error).message}`);
+        return "FAILED";
+      }
       // Only our own message; never the item's content.
       await this.store(ref, { error: "The engine couldn't review this.", status: AiPlayReviewStatus.FAILED });
       this.logger.warn(`Review of ${ref.source} failed: ${(error as Error).message}`);
@@ -253,6 +270,21 @@ export class PlayReviewJob {
       create: { ...data, playedAt: ref.playedAt, reviewedAt, source: ref.source, sourceId: ref.sourceId, studentId: ref.studentId, tenantId },
       update: { ...data, attempts: { increment: 1 }, playedAt: ref.playedAt, reviewedAt },
       where: { tenantId_studentId_source_sourceId: { source: ref.source, sourceId: ref.sourceId, studentId: ref.studentId, tenantId } }
+    });
+  }
+
+  /** A refresh that couldn't run: keep the old review, never pick it again. */
+  private async markRefreshed(ref: PlayRef): Promise<void> {
+    await this.prisma.aiPlayReview.updateMany({
+      data: { tacticsJson: {} },
+      where: {
+        source: ref.source,
+        sourceId: ref.sourceId,
+        status: AiPlayReviewStatus.DONE,
+        studentId: ref.studentId,
+        tacticsJson: { equals: Prisma.DbNull },
+        tenantId: requireTenantId("aiPlayReview")
+      }
     });
   }
 

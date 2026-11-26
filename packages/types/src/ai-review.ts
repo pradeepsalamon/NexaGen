@@ -32,7 +32,7 @@ export const PLAY_REVIEW_NIGHTLY_BUDGET_MS = 90 * 60_000;
 /** Outside-AI comments written per academy per night. */
 export const PLAY_REVIEW_NIGHTLY_COMMENT_CAP = 100;
 /** Version of the review rules below (findings, roll-up); stored with every review. */
-export const PLAY_REVIEW_RULES_VERSION = "play-review-v1";
+export const PLAY_REVIEW_RULES_VERSION = "play-review-v2";
 /** Findings kept per review (worst first). */
 export const PLAY_REVIEW_MAX_FINDINGS = 8;
 /** Days an engine review / outside-AI comment is kept (`RETENTION_RULES`). */

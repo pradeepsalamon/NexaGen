@@ -12,6 +12,7 @@ import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { RequireFeature } from "../platform/require-feature.decorator";
 import { AiReviewConsentService } from "./ai-review-consent.service";
 import { PlayReviewService } from "./play-review.service";
+import { WeakSpotsService } from "./weak-spots.service";
 
 /**
  * The play feed, engine reviews and the outside-AI switch
@@ -23,7 +24,8 @@ import { PlayReviewService } from "./play-review.service";
 export class PlayReviewController {
   constructor(
     private readonly consent: AiReviewConsentService,
-    private readonly playReview: PlayReviewService
+    private readonly playReview: PlayReviewService,
+    private readonly weakSpots: WeakSpotsService
   ) {}
 
   private getAccessToken(request: Request) {
@@ -58,6 +60,12 @@ export class PlayReviewController {
   @Get(API_ROUTES.playReview.rollup())
   rollupFor(@Req() request: Request, @Param("id") id: string) {
     return this.playReview.rollupFor(this.getAccessToken(request), id);
+  }
+
+  /** Weak spots (docs/WEAK_SPOTS.md): the student's coach and admins. */
+  @Get(API_ROUTES.playReview.weakSpots())
+  weakSpotsFor(@Req() request: Request, @Param("id") id: string) {
+    return this.weakSpots.getFor(this.getAccessToken(request), id);
   }
 
   @Get(API_ROUTES.playReview.consentMine)

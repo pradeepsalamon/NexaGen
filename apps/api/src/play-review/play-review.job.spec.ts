@@ -45,7 +45,7 @@ function setup(options: {
   engineReviewEnabled?: boolean;
   outsideAiEnabled?: boolean;
   liveClasses?: number;
-  rows?: { source: string; source_id: string; student_id: string; played_at: Date }[];
+  rows?: { source: string; source_id: string; student_id: string; played_at: Date; refresh?: boolean }[];
   items?: PlayItem[];
   provider?: { route: () => unknown[]; comment: jest.Mock };
   /** Student → the providers their consent covers. */
@@ -67,6 +67,7 @@ function setup(options: {
       findMany: jest.fn(async () => [
         { accuracy: 70, findingsJson: [], id: "rev1", playedAt: new Date(0), source: "PUZZLE", sourceId: "a1", studentId: "s1" }
       ]),
+      updateMany: jest.fn(async () => ({ count: 1 })),
       upsert: jest.fn(async (args: unknown) => upserts.push(args))
     },
     liveSession: { count: jest.fn(async () => options.liveClasses ?? 0) }
@@ -155,6 +156,31 @@ describe("PlayReviewJob.runForAcademy", () => {
     engine.analyzeGame.mockRejectedValueOnce(new Error("engine crashed"));
     await expect(run()).resolves.toMatchObject({ failed: 1 });
     expect(upserts[0]).toMatchObject({ create: { error: "The engine couldn't review this.", status: "FAILED" } });
+  });
+
+  it("stores the student's chance counts with every DONE review (weak spots)", async () => {
+    const { run, upserts } = setup({ rows: [row("a1")] });
+    await run();
+    expect(upserts[0]).toMatchObject({ create: { status: "DONE", tacticsJson: {} } });
+  });
+
+  it("asks for never-reviewed play before reviews to refresh, and refreshes only DONE rows without counts", async () => {
+    const { prisma, run } = setup({ rows: [] });
+    await run();
+    const sql = (prisma.$queryRaw.mock.calls[0] as unknown[])[0] as { sql: string };
+    expect(sql.sql).toContain(`(r.status = 'DONE' AND r."tacticsJson" IS NOT NULL)`);
+    expect(sql.sql).toContain("ORDER BY refresh ASC");
+  });
+
+  it("a refresh the engine can't do keeps the old review and is never tried again", async () => {
+    const { engine, prisma, run, upserts } = setup({ rows: [{ ...row("a1"), refresh: true }] });
+    engine.analyzeGame.mockRejectedValueOnce(new Error("engine crashed"));
+    await expect(run()).resolves.toMatchObject({ failed: 1 });
+    expect(upserts).toEqual([]);
+    expect(prisma.aiPlayReview.updateMany).toHaveBeenCalledWith({
+      data: { tacticsJson: {} },
+      where: expect.objectContaining({ source: "PUZZLE", sourceId: "a1", status: "DONE", studentId: "s1", tenantId: TENANT })
+    });
   });
 });
 

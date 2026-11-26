@@ -1,7 +1,10 @@
 # Weekly progress report — plan
 
 **Status: plan only (2026-11-26).** Nothing built. Owner decisions are at the
-end (WR-1…WR-8). Depends lightly on [WEAK_SPOTS_PLAN.md](WEAK_SPOTS_PLAN.md)
+end (WR-1…WR-8); **owner 2026-11-26: "go with recommended" for all of them**
+(student's own account, every plan with the AI paragraph on Enterprise,
+unapproved drafts skipped, approve-all per batch, 1 year, English, Saturday
+drafts / Monday cut-off, Groq named on the privacy page first). Depends lightly on [WEAK_SPOTS_PLAN.md](WEAK_SPOTS_PLAN.md)
 (one line of the report); everything else uses data we already have.
 
 ## 1. The rule this plan must keep

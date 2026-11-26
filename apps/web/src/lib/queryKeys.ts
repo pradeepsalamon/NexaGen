@@ -418,6 +418,7 @@ export const queryKeys = {
     item: (studentId: string, key: string) => ["play-review", "item", studentId, key] as const,
     rollup: (studentId: string) => ["play-review", "rollup", studentId] as const,
     consent: (studentId: string) => ["play-review", "consent", studentId] as const,
+    weakSpots: (studentId: string) => ["play-review", "weak-spots", studentId] as const,
     settings: ["play-review", "settings"] as const
   },
   progress: {

@@ -10,6 +10,7 @@ import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { GameInsightsPanel } from "@/features/game-analysis/components/GameInsightsPanel";
 import { StudentGameSyncCard } from "@/features/game-analysis/components/StudentGameSyncCard";
 import { BoardPlayPanel } from "@/features/play-review/components/BoardPlayPanel";
+import { WeakSpotsPanel } from "@/features/weak-spots/components/WeakSpotsPanel";
 import { RevisionReportPanel } from "@/features/revision/components/RevisionReportPanel";
 import { useActivitySummary, useProgressFor } from "../hooks/useProgress";
 import {
@@ -23,7 +24,7 @@ import { ActivityHistoryList } from "./ActivityHistoryList";
 import { ActivitySummaryPanel } from "./ActivitySummaryPanel";
 import { ProgressView } from "./ProgressView";
 
-type Tab = "overview" | "performance" | "history" | "board" | "revision" | "games";
+type Tab = "overview" | "performance" | "history" | "board" | "weak" | "revision" | "games";
 
 function LoadingTiles() {
   return (
@@ -39,7 +40,7 @@ function LoadingTiles() {
  * One student's progress: rating + streak (Overview), period summary and
  * insights (Performance), the filterable activity history (History), and
  * Board play (every board move, with the nightly engine review —
- * docs/AI_PLAY_REVIEW.md), Smart Revision (scheduled items + recall; staff
+ * docs/AI_PLAY_REVIEW.md), Weak spots (staff only for now — docs/WEAK_SPOTS.md), Smart Revision (scheduled items + recall; staff
  * also recommend from here), and Games (evidence across their engine-analysed games).
  * `studentId` null = the signed-in student. The period and filters are shared
  * by Performance and History, so switching tabs keeps the same slice.
@@ -71,6 +72,7 @@ export function StudentProgressWorkspace({
             <TabsTrigger value="performance">Performance</TabsTrigger>
             <TabsTrigger value="history">Activity history</TabsTrigger>
             <TabsTrigger value="board">Board play</TabsTrigger>
+            {studentId ? <TabsTrigger value="weak">Weak spots</TabsTrigger> : null}
             <TabsTrigger value="revision">Revision</TabsTrigger>
             <TabsTrigger value="games">Games</TabsTrigger>
           </TabsList>
@@ -118,6 +120,10 @@ export function StudentProgressWorkspace({
       <TabsContent value="board">
         {tab === "board" ? <BoardPlayPanel studentId={studentId} /> : null}
       </TabsContent>
+
+      {studentId ? (
+        <TabsContent value="weak">{tab === "weak" ? <WeakSpotsPanel studentId={studentId} /> : null}</TabsContent>
+      ) : null}
 
       <TabsContent value="revision">
         {tab === "revision" ? <RevisionReportPanel studentId={studentId} /> : null}

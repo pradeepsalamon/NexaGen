@@ -9592,6 +9592,10 @@ model AiPlayReview {
   studentMoves  Int                @default(0)
   /// PlayFinding[], worst first.
   findingsJson  Json               @default("[]")
+  /// PlayTacticStats: the student's chances per motif (found / missed / alternative / allowed),
+  /// for weak spots (docs/WEAK_SPOTS.md). Null = reviewed before these were stored; the nightly
+  /// job fills it by reviewing again. `{}` = re-review found nothing (or failed): never retried.
+  tacticsJson   Json?
   /// Engine, classification, accuracy, tactics and rules versions.
   versionsJson  Json               @default("{}")
   error         String?

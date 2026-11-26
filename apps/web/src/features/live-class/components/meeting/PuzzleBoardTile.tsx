@@ -12,7 +12,8 @@ export function PuzzleBoardTile({
   fen,
   orientation,
   lastMove,
-  wrongMove
+  wrongMove,
+  bestMove
 }: {
   fen: string;
   orientation: "white" | "black";
@@ -20,6 +21,8 @@ export function PuzzleBoardTile({
   lastMove?: string;
   /** UCI of a mistaken move, drawn as a red arrow. */
   wrongMove?: string;
+  /** UCI of the better move, drawn as a green arrow. */
+  bestMove?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
@@ -35,7 +38,7 @@ export function PuzzleBoardTile({
       // Deliberately no coordinates on this tiny multi-board grid tile,
       // regardless of the user's global preference — they'd be unreadable.
       coordinates: false,
-      drawable: { enabled: false, autoShapes: toWrongArrow(wrongMove) },
+      drawable: { enabled: false, autoShapes: toArrows(wrongMove, bestMove) },
       animation: { enabled: animationEnabled, duration: 150 }
     });
     return () => {
@@ -53,8 +56,8 @@ export function PuzzleBoardTile({
       lastMove: toLastMove(lastMove),
       animation: { enabled: animationEnabled, duration: 150 }
     });
-    apiRef.current?.setAutoShapes(toWrongArrow(wrongMove));
-  }, [fen, orientation, lastMove, wrongMove, animationEnabled]);
+    apiRef.current?.setAutoShapes(toArrows(wrongMove, bestMove));
+  }, [fen, orientation, lastMove, wrongMove, bestMove, animationEnabled]);
 
   return (
     <div
@@ -67,10 +70,10 @@ export function PuzzleBoardTile({
   );
 }
 
-function toWrongArrow(uci: string | undefined): DrawShape[] {
-  return uci && uci.length >= 4
-    ? [{ orig: uci.slice(0, 2) as Key, dest: uci.slice(2, 4) as Key, brush: "red" }]
-    : [];
+function toArrows(wrongUci: string | undefined, bestUci: string | undefined): DrawShape[] {
+  const arrow = (uci: string | undefined, brush: "red" | "green"): DrawShape[] =>
+    uci && uci.length >= 4 ? [{ orig: uci.slice(0, 2) as Key, dest: uci.slice(2, 4) as Key, brush }] : [];
+  return [...arrow(wrongUci, "red"), ...arrow(bestUci, "green")];
 }
 
 function toLastMove(uci: string | undefined): Key[] | undefined {

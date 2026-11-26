@@ -107,7 +107,15 @@ describe("buildPlayReview", () => {
     expect(review.studentMoves).toBe(3);
     expect(review.blunders).toBe(1);
     expect(review.findings[0]).toMatchObject({ bestMoveSan: "g6", kind: "BLUNDER", playedSan: "Nf6", ply: 6, segment: 0 });
-    expect(review.versions).toMatchObject({ engine: "stockfish-test", rules: "play-review-v1" });
+    expect(review.versions).toMatchObject({ engine: "stockfish-test", rules: "play-review-v2" });
+  });
+
+  it("counts the student's chances per motif: found by the side that mated, handed over by the side that allowed it", () => {
+    const white = buildPlayReview(item("white"), [{ engine: scholarEngine(), segment: 0 }], "stockfish-test");
+    expect(white.tactics.MATE).toEqual({ allowed: 0, alternative: 0, found: 1, missed: 0 });
+    const black = buildPlayReview(item("black"), [{ engine: scholarEngine(), segment: 0 }], "stockfish-test");
+    // Black never had the chance; their Nf6 handed White the mate.
+    expect(black.tactics.MATE).toEqual({ allowed: 1, alternative: 0, found: 0, missed: 0 });
   });
 
   it("finds nothing against the side that played well", () => {
