@@ -82,9 +82,10 @@
  * placement uses negative offsets tuned for lichess's page padding and bleeds
  * outside this app's wrap.
  *
- * coords is a later sibling of cg-board inside cg-container, so it paints on
- * top of the squares/pieces with no z-index; `pointer-events: none` (base CSS)
- * keeps it from blocking piece dragging.
+ * Chessground gives resting pieces (and arrows) `z-index: 2`, so without its
+ * own z-index a piece on a corner square covers the label. `z-index: 3` keeps
+ * labels over resting pieces and arrows but under a moving (8) or dragged (11)
+ * piece; `pointer-events: none` (base CSS) keeps it from blocking dragging.
  */
 /* Frame on cg-container, not the wrap: chessground floors the container to a
    multiple of 8px, so it can be a few px smaller than the wrap. Centred so
@@ -127,6 +128,7 @@
 /* Each strip spans exactly one column / row of squares, so every coord box
    is one square and its corner is the square's corner. */
 [data-nexa-board-theme] coords {
+  z-index: 3;
   opacity: 1;
   font-family: inherit;
   font-size: 11px;

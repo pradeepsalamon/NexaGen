@@ -91,6 +91,16 @@ code on 2026-10-31.
   - Full write-up: [investigations/2026-11-05-empty-400-after-engine-stream.md](investigations/2026-11-05-empty-400-after-engine-stream.md).
 - **Enforce the full web CSP (opened 2026-11-05).** Reports now reach the API (`csp-violation` log lines, docs/AUTHORIZATION.md "CSP reports"). **The release-cycle clock started 2026-11-15 20:13 UTC**: before then reports never reached production's API (nginx had no `/api/` rule for them; added that evening, [DEPLOYMENT.md](DEPLOYMENT.md) Step 4). After a release cycle from that moment, read them, add any missing host to `reportOnlyCsp()` or fix the page, then move the policy from `Content-Security-Policy-Report-Only` to `Content-Security-Policy`. `script-src 'unsafe-inline'` stays until nonces are wired through middleware, so enforcing still blocks foreign hosts but not inline script.
 
+- **One shared error template; every error a toast** (owner 2026-11-26). Load
+  errors now appear inside the page body as red `WidgetError` boxes, one per
+  failed query, with the server's "Internal server error" text (seen on the
+  staff Weekly reports tab: two stacked boxes). Wanted: a single shared error
+  template for a part of a page that couldn't load, and a toast for every
+  error (`getErrorMessage`). Rule recorded in UI_RULES.md § "Errors"; to do:
+  design the template (one component in `components/common/`, next to
+  `ResourceLoadError`), raise the toast centrally (the query client's error
+  handling, deduped per query) and replace the `WidgetError` sites.
+
 ### P3 — feature follow-ups (net-new, each needs a product yes)
 
 - **Tournament platform (logged 2026-11-09; built 2026-11-09 on
