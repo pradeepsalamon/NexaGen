@@ -93,6 +93,18 @@ code on 2026-10-31.
    ([SAAS_CUTOVER_RUNBOOK.md](SAAS_CUTOVER_RUNBOOK.md)). A PR into `main`; the
    owner merges.
 
+### UI redesign list (owner 2026-11-26: "go one by one, commit one by one")
+
+From a 17-page staging sweep; mark each done here as it lands.
+
+1. **Row actions**: 4–5 outlined icon buttons per row (Users) → 1–2 visible + "⋯" menu, delete last in it (`RowActions`).
+2. **Stat cards**: `KpiCard` vs `StatTile` look different → one card; a change from a 0/tiny previous period shows "New", not "2566.7%".
+3. **Page header controls**: Users' "Create"/"Import" sit in the view tab strip; admin dashboard has 4 blue outline buttons + a lone Filters row; one filter-bar style.
+4. **Form fields**: `Select` border heavier than `Input`; Leads search cuts off its placeholder.
+5. **Empty states**: mixed (small icon / illustration / plain text, blank "Last 30 days" chart) → `EmptyState` everywhere, matching `WidgetError`.
+6. **Section cards**: title inside vs outside the card (coach dashboard); rule for `Card` vs `SectionCard`.
+7. **Tabs**: underline trial decision (see Next up #2); Payments' 8 tabs are the next candidate.
+
 ### P1 — data growth & privacy
 
 - **Retention windows are built but off.** Admin-set windows shipped on
