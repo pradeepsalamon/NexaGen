@@ -143,25 +143,23 @@ const TabsList = React.forwardRef<
   // track; the selected tab keeps the blue chip (owner, same day), raised with a small shadow.
   // Line (trial 2026-11-26): full width, left-aligned, a thin rule under the row and a blue
   // underline under the selected tab.
+  const segmentedBase =
+    "group/tabs relative inline-flex w-fit max-w-full justify-self-end items-center gap-0.5 overflow-x-auto rounded-control bg-app-soft p-1 text-app-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
   const base = line
     ? "group/tabs relative flex w-full items-end gap-1 overflow-x-auto border-b border-app-border text-app-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-    : "group/tabs relative inline-flex w-fit max-w-full justify-self-end items-center gap-0.5 overflow-x-auto rounded-control bg-app-soft p-1 text-app-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+    : segmentedBase;
 
+  // Collapsed (phones), both variants keep the segmented look: a blue menu button on the grey track (owner 2026-11-26).
   if (canCollapse && collapsed && context) {
     const active = triggers.find((t) => t.value === context.value) ?? triggers[0];
     return (
       // The strip is one menu button here, with no tabs inside: a tablist must contain tabs (axe
       // aria-required-children), so it is a plain group until the full strip is back.
-      <TabsPrimitive.List className={cn(base, className, "w-full overflow-visible")} aria-orientation={undefined} ref={setRefs} role="group" {...props}>
+      <TabsPrimitive.List className={cn(segmentedBase, className, "w-full overflow-visible")} aria-orientation={undefined} ref={setRefs} role="group" {...props}>
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label="Choose a tab"
-            className={cn(
-              "inline-flex min-h-[var(--control-h-sm)] w-full items-center justify-between gap-2 px-4 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
-              line
-                ? "-mb-px border-b-2 border-primary px-1 text-primary-ink"
-                : "rounded-md bg-button text-on-button shadow-card"
-            )}
+            className="inline-flex min-h-[var(--control-h-sm)] w-full items-center justify-between gap-2 rounded-md bg-button px-4 text-sm font-semibold text-on-button shadow-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
           >
             <span className="flex min-w-0 items-center gap-2 truncate">{active.label}</span>
             <ChevronDown aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.5} />
