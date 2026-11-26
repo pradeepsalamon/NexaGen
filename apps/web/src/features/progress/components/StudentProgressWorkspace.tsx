@@ -67,8 +67,9 @@ export function StudentProgressWorkspace({
     <Tabs className="min-w-0 grid-cols-[minmax(0,1fr)]" onValueChange={(v) => setTab(v as Tab)} value={tab}>
       <PageHeader
         {...header}
+        tabsBelow
         tabs={
-          <TabsList aria-label="Progress views">
+          <TabsList aria-label="Progress views" variant="line">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="performance">Performance</TabsTrigger>
             <TabsTrigger value="history">Activity history</TabsTrigger>

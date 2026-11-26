@@ -47,6 +47,10 @@ const Tabs = React.forwardRef<
 });
 Tabs.displayName = TabsPrimitive.Root.displayName;
 
+/** `segmented`: grey track with a blue chip (small 2–4 option toggles). `line`: page sections, an underline under the selected tab. */
+type TabsVariant = "line" | "segmented";
+const TabsVariantContext = React.createContext<TabsVariant>("segmented");
+
 type TriggerInfo = { disabled?: boolean; label: React.ReactNode; value: string };
 
 /** Every `TabsTrigger` among `children`, looking through fragments. */
@@ -71,8 +75,9 @@ function collectTriggers(children: React.ReactNode): TriggerInfo[] {
  */
 const TabsList = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.List>,
-  React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
->(({ children, className, ...props }, forwardedRef) => {
+  React.ComponentPropsWithoutRef<typeof TabsPrimitive.List> & { variant?: TabsVariant }
+>(({ children, className, variant = "segmented", ...props }, forwardedRef) => {
+  const line = variant === "line";
   const context = React.useContext(TabsValueContext);
   const triggers = collectTriggers(children);
   const canCollapse = context !== null && triggers.length > 1;
@@ -136,8 +141,11 @@ const TabsList = React.forwardRef<
   // Page tabs sit on the right like every page control (UI_RULES §4); a caller's `w-full` or
   // `justify-self-start` still wins. Soft segmented (owner, 2026-11-26): a light grey filled
   // track; the selected tab keeps the blue chip (owner, same day), raised with a small shadow.
-  const base =
-    "group/tabs relative inline-flex w-fit max-w-full justify-self-end items-center gap-0.5 overflow-x-auto rounded-control bg-app-soft p-1 text-app-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+  // Line (trial 2026-11-26): full width, left-aligned, a thin rule under the row and a blue
+  // underline under the selected tab.
+  const base = line
+    ? "group/tabs relative flex w-full items-end gap-1 overflow-x-auto border-b border-app-border text-app-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    : "group/tabs relative inline-flex w-fit max-w-full justify-self-end items-center gap-0.5 overflow-x-auto rounded-control bg-app-soft p-1 text-app-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
   if (canCollapse && collapsed && context) {
     const active = triggers.find((t) => t.value === context.value) ?? triggers[0];
@@ -148,7 +156,12 @@ const TabsList = React.forwardRef<
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label="Choose a tab"
-            className="inline-flex min-h-[var(--control-h-sm)] w-full items-center justify-between gap-2 rounded-md bg-button px-4 text-sm font-semibold text-on-button shadow-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+            className={cn(
+              "inline-flex min-h-[var(--control-h-sm)] w-full items-center justify-between gap-2 px-4 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
+              line
+                ? "-mb-px border-b-2 border-primary px-1 text-primary-ink"
+                : "rounded-md bg-button text-on-button shadow-card"
+            )}
           >
             <span className="flex min-w-0 items-center gap-2 truncate">{active.label}</span>
             <ChevronDown aria-hidden="true" className="size-4 shrink-0" strokeWidth={2.5} />
@@ -183,23 +196,32 @@ const TabsList = React.forwardRef<
       <span
         aria-hidden="true"
         className={cn(
-          "pointer-events-none absolute left-0 top-0 rounded-md bg-button shadow-card",
+          line
+            ? "pointer-events-none absolute bottom-0 left-0 h-0.5 rounded-full bg-primary"
+            : "pointer-events-none absolute left-0 top-0 rounded-md bg-button shadow-card",
           !indicator.ready && "hidden",
           !indicator.instant &&
             "motion-safe:transition-[transform,width,height] motion-safe:duration-300 motion-safe:ease-emphasized"
         )}
-        style={indicator.style}
+        style={line && indicator.style ? { transform: `translateX(${indicatorX(indicator.style)}px)`, width: indicator.style.width } : indicator.style}
       />
-      {children}
+      <TabsVariantContext.Provider value={variant}>{children}</TabsVariantContext.Provider>
     </TabsPrimitive.List>
   );
 });
 TabsList.displayName = TabsPrimitive.List.displayName;
 
+/** The x offset from the indicator's `translate(xpx, ypx)`. */
+function indicatorX(style: React.CSSProperties): number {
+  const match = /translate\((-?[\d.]+)px/.exec(String(style.transform ?? ""));
+  return match ? Number(match[1]) : 0;
+}
+
 const TabsTrigger = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>
 >(({ className, ...props }, forwardedRef) => {
+  const variant = React.useContext(TabsVariantContext);
   const innerRef = React.useRef<HTMLButtonElement | null>(null);
   const ref = (node: HTMLButtonElement | null) => {
     innerRef.current = node;
@@ -216,7 +238,10 @@ const TabsTrigger = React.forwardRef<
   return (
   <TabsPrimitive.Trigger
     className={cn(
-      "group relative inline-flex min-h-[var(--control-h-sm)] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md px-4 text-sm font-semibold text-app-muted transition-colors duration-200 hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-button data-[state=active]:text-on-button data-[state=active]:shadow-card data-[state=active]:hover:text-on-button group-data-[indicator]/tabs:data-[state=active]:bg-transparent group-data-[indicator]/tabs:data-[state=active]:shadow-none",
+      "group relative inline-flex min-h-[var(--control-h-sm)] shrink-0 items-center justify-center gap-2 whitespace-nowrap text-sm font-semibold text-app-muted transition-colors duration-200 hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus disabled:pointer-events-none disabled:opacity-50",
+      variant === "line"
+        ? "rounded-t-md px-3 pb-2.5 pt-2 border-b-2 border-transparent -mb-px data-[state=active]:border-primary data-[state=active]:text-primary-ink data-[state=active]:hover:text-primary-ink group-data-[indicator]/tabs:data-[state=active]:border-transparent"
+        : "rounded-md px-4 data-[state=active]:bg-button data-[state=active]:text-on-button data-[state=active]:shadow-card data-[state=active]:hover:text-on-button group-data-[indicator]/tabs:data-[state=active]:bg-transparent group-data-[indicator]/tabs:data-[state=active]:shadow-none",
       className
     )}
     ref={ref}

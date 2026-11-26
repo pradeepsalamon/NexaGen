@@ -12,15 +12,22 @@ export type PageHeaderProps = {
    * strip stays a strip instead of collapsing into its menu.
    */
   tabs?: ReactNode;
+  /**
+   * Put `tabs` on their own full-width row under the title (underline tabs, `variant="line"`),
+   * leaving `actions` beside the title. Trial on the student progress page (owner 2026-11-26).
+   */
+  tabsBelow?: boolean;
   /** Where this page sits, for detail pages. The last crumb is the current page. */
   breadcrumbs?: Crumb[];
   children?: ReactNode; // For tabs or other lower content
 };
 
-export function PageHeader({ title, description, actions, breadcrumbs, children, tabs }: PageHeaderProps) {
+export function PageHeader({ title, description, actions, breadcrumbs, children, tabs: tabsProp, tabsBelow }: PageHeaderProps) {
+  const below = tabsBelow ? tabsProp : null;
+  const tabs = tabsBelow ? null : tabsProp;
   return (
     // Inside a `<Tabs>` grid (which adds its own gap) the header needs less room below it.
-    <div className={cn("flex flex-col gap-4", tabs ? "mb-2" : "mb-6")}>
+    <div className={cn("flex flex-col gap-4", tabsProp ? "mb-2" : "mb-6")}>
       {breadcrumbs ? <Breadcrumbs items={breadcrumbs} /> : null}
       <div
         className={cn(
@@ -49,6 +56,7 @@ export function PageHeader({ title, description, actions, breadcrumbs, children,
           </div>
         ) : null}
       </div>
+      {below}
       {children}
     </div>
   );
