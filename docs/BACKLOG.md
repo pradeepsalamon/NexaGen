@@ -86,9 +86,10 @@ code on 2026-10-31.
 4. **Weak spots, rest of phase B** ([WEAK_SPOTS_PLAN.md](WEAK_SPOTS_PLAN.md) §3.2, §3.4):
    weekly snapshot `StudentWeakSpotWeek` + better/same/worse trend chart, and
    the batch view (a batch's most common weak spots). ~1 session.
-5. **Release `dev` → `main`** after 1–2: AI play review, AI providers console,
-   AI class recaps, weak spots, weekly reports, error toasts + `WidgetError`,
-   tabs. A PR into `main`; the owner merges.
+5. **Release `dev` → `main`** after 1–2: weak spots A+B, weekly reports A,
+   board coordinate labels, error toasts + `WidgetError`, tabs, the Groq line on
+   the legal page (everything older is already on `main`). Production needs
+   the same migration + D5 lines. A PR into `main`; the owner merges.
 
 ### P1 — data growth & privacy
 
