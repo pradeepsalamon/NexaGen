@@ -49,19 +49,32 @@ user=$(jq -r '.user // ""' <<<"$rt")
 [ "$(jq -r '.deploy.resources.limits.memory // ""' <<<"$rt")" != "" ] || fail "2: no memory limit"
 pass "2: no ports, ai_internal only (internal), read-only, no caps, non-root, limited"
 
-# 3. Nothing else changes; api gains exactly one network and three variables.
+# 2b. The local recap model (docs/CLASS_RECAPS.md): profile only, internal only, limited.
+"${OVERLAY[@]}" config --services 2>/dev/null | grep -qx ollama && fail "2b: ollama active without --profile ai"
+om=$(jq '.services.ollama' <<<"$profile_json")
+[ "$om" != null ] || fail "2b: ollama missing with --profile ai"
+[ "$(jq '.ports // [] | length' <<<"$om")" = 0 ] || fail "2b: ollama publishes ports"
+[ "$(jq -c '.networks | keys' <<<"$om")" = '["ai_internal"]' ] || fail "2b: ollama networks are not exactly [ai_internal]"
+[ "$(jq -r '.deploy.resources.limits.cpus // ""' <<<"$om")" != "" ] || fail "2b: ollama has no CPU limit"
+[ "$(jq -r '.deploy.resources.limits.memory // ""' <<<"$om")" != "" ] || fail "2b: ollama has no memory limit"
+pass "2b: ollama only with --profile ai, no ports, ai_internal only, limited"
+
+# 3. Nothing else changes; api gains exactly one network and three variables,
+# and its local-model address points at the internal ollama.
 for svc in $(jq -r '.services | keys[]' <<<"$base_json"); do
   [ "$svc" = api ] && continue
   a=$(jq -S ".services[\"$svc\"]" <<<"$base_json")
   b=$(jq -S ".services[\"$svc\"]" <<<"$profile_json")
   [ "$a" = "$b" ] || fail "3: service $svc differs with the overlay"
 done
-strip='del(.networks.ai_internal) | del(.environment.AI_ENABLED, .environment.AI_RUNTIME_URL, .environment.AI_RUNTIME_SHARED_SECRET)'
-a=$(jq -S '.services.api' <<<"$base_json")
+[ "$(jq -r '.services.api.environment.AI_LOCAL_MODEL_URL' <<<"$profile_json")" = "http://ollama:11434/v1" ] \
+  || fail "3: api AI_LOCAL_MODEL_URL is not the internal ollama"
+strip='del(.networks.ai_internal) | del(.environment.AI_ENABLED, .environment.AI_RUNTIME_URL, .environment.AI_RUNTIME_SHARED_SECRET, .environment.AI_LOCAL_MODEL_URL)'
+a=$(jq -S '.services.api | del(.environment.AI_LOCAL_MODEL_URL)' <<<"$base_json")
 b=$(jq -S ".services.api | $strip" <<<"$profile_json")
 [ "$a" = "$b" ] || fail "3: api differs by more than ai_internal + AI_*"
 [ "$(jq -S '.services.api' <<<"$overlay_json")" = "$(jq -S '.services.api' <<<"$profile_json")" ] || fail "3: api depends on the profile"
-pass "3: other services identical; api adds ai_internal and AI_ENABLED/AI_RUNTIME_URL/AI_RUNTIME_SHARED_SECRET"
+pass "3: other services identical; api adds ai_internal, AI_ENABLED/AI_RUNTIME_URL/AI_RUNTIME_SHARED_SECRET and the ollama AI_LOCAL_MODEL_URL"
 
 # 4. Nobody waits on the runtime.
 jq -e '[.services[] | (.depends_on // {}) | keys[]] | index("ai-runtime") | not' <<<"$profile_json" >/dev/null \
