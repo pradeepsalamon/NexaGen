@@ -139,6 +139,79 @@ describe("PuzzleTrainingService", () => {
     expect(res.pick.puzzleId).toBe(expected);
   });
 
+  describe("weak spots (docs/WEAK_SPOTS.md)", () => {
+    // Three boards a fork was missed on twice: a weak spot.
+    const forkReviews = [1, 2, 3].map((d) => ({
+      findingsJson: [],
+      playedAt: new Date(Date.now() - d * 86_400_000),
+      source: "CLASS_BOARD",
+      sourceId: `b${d}`,
+      tacticsJson: { FORK: { allowed: 0, alternative: 0, found: 0, missed: 2 } }
+    }));
+    const walkedThemes = () =>
+      tx.$queryRaw.mock.calls.map((call: unknown[]) => call.slice(1).find((v) => typeof v === "string" && /^[a-z]/i.test(v)));
+
+    it("aims a WEAK slot at what the student's play keeps missing", async () => {
+      prisma.puzzleAttempt.count.mockResolvedValue(0); // slot WEAK
+      prisma.aiPlayReview = { findMany: jest.fn().mockResolvedValue(forkReviews) };
+      prisma.weakSpotTipReview = { findMany: jest.fn().mockResolvedValue([]) };
+      tx.$queryRaw.mockResolvedValueOnce([{ id: "FORK1", rating: 1350, randKey: 3, contentHash: "h-f" }]);
+      const res = await service.next(TOKEN, {});
+      expect(walkedThemes()[0]).toBe("fork");
+      expect(res.pick).toMatchObject({ slot: "WEAK", theme: "fork" });
+    });
+
+    it("still serves a pick when the profile can't be read", async () => {
+      prisma.puzzleAttempt.count.mockResolvedValue(0);
+      // No aiPlayReview delegate: the profile load throws and is ignored.
+      tx.$queryRaw.mockResolvedValue([{ id: "ANY", rating: 1350, randKey: 3, contentHash: "h-a" }]);
+      const res = await service.next(TOKEN, {});
+      // No weak spot and no puzzle history: the WEAK slot becomes EXPLORE.
+      expect(res.pick).toMatchObject({ puzzleId: "pz-ANY", slot: "EXPLORE" });
+    });
+
+    it("practises one weak spot's themes in turn", async () => {
+      prisma.puzzleAttempt.count.mockResolvedValue(4);
+      tx.$queryRaw.mockResolvedValueOnce([{ id: "M2", rating: 1400, randKey: 3, contentHash: "h-m" }]);
+      const res = await service.next(TOKEN, { weakSpot: "MATE" });
+      // MATE → mateIn1, mateIn2, mateIn3; the fifth training puzzle takes mateIn2.
+      expect(walkedThemes()[0]).toBe("mateIn2");
+      expect(res.pick.theme).toBe("mateIn2");
+    });
+
+    it("picks homework: new catalogue puzzles near the rating, each theme in turn, then the library", async () => {
+      prisma.puzzleAttempt.findMany.mockResolvedValueOnce([{ puzzleId: "pz-old", puzzle: { contentHash: "h-seen" } }]);
+      tx.$queryRaw
+        .mockResolvedValueOnce([
+          { id: "SEEN", rating: 1400, randKey: 9, contentHash: "h-seen" },
+          { id: "C1", rating: 1405, randKey: 10, contentHash: "h-c1" }
+        ])
+        .mockResolvedValueOnce([{ id: "D1", rating: 1410, randKey: 4, contentHash: "h-d1" }])
+        .mockResolvedValue([]);
+      prisma.puzzle.findMany.mockResolvedValue([
+        { id: "lib-far", rating: 2000, difficulty: "EXPERT", contentHash: "h-lf", solutionMovesJson: [{ uci: "a" }] },
+        { id: "lib-near", rating: 1420, difficulty: "ADVANCED", contentHash: "h-c1", solutionMovesJson: [{ uci: "a" }] }
+      ]);
+      const ids = await service.pickPracticePuzzles({
+        actorId: "coach-1",
+        count: 3,
+        studentId: STUDENT_ID,
+        targetRating: 1400,
+        themes: ["capturingDefender", "deflection"]
+      });
+      // The seen copy and a library puzzle with the same content as a pick are skipped.
+      expect(ids).toEqual(["pz-C1", "pz-D1", "lib-far"]);
+      expect(walkedThemes().slice(0, 2)).toEqual(["capturingDefender", "deflection"]);
+      expect(catalog.ensureLichessFolder).not.toHaveBeenCalled();
+      // Only shared, published, non-game puzzles from the library.
+      expect(prisma.puzzle.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ source: { not: "GAME" }, status: "PUBLISHED", visibility: "GLOBAL" })
+        })
+      );
+    });
+  });
+
   it("is a 404 when nothing new exists anywhere", async () => {
     await expect(service.next(TOKEN, {})).rejects.toThrow(NotFoundException);
   });

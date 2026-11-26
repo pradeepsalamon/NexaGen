@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import type { AssignmentLibraryItem } from "@nexa-chess/types";
 import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { queryKeys } from "@/lib/queryKeys";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { useAssignmentLibrary } from "../hooks/useAssignmentsApi";
+import { useEditFromQuery } from "../hooks/useEditFromQuery";
 import { deleteAssignment } from "../api/assignmentApi";
 import { AssignmentFormDialog } from "./AssignmentFormDialog";
 import { AssignmentPreviewDialog } from "./AssignmentPreviewDialog";
@@ -45,6 +46,11 @@ export function AdminAssignmentsClient() {
     setEditing(null);
     setFormOpen(true);
   };
+  const openEdit = useCallback((item: AssignmentLibraryItem) => {
+    setEditing(item);
+    setFormOpen(true);
+  }, []);
+  useEditFromQuery(library, openEdit);
 
   return (
     <div className="animate-fade-in pb-10">

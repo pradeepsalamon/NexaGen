@@ -1,7 +1,8 @@
 # Weak spots and practice picks — plan
 
-**Status: phase A built 2026-11-26 ([WEAK_SPOTS.md](WEAK_SPOTS.md)); B and C
-not started.** Owner 2026-11-26: "go with recommended" for WS-1…WS-6. Phase A
+**Status: phases A and B built 2026-11-26 ([WEAK_SPOTS.md](WEAK_SPOTS.md));
+from B, the weekly snapshot (`StudentWeakSpotWeek`, trend chart) and the batch
+view are not built; C not started.** Owner 2026-11-26: "go with recommended" for WS-1…WS-6. Phase A
 differs from §3.2 in one way: game-analysis rows are not added (the same games
 are already play-review `OWN_GAME` items), and older reviews get their chance
 counts by a nightly re-review. Roadmap phase 4

@@ -4,11 +4,14 @@ import { JwtService } from "@nestjs/jwt";
 import {
   INITIAL_PUZZLE_RATING,
   TRAINING_SLOT_CYCLE,
+  WEAK_SPOT_LICHESS_THEMES,
   lichessThemeLabel,
   liveStreak,
   planTrainingPick,
   puzzleOpponentRating,
   trainingBandOrder,
+  weakSpotHomeworkBands,
+  weakSpotTrainingThemes,
   type PuzzleTrainingNextRequest,
   type PuzzleTrainingNextResponse,
   type PuzzleTrainingPick,
@@ -20,6 +23,7 @@ import {
 import { Prisma, PuzzleAttemptContext, PuzzleSource, PuzzleStatus, PuzzleVisibility, type User } from "@prisma/client";
 import { zonedDayBounds } from "../common/time";
 import { PrismaService } from "../prisma/prisma.service";
+import { loadWeakSpotProfile } from "../play-review/weak-spot-profile";
 import { ProgressRecorderService, dateToDay, localDay } from "../progress/progress-recorder.service";
 import { PuzzleCatalogService } from "./puzzle-catalog.service";
 import { assertStudent, authenticateUser } from "./puzzle-auth.helper";
@@ -152,18 +156,25 @@ export class PuzzleTrainingService {
     }));
     const recentTraining = recentAll.filter((_, i) => recentRows[i].context === PuzzleAttemptContext.TRAINING);
 
-    const reviewPuzzleId =
-      !dto.theme && TRAINING_SLOT_CYCLE[trainingCount % 10] === "REVIEW"
-        ? await this.findReviewPuzzle(student)
-        : null;
+    // "Practise this weak spot": its themes in turn (docs/WEAK_SPOTS.md).
+    const focusThemes = dto.weakSpot ? WEAK_SPOT_LICHESS_THEMES[dto.weakSpot] : [];
+    const requestedTheme = dto.theme ?? (focusThemes.length ? focusThemes[trainingCount % focusThemes.length] : null);
+    const cycleSlot = TRAINING_SLOT_CYCLE[trainingCount % 10];
+    const reviewPuzzleId = !requestedTheme && cycleSlot === "REVIEW" ? await this.findReviewPuzzle(student) : null;
+    // A WEAK slot (or a REVIEW with nothing due) aims at what their play keeps missing.
+    const weakSpotThemes =
+      !requestedTheme && (cycleSlot === "WEAK" || (cycleSlot === "REVIEW" && !reviewPuzzleId))
+        ? await this.weakSpotThemes(student.id)
+        : [];
 
     const plan = planTrainingPick({
       rating: row?.puzzleRating ?? INITIAL_PUZZLE_RATING,
       recentAll,
       recentTraining,
-      requestedTheme: dto.theme ?? null,
+      requestedTheme,
       reviewDue: !!reviewPuzzleId,
-      trainingCount
+      trainingCount,
+      weakSpotThemes
     });
 
     const startKey = trainingStartKey(student.id, trainingCount);
@@ -192,7 +203,101 @@ export class PuzzleTrainingService {
     return { pick: this.toPick(attempt, picked.plan.slot, picked.plan.theme) };
   }
 
+  /**
+   * Make homework (docs/WEAK_SPOTS.md): up to `count` published puzzles in
+   * `themes` the student has never opened, nearest their rating first —
+   * catalogue copies (GLOBAL, in the hidden Lichess folder), then the
+   * academy's own GLOBAL puzzles. Never a coach's private or a game puzzle,
+   * so the set may go into a shared library item too.
+   */
+  async pickPracticePuzzles(input: {
+    studentId: string;
+    /** Who makes the set (owns the Lichess folder if it has to be created). */
+    actorId: string;
+    themes: readonly string[];
+    targetRating: number;
+    count: number;
+  }): Promise<string[]> {
+    const seen = await this.seenSet(input.studentId);
+    const picked: string[] = [];
+    const take = (id: string, hash: string | null) => {
+      picked.push(id);
+      seen.puzzleIds.add(id);
+      if (hash) seen.hashes.add(hash);
+    };
+    const startKey = trainingStartKey(input.studentId, Date.now());
+
+    // Round-robin over the themes in each band, so a multi-theme pattern gets a mix.
+    for (const band of weakSpotHomeworkBands(input.targetRating)) {
+      const cursors = new Map(input.themes.map((theme) => [theme, { done: false, id: "", randKey: startKey, wrapped: false }]));
+      while (picked.length < input.count && [...cursors.values()].some((c) => !c.done)) {
+        for (const theme of input.themes) {
+          const cursor = cursors.get(theme)!;
+          if (cursor.done || picked.length >= input.count) continue;
+          const rows = await this.walk(band, cursor, theme);
+          if (rows.length === 0) {
+            if (cursor.wrapped) cursor.done = true;
+            else Object.assign(cursor, { id: "", randKey: 0, wrapped: true });
+            continue;
+          }
+          const last = rows[rows.length - 1];
+          Object.assign(cursor, { id: last.id, randKey: last.randKey });
+          if (cursor.wrapped && last.randKey >= startKey) cursor.done = true;
+          // One new puzzle per theme per turn.
+          for (const row of rows) {
+            if (seen.hashes.has(row.contentHash)) continue;
+            const result = await this.catalog.materialise(row.id, {
+              createdBy: null,
+              topicId: () => this.catalog.ensureLichessFolder(input.actorId)
+            });
+            if (result.outcome !== "CREATED" && result.outcome !== "EXISTING") continue;
+            if (result.puzzle.status !== PuzzleStatus.PUBLISHED || seen.puzzleIds.has(result.puzzle.id)) continue;
+            take(result.puzzle.id, row.contentHash);
+            break;
+          }
+        }
+      }
+      if (picked.length >= input.count) return picked;
+    }
+
+    // No catalogue (or not enough in it): the academy's own shared puzzles.
+    const library = await this.prisma.puzzle.findMany({
+      select: { contentHash: true, difficulty: true, id: true, rating: true, solutionMovesJson: true },
+      take: 500,
+      where: {
+        id: { notIn: [...seen.puzzleIds] },
+        source: { not: PuzzleSource.GAME },
+        status: PuzzleStatus.PUBLISHED,
+        tags: { hasSome: [...input.themes] },
+        visibility: PuzzleVisibility.GLOBAL
+      }
+    });
+    const usable = library
+      .filter((p) => !(p.contentHash && seen.hashes.has(p.contentHash)))
+      .filter((p) => Array.isArray(p.solutionMovesJson) && p.solutionMovesJson.length > 0)
+      .sort(
+        (a, b) =>
+          Math.abs(puzzleOpponentRating(a) - input.targetRating) - Math.abs(puzzleOpponentRating(b) - input.targetRating) ||
+          a.id.localeCompare(b.id)
+      );
+    for (const p of usable) {
+      if (picked.length >= input.count) break;
+      if (p.contentHash && seen.hashes.has(p.contentHash)) continue;
+      take(p.id, p.contentHash);
+    }
+    return picked;
+  }
+
   // ── internals ──
+
+  /** The student's weak spots' practice themes, worst first; [] when none (or on any error). */
+  private async weakSpotThemes(studentId: string): Promise<string[]> {
+    try {
+      return weakSpotTrainingThemes(await loadWeakSpotProfile(this.prisma, studentId, { audience: "STUDENT" }));
+    } catch {
+      return [];
+    }
+  }
 
   /** D0: at least one of the student's live batches allows training. */
   private async trainingAllowed(studentId: string): Promise<boolean> {

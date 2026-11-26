@@ -1,4 +1,5 @@
-import { ForbiddenException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException } from "@nestjs/common";
+import { WEAK_SPOT_TIPS } from "@nexa-chess/types";
 import { authenticateUser } from "../auth/authenticate";
 import { runInTenant } from "../tenancy/tenant-context";
 import { WeakSpotsService } from "./weak-spots.service";
@@ -23,11 +24,19 @@ function setup(coachShares = true) {
     aiPlayReview: { findMany: jest.fn(async () => reviews) },
     batchStudent: { findFirst: jest.fn(async () => (coachShares ? { id: "bs1" } : null)) },
     puzzleAttempt: { findMany: jest.fn(async () => []) },
-    user: { findFirst: jest.fn(async () => ({ id: "s1" })) }
+    studentProgress: { findUnique: jest.fn(async () => ({ puzzleRating: 1320 })) },
+    user: { findFirst: jest.fn(async () => ({ id: "s1" })), findMany: jest.fn(async () => [{ firstName: "Asha", id: "c1", lastName: "Rao" }]) },
+    weakSpotTipReview: {
+      deleteMany: jest.fn(async () => ({ count: 1 })),
+      findMany: jest.fn(async (): Promise<Record<string, unknown>[]> => []),
+      upsert: jest.fn(async () => ({}))
+    }
   };
-  const service = new WeakSpotsService({} as never, prisma as never);
+  const assignments = { create: jest.fn(async () => ({ assignment: { id: "as1" } })) };
+  const training = { pickPracticePuzzles: jest.fn(async (): Promise<string[]> => ["p1", "p2", "p3"]) };
+  const service = new WeakSpotsService({} as never, prisma as never, assignments as never, training as never);
   const inAcademy = <T>(fn: () => Promise<T>) => runInTenant("tenant_nexa", "spec", fn);
-  return { inAcademy, prisma, service };
+  return { assignments, inAcademy, prisma, service, training };
 }
 
 describe("WeakSpotsService", () => {
@@ -52,10 +61,80 @@ describe("WeakSpotsService", () => {
     expect(prisma.aiPlayReview.findMany).not.toHaveBeenCalled();
   });
 
-  it("is staff only in phase A, even for the student's own", async () => {
+  it("keeps the staff route for staff; a student reads their own card instead", async () => {
     authenticate.mockResolvedValue({ id: "s1", role: "STUDENT" } as never);
     const { inAcademy, service } = setup();
     await expect(inAcademy(() => service.getFor("t", "s1", NOW))).rejects.toBeInstanceOf(ForbiddenException);
+    const mine = await inAcademy(() => service.getMine("t", NOW));
+    expect(mine.weakSpots[0]).toMatchObject({ motif: "FORK", tip: null, tipStatus: "NOT_READ" });
+    expect(mine.others).toEqual([]);
+  });
+
+  it("shows a student a tip only once their academy read it, in the reader's words", async () => {
+    authenticate.mockResolvedValue({ id: "s1", role: "STUDENT" } as never);
+    const { inAcademy, prisma, service } = setup();
+    prisma.weakSpotTipReview.findMany.mockResolvedValue([{ baseText: WEAK_SPOT_TIPS.FORK, motif: "FORK", text: "Knights love forks." }]);
+    expect((await inAcademy(() => service.getMine("t", NOW))).weakSpots[0]).toMatchObject({ tip: "Knights love forks.", tipStatus: "READ" });
+    // The built-in text changed since: read it again first.
+    prisma.weakSpotTipReview.findMany.mockResolvedValue([{ baseText: "an older text", motif: "FORK", text: "Knights love forks." }]);
+    expect((await inAcademy(() => service.getMine("t", NOW))).weakSpots[0]).toMatchObject({ tip: null, tipStatus: "CHANGED" });
+  });
+
+  it("records a coach's reading against the built-in text it was read with", async () => {
+    authenticate.mockResolvedValue({ id: "c1", role: "COACH" } as never);
+    const { inAcademy, prisma, service } = setup();
+    await inAcademy(() => service.readTip("t", "PIN", { text: "  A pinned piece can't move freely; look along the lines.  " }));
+    expect(prisma.weakSpotTipReview.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ baseText: WEAK_SPOT_TIPS.PIN, motif: "PIN", reviewedById: "c1", tenantId: "tenant_nexa", text: "A pinned piece can't move freely; look along the lines." }),
+        where: { tenantId_motif: { motif: "PIN", tenantId: "tenant_nexa" } }
+      })
+    );
+    await expect(inAcademy(() => service.readTip("t", "NOT_A_MOTIF", { text: "x".repeat(30) }))).rejects.toBeInstanceOf(BadRequestException);
+    await expect(inAcademy(() => service.readTip("t", "PIN", { text: "short" }))).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("lets only staff read tips", async () => {
+    authenticate.mockResolvedValue({ id: "s1", role: "STUDENT" } as never);
+    const { inAcademy, service } = setup();
+    await expect(inAcademy(() => service.listTips("t"))).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(inAcademy(() => service.unreadTip("t", "PIN"))).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("makes homework: new puzzles near the rating, saved unassigned, never naming the student", async () => {
+    authenticate.mockResolvedValue({ id: "c1", role: "COACH" } as never);
+    const { assignments, inAcademy, service, training } = setup();
+    const result = await inAcademy(() => service.makeHomework("t", "s1", { motif: "REMOVAL_OF_DEFENDER" }));
+    expect(training.pickPracticePuzzles).toHaveBeenCalledWith({
+      actorId: "c1",
+      count: 10,
+      studentId: "s1",
+      targetRating: 1320,
+      themes: ["capturingDefender", "deflection"]
+    });
+    const [, dto] = (assignments.create.mock.calls[0] as unknown[]) as [string, Record<string, unknown>];
+    expect(dto).toMatchObject({ activityType: "PUZZLE_SET", difficulty: "INTERMEDIATE", puzzleIds: ["p1", "p2", "p3"], title: "Removal of the defender practice" });
+    expect(dto.batchIds).toBeUndefined();
+    expect(JSON.stringify(dto)).not.toMatch(/s1|Asha/);
+    expect(result).toEqual({ assignmentId: "as1", puzzleCount: 3, targetRating: 1320, title: "Removal of the defender practice" });
+  });
+
+  it("refuses homework for a pattern without puzzles, with none found, or for a student", async () => {
+    authenticate.mockResolvedValue({ id: "c1", role: "COACH" } as never);
+    const { assignments, inAcademy, service, training } = setup();
+    await expect(inAcademy(() => service.makeHomework("t", "s1", { motif: "MATERIAL_GAIN" }))).rejects.toBeInstanceOf(BadRequestException);
+    training.pickPracticePuzzles.mockResolvedValueOnce([]);
+    await expect(inAcademy(() => service.makeHomework("t", "s1", { motif: "FORK" }))).rejects.toBeInstanceOf(ConflictException);
+    expect(assignments.create).not.toHaveBeenCalled();
+    authenticate.mockResolvedValue({ id: "s1", role: "STUDENT" } as never);
+    await expect(inAcademy(() => service.makeHomework("t", "s1", { motif: "FORK" }))).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("refuses homework for another coach's student before picking anything", async () => {
+    authenticate.mockResolvedValue({ id: "c1", role: "COACH" } as never);
+    const { inAcademy, service, training } = setup(false);
+    await expect(inAcademy(() => service.makeHomework("t", "s1", { motif: "FORK" }))).rejects.toBeInstanceOf(ForbiddenException);
+    expect(training.pickPracticePuzzles).not.toHaveBeenCalled();
   });
 
   it("treats a malformed stored count as missing parts, never as a crash", async () => {

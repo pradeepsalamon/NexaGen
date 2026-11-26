@@ -1,6 +1,9 @@
 # Weekly progress report — plan
 
-**Status: plan only (2026-11-26).** Nothing built. Owner decisions are at the
+**Status: phase A built 2026-11-26 ([WEEKLY_REPORTS.md](WEEKLY_REPORTS.md));
+B–D not started.** Phase A builds each week's report on the following Monday
+from 06:00 academy time (a Saturday draft would miss weekend classes; see the
+backlog question on WR-7). Owner decisions are at the
 end (WR-1…WR-8); **owner 2026-11-26: "go with recommended" for all of them**
 (student's own account, every plan with the AI paragraph on Enterprise,
 unapproved drafts skipped, approve-all per batch, 1 year, English, Saturday

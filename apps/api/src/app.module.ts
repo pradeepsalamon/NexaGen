@@ -49,6 +49,7 @@ import { ApprovalModule } from "./approval/approval.module";
 import { FeedbackModule } from "./feedback/feedback.module";
 import { PrivacyModule } from "./privacy/privacy.module";
 import { PlayReviewModule } from "./play-review/play-review.module";
+import { WeeklyReportModule } from "./weekly-report/weekly-report.module";
 import { ClassRecapModule } from "./class-recap/class-recap.module";
 import { ProgressModule } from "./progress/progress.module";
 import { RevisionModule } from "./revision/revision.module";
@@ -145,6 +146,7 @@ import { TenancyModule } from "./tenancy/tenancy.module";
     ApprovalModule,
     PrivacyModule,
     PlayReviewModule,
+    WeeklyReportModule,
     ClassRecapModule,
     ProgressModule,
     RevisionModule,

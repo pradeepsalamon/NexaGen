@@ -53,6 +53,11 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       },
       {
         detail:
+          "Each Monday, a short report of the student's week (classes attended, homework, puzzles and practice, reviewed play and the tactic they miss most) is made from the records above and kept in the student's own account, where the student, their coach and academy admins can read it. It is not sent anywhere.",
+        label: "Weekly progress reports"
+      },
+      {
+        detail:
           "Only for a student whose switch is on (Profile → \"AI comments on my play\", with a parent or guardian's agreement, or turned on by their coach or an admin after a parent agreed), and only if the academy turns it on: short coach-style comments on that student's play, written by an outside AI service. Who changed the switch, and when, is recorded. Switching it off stops this at once and deletes those comments.",
         label: "Outside-AI comments (students who switch it on)"
       },
@@ -195,6 +200,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
         detail: "Engine reviews of a student's play, and any outside-AI comments on them, are removed after a year. The moves themselves are kept with the class, puzzle or game they belong to.",
         label: "Engine reviews and AI comments"
       },
+      { detail: "Removed after a year.", label: "Weekly progress reports" },
       {
         detail:
           "A conversation and its requests are removed a year after the conversation ends, unless a request is still open. The raw delivery records from WhatsApp are removed after 30 days.",

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TACTIC_MOTIFS } from "./game-tactics";
 import { LICHESS_THEMES, lichessThemeLabel } from "./lichess-themes";
 
 // ──────────────────────────────────────────────────────────────
@@ -125,6 +126,18 @@ export function weakestTheme(target: number, recent: readonly TrainingResult[]):
   return best?.key ?? null;
 }
 
+/**
+ * WEAK from the student's weak spots (docs/WEAK_SPOTS.md): their themes, worst
+ * weak spot first, rotated by the training count so each one comes up; only
+ * themes open at this rating. Null when there are none.
+ */
+export function weakSpotTheme(target: number, themes: readonly string[], trainingCount: number): string | null {
+  const open = new Set(eligibleThemes(target).map((t) => t.key));
+  const usable = themes.filter((key) => open.has(key));
+  if (usable.length === 0) return null;
+  return usable[((trainingCount % usable.length) + usable.length) % usable.length];
+}
+
 /** EXPLORE: the eligible theme met least often recently; ties go to catalogue order. */
 export function leastSeenTheme(target: number, recent: readonly TrainingResult[]): string | null {
   const counts = new Map<string, number>();
@@ -159,6 +172,8 @@ export function planTrainingPick(input: {
   recentAll: readonly TrainingResult[];
   reviewDue: boolean;
   requestedTheme?: string | null;
+  /** Practice themes of the student's weak spots, worst first (weakSpotTrainingThemes). */
+  weakSpotThemes?: readonly string[];
 }): TrainingPlan {
   const base = trainingTargetRating(input.rating, input.recentTraining);
   const at = (slot: PuzzleTrainingSlot) => clamp(base + TRAINING_SLOT_RATING_OFFSET[slot]);
@@ -173,7 +188,9 @@ export function planTrainingPick(input: {
     slot = "WEAK";
   }
   if (slot === "WEAK") {
-    const theme = weakestTheme(base, input.recentAll);
+    // What their play keeps missing first, then their weakest puzzle theme.
+    const theme =
+      weakSpotTheme(base, input.weakSpotThemes ?? [], input.trainingCount) ?? weakestTheme(base, input.recentAll);
     if (theme) return { slot, targetRating: at(slot), theme };
     slot = "EXPLORE";
   }
@@ -209,7 +226,9 @@ export const puzzleTrainingNextRequestSchema = z.object({
   theme: z
     .string()
     .refine((key) => LICHESS_THEMES.some((t) => t.key === key), { message: "Unknown puzzle theme." })
-    .optional()
+    .optional(),
+  /** Optional: practise one weak spot (a tactic motif), its themes in turn (docs/WEAK_SPOTS.md). */
+  weakSpot: z.enum(TACTIC_MOTIFS).optional()
 });
 export type PuzzleTrainingNextRequest = z.infer<typeof puzzleTrainingNextRequestSchema>;
 

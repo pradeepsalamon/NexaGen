@@ -123,7 +123,8 @@ export class PrivacyService {
       aiPlayComments,
       classBoardMoves,
       classRecapsAsCoach,
-      classRecapsPublishedToMe
+      classRecapsPublishedToMe,
+      weeklyReports
     ] = await Promise.all([
       // Soft-deleted rows are still personal data held about the user, so they are exported too.
       p.withDeleted.studentProfile.findMany({ where: { userId: id } }),
@@ -306,7 +307,9 @@ export class PrivacyService {
           class: { OR: [{ batch: { students: { some: { studentId: id } } } }, { attendances: { some: { studentId: id } } }] },
           status: "PUBLISHED"
         }
-      })
+      }),
+      // Weekly progress reports (docs/WEEKLY_REPORTS.md): the student's own.
+      p.weeklyReport.findMany({ where: { studentId: id } })
     ]);
 
     return {
@@ -368,6 +371,7 @@ export class PrivacyService {
         classBoardMoves: records(classBoardMoves),
         classRecapsAsCoach: records(classRecapsAsCoach),
         classRecapsPublishedToMe: records(classRecapsPublishedToMe),
+        weeklyReports: records(weeklyReports),
         sessions: records(sessions),
         tournamentAuditActions: records(tournamentAuditActions),
         tournamentCertificates: records(tournamentCertificates),

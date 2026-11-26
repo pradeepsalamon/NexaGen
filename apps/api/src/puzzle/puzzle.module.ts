@@ -51,6 +51,6 @@ import { PuzzleService } from "./puzzle.service";
     LiveClassPuzzleService
   ],
   // The activity queue shares its puzzle items through the ordinary live puzzle.
-  exports: [DailyPuzzleAnswerService, DailyPuzzleWhatsAppService, LiveClassPuzzleService, PuzzleCatalogService]
+  exports: [DailyPuzzleAnswerService, DailyPuzzleWhatsAppService, LiveClassPuzzleService, PuzzleCatalogService, PuzzleTrainingService]
 })
 export class PuzzleModule {}

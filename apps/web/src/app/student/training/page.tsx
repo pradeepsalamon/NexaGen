@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import { PageLoading } from "@/components/layout/PageLoading";
 import { StudentTrainingClient } from "@/features/puzzles/components/training/StudentTrainingClient";
 import { pageTitle } from "@/lib/pageTitles";
 
@@ -6,5 +8,9 @@ export const metadata = {
 };
 
 export default function StudentTrainingPage() {
-  return <StudentTrainingClient />;
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <StudentTrainingClient />
+    </Suspense>
+  );
 }

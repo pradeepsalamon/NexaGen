@@ -6,6 +6,7 @@
 // results by theme. Pure and shared: the API builds it, the web shows it.
 // ──────────────────────────────────────────────────────────────
 
+import { z } from "zod";
 import { INSIGHT_THRESHOLDS } from "./game-analysis-report";
 import { TACTIC_MOTIF_LABELS, TACTIC_MOTIFS, type TacticMotif } from "./game-tactics";
 import type { PlayFinding, PlaySource } from "./ai-review";
@@ -61,7 +62,12 @@ export const WEAK_SPOT_LICHESS_THEMES: Record<TacticMotif, readonly string[]> = 
   SKEWER: ["skewer"]
 };
 
-/** What each one means and how to practise it, in words a child understands (WS-4: a coach reviews these). */
+/**
+ * What each one means and how to practise it, in words a child understands.
+ * WS-4: students see a tip only after a coach or admin of their academy read
+ * it (`resolveWeakSpotTip`); changing a text here asks every academy to read
+ * it again.
+ */
 export const WEAK_SPOT_TIPS: Record<TacticMotif, string> = {
   BACK_RANK_MATE:
     "A king stuck behind its own pawns can be mated on the back rank. Before every move, check whether a rook or queen can reach the enemy's back rank, and give your own king an escape square.",
@@ -121,10 +127,18 @@ export type WeakSpotExample = {
   winPercentLoss: number | null;
 };
 
+/** NOT_READ: no one in the academy read it yet; CHANGED: the built-in text changed since it was read. */
+export type WeakSpotTipStatus = "NOT_READ" | "READ" | "CHANGED";
+
 export type WeakSpotMotif = {
   motif: TacticMotif;
   label: string;
-  tip: string;
+  /**
+   * Staff: the academy's read wording, else the built-in tip. Student: the
+   * read wording only, null until a coach read it.
+   */
+  tip: string | null;
+  tipStatus: WeakSpotTipStatus;
   verdict: WeakSpotVerdict;
   /** Found + missed + alternative (an alternative cost less than a mistake). */
   opportunities: number;
@@ -167,9 +181,32 @@ export type WeakSpotProfile = {
 
 export type WeakSpotProfileResponse = WeakSpotProfile;
 
+export type WeakSpotAudience = "STAFF" | "STUDENT";
+
+/** One academy's reading of a tip (`weak_spot_tip_reviews`). */
+export type WeakSpotTipReading = { baseText: string; text: string };
+export type WeakSpotTipReadings = Partial<Record<TacticMotif, WeakSpotTipReading>>;
+
+/**
+ * The one rule for what a tip says and who may see it (WS-4): a reading
+ * counts only while the built-in text is still the one that was read.
+ */
+export function resolveWeakSpotTip(
+  motif: TacticMotif,
+  reading: WeakSpotTipReading | null | undefined
+): { status: WeakSpotTipStatus; staffText: string; studentText: string | null } {
+  const builtIn = WEAK_SPOT_TIPS[motif];
+  if (!reading) return { staffText: builtIn, status: "NOT_READ", studentText: null };
+  if (reading.baseText !== builtIn) return { staffText: builtIn, status: "CHANGED", studentText: null };
+  return { staffText: reading.text, status: "READ", studentText: reading.text };
+}
+
 export type WeakSpotInput = {
   /** ISO-8601 UTC. */
   now: string;
+  /** Who reads it: a student sees only tips their academy read (default STAFF). */
+  audience?: WeakSpotAudience;
+  tipReadings?: WeakSpotTipReadings;
   /** Reviewed (DONE) items in the window, any order. */
   items: WeakSpotPlayItem[];
   /** Finished puzzle attempts in the window, any order. */
@@ -275,6 +312,7 @@ export function buildWeakSpotProfile(input: WeakSpotInput): WeakSpotProfile {
       });
     }
 
+    const tip = resolveWeakSpotTip(motif, input.tipReadings?.[motif]);
     all.push({
       ...total,
       ...verdictOf(total, itemsWithMiss),
@@ -289,7 +327,8 @@ export function buildWeakSpotProfile(input: WeakSpotInput): WeakSpotProfile {
       opportunities: chances(total),
       practiceThemes: themes,
       puzzles: themed.length ? { attempts: themed.length, clean: themed.filter(isCleanSolve).length } : null,
-      tip: WEAK_SPOT_TIPS[motif],
+      tip: (input.audience ?? "STAFF") === "STUDENT" ? tip.studentText : tip.staffText,
+      tipStatus: tip.status,
       trend: trendOf(recent, earlier)
     });
   }
@@ -318,4 +357,84 @@ export function buildWeakSpotProfile(input: WeakSpotInput): WeakSpotProfile {
     weakSpots,
     windowDays: WEAK_SPOT_WINDOW_DAYS
   };
+}
+
+// ── Contract: tips, homework, practice ─────────────────────────
+
+export const weakSpotMotifSchema = z.enum(TACTIC_MOTIFS);
+
+export const WEAK_SPOT_TIP_LIMITS = { max: 400, min: 20 } as const;
+
+/** Read a tip (optionally in the academy's own words); students see it from then on. */
+export const readWeakSpotTipRequestSchema = z.object({
+  text: z
+    .string()
+    .trim()
+    .min(WEAK_SPOT_TIP_LIMITS.min, `Write at least ${WEAK_SPOT_TIP_LIMITS.min} characters.`)
+    .max(WEAK_SPOT_TIP_LIMITS.max, `Keep it under ${WEAK_SPOT_TIP_LIMITS.max} characters.`)
+});
+export type ReadWeakSpotTipRequest = z.infer<typeof readWeakSpotTipRequestSchema>;
+
+export type WeakSpotTipItem = {
+  motif: TacticMotif;
+  label: string;
+  /** Our text (WEAK_SPOT_TIPS). */
+  builtInText: string;
+  /** What students see once read: the academy's wording, else the built-in text. */
+  text: string;
+  status: WeakSpotTipStatus;
+  reviewedByName: string | null;
+  /** ISO-8601 UTC. */
+  reviewedAt: string | null;
+};
+
+export type WeakSpotTipsResponse = { tips: WeakSpotTipItem[] };
+
+/** Homework picks: catalogue puzzles this far around the student's puzzle rating. */
+export const WEAK_SPOT_HOMEWORK_RATING = { above: 150, below: 100 } as const;
+export const WEAK_SPOT_HOMEWORK_SIZE = { default: 10, max: 20, min: 3 } as const;
+
+export const weakSpotHomeworkRequestSchema = z.object({
+  motif: weakSpotMotifSchema,
+  count: z
+    .number()
+    .int()
+    .min(WEAK_SPOT_HOMEWORK_SIZE.min)
+    .max(WEAK_SPOT_HOMEWORK_SIZE.max)
+    .default(WEAK_SPOT_HOMEWORK_SIZE.default)
+});
+export type WeakSpotHomeworkRequest = z.input<typeof weakSpotHomeworkRequestSchema>;
+
+export type WeakSpotHomeworkResponse = {
+  /** The new puzzle-set assignment, in the author's library and not assigned to anyone yet. */
+  assignmentId: string;
+  title: string;
+  puzzleCount: number;
+  targetRating: number;
+};
+
+/** Never names the student: the set may go to a whole batch. */
+export const weakSpotHomeworkTitle = (motif: TacticMotif) => `${TACTIC_MOTIF_LABELS[motif]} practice`;
+
+export function weakSpotHomeworkDescription(motif: TacticMotif, targetRating: number): string {
+  return `Puzzles on ${TACTIC_MOTIF_LABELS[motif].toLowerCase()}, around puzzle rating ${targetRating}. ${WEAK_SPOT_TIPS[motif]}`;
+}
+
+/**
+ * Rating bands (50 points wide, as `lichess_puzzles.ratingBand`) to look in,
+ * nearest to the student's rating first, from WEAK_SPOT_HOMEWORK_RATING.below
+ * under it to .above over it.
+ */
+export function weakSpotHomeworkBands(rating: number): number[] {
+  const home = Math.floor(rating / 50);
+  const low = Math.floor((rating - WEAK_SPOT_HOMEWORK_RATING.below) / 50);
+  const high = Math.floor((rating + WEAK_SPOT_HOMEWORK_RATING.above) / 50);
+  const bands: number[] = [];
+  for (let b = low; b <= high; b += 1) if (b >= 0) bands.push(b);
+  return bands.sort((a, b) => Math.abs(a - home) - Math.abs(b - home) || a - b);
+}
+
+/** Puzzle-training themes for the profile's weak spots, worst first (the WEAK slot). */
+export function weakSpotTrainingThemes(profile: Pick<WeakSpotProfile, "weakSpots">): string[] {
+  return [...new Set(profile.weakSpots.flatMap((spot) => spot.practiceThemes))];
 }

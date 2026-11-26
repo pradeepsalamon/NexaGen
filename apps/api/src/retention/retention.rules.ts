@@ -1,4 +1,9 @@
-import { PLAY_REVIEW_RETENTION_DAYS, TRANSCRIPT_RETENTION_DAYS, type RetentionCategory } from "@nexa-chess/types";
+import {
+  PLAY_REVIEW_RETENTION_DAYS,
+  TRANSCRIPT_RETENTION_DAYS,
+  WEEKLY_REPORT_RETENTION_DAYS,
+  type RetentionCategory
+} from "@nexa-chess/types";
 import { TENANT_TABLES } from "../tenancy/tenant-models";
 
 /** A table and the timestamp column its age is measured on. */
@@ -49,6 +54,8 @@ export const RETENTION_RULES: readonly FixedRetentionRuleDef[] = [
   // outside-AI comments on them (comments go with their review, by cascade).
   // The play itself stays in each feature's own records.
   { column: "reviewedAt", days: PLAY_REVIEW_RETENTION_DAYS, label: "Engine reviews of students' play", table: "ai_play_reviews" },
+  // Weekly progress reports (docs/WEEKLY_REPORTS.md, WR-5): derived from records kept elsewhere.
+  { column: "createdAt", days: WEEKLY_REPORT_RETENTION_DAYS, label: "Weekly progress reports", table: "weekly_reports" },
   // WhatsApp support (docs/WHATSAPP_SUPPORT.md §9): the raw webhook items only
   // matter while Meta may still retry them; a conversation (with its transcript
   // and tickets, by cascade) goes 12 months after it closed, unless a ticket on

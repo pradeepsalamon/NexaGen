@@ -3,10 +3,15 @@
 import { getErrorMessage } from "@/lib/errors";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, CalendarCheck, CheckCircle2, Crown, Eye, Flame, Lightbulb, Puzzle, XCircle } from "lucide-react";
+import { ArrowRight, CalendarCheck, CheckCircle2, Crosshair, Crown, Eye, Flame, Lightbulb, Puzzle, XCircle } from "lucide-react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
+  TACTIC_MOTIF_LABELS,
+  TACTIC_MOTIFS,
   TRAINING_SLOT_LABELS,
   trainingThemeLabels,
+  type TacticMotif,
   type PuzzleTrainingPick,
   type PuzzleTrainingRecentResult,
   type PuzzleTrainingStatusResponse
@@ -35,8 +40,15 @@ const RATING_WAIT_MS = 10_000;
  * puzzle rating, chosen server-side as a mix of weak spots, new themes, mixed
  * picks and second chances. Solving runs on the ordinary attempt routes.
  */
+/** `?weakSpot=FORK` (the dashboard's Practise button): every pick on that weak spot's themes. */
+function useWeakSpotFocus(): TacticMotif | null {
+  const value = useSearchParams().get("weakSpot");
+  return value && (TACTIC_MOTIFS as readonly string[]).includes(value) ? (value as TacticMotif) : null;
+}
+
 export function StudentTrainingClient() {
   const qc = useQueryClient();
+  const focus = useWeakSpotFocus();
   const [pick, setPick] = useState<PuzzleTrainingPick | null>(null);
   const [awaitingSince, setAwaitingSince] = useState<number | null>(null);
 
@@ -48,7 +60,7 @@ export function StudentTrainingClient() {
   });
 
   const next = useMutation({
-    mutationFn: () => nextTrainingPuzzle(),
+    mutationFn: () => nextTrainingPuzzle(focus ? { weakSpot: focus } : {}),
     onSuccess: (res) => {
       setPick(res.pick);
       void qc.invalidateQueries({ queryKey: queryKeys.puzzles.training });
@@ -113,6 +125,18 @@ export function StudentTrainingClient() {
   return (
     <div className="animate-fade-in space-y-5 pb-10">
       {header}
+
+      {focus && data.enabled ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-app border border-app-border bg-warning-soft px-4 py-3 text-sm text-app-text">
+          <span className="flex items-center gap-2">
+            <Crosshair aria-hidden className="size-4 text-warning-ink" />
+            Practising your weak spot: <strong>{TACTIC_MOTIF_LABELS[focus]}</strong>
+          </span>
+          <Link className="font-semibold text-primary-ink underline-offset-2 hover:underline" href="/student/training">
+            Back to the usual mix
+          </Link>
+        </div>
+      ) : null}
 
       {/* lg+: the stats move into the board card's side column (see TrainingBoard). */}
       <div className={data.enabled && pick ? "lg:hidden" : undefined}>

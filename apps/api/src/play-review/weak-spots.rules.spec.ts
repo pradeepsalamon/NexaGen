@@ -4,6 +4,12 @@ import {
   WEAK_SPOT_TIPS,
   LICHESS_THEMES,
   buildWeakSpotProfile,
+  planTrainingPick,
+  resolveWeakSpotTip,
+  weakSpotHomeworkBands,
+  weakSpotHomeworkDescription,
+  weakSpotHomeworkTitle,
+  weakSpotTrainingThemes,
   type PlayFinding,
   type PlaySource,
   type PlayTacticStats,
@@ -131,5 +137,70 @@ describe("buildWeakSpotProfile", () => {
       expect(WEAK_SPOT_TIPS[motif].length).toBeGreaterThan(20);
       for (const theme of WEAK_SPOT_LICHESS_THEMES[motif]) expect(known.has(theme)).toBe(true);
     }
+  });
+
+  describe("tips (WS-4)", () => {
+    it("is read only while the built-in text is the one that was read", () => {
+      expect(resolveWeakSpotTip("FORK", null)).toEqual({ staffText: WEAK_SPOT_TIPS.FORK, status: "NOT_READ", studentText: null });
+      expect(resolveWeakSpotTip("FORK", { baseText: WEAK_SPOT_TIPS.FORK, text: "Our words." })).toEqual({
+        staffText: "Our words.",
+        status: "READ",
+        studentText: "Our words."
+      });
+      expect(resolveWeakSpotTip("FORK", { baseText: "old", text: "Our words." })).toEqual({
+        staffText: WEAK_SPOT_TIPS.FORK,
+        status: "CHANGED",
+        studentText: null
+      });
+    });
+
+    it("gives a student no tip until it is read; staff always see one", () => {
+      const items = [1, 2, 3].map((d) => item(d, { FORK: counts(0, 2) }));
+      const staff = buildWeakSpotProfile({ items, now: NOW, puzzles: [] });
+      const student = buildWeakSpotProfile({ audience: "STUDENT", items, now: NOW, puzzles: [] });
+      const read = buildWeakSpotProfile({
+        audience: "STUDENT",
+        items,
+        now: NOW,
+        puzzles: [],
+        tipReadings: { FORK: { baseText: WEAK_SPOT_TIPS.FORK, text: WEAK_SPOT_TIPS.FORK } }
+      });
+      expect(staff.weakSpots[0]).toMatchObject({ tip: WEAK_SPOT_TIPS.FORK, tipStatus: "NOT_READ" });
+      expect(student.weakSpots[0]).toMatchObject({ tip: null, tipStatus: "NOT_READ" });
+      expect(read.weakSpots[0]).toMatchObject({ tip: WEAK_SPOT_TIPS.FORK, tipStatus: "READ" });
+    });
+  });
+
+  describe("practice", () => {
+    it("looks for homework from 100 under to 150 over the rating, nearest band first", () => {
+      expect(weakSpotHomeworkBands(1320)).toEqual([26, 25, 27, 24, 28, 29]);
+      expect(weakSpotHomeworkBands(40)).toEqual([0, 1, 2, 3]);
+    });
+
+    it("titles homework by the pattern only (it may go to a whole batch)", () => {
+      expect(weakSpotHomeworkTitle("BACK_RANK_MATE")).toBe("Back-rank mate practice");
+      expect(weakSpotHomeworkDescription("PIN", 1300)).toMatch(/^Puzzles on pin, around puzzle rating 1300\. /);
+    });
+
+    it("feeds training the weak spots' themes, worst first, without repeats", () => {
+      const spot = (practiceThemes: string[]) => ({ practiceThemes }) as never;
+      expect(weakSpotTrainingThemes({ weakSpots: [spot(["fork"]), spot(["fork", "doubleCheck"]), spot(["pin"])] })).toEqual([
+        "fork",
+        "doubleCheck",
+        "pin"
+      ]);
+    });
+
+    it("aims the WEAK slot at a weak spot in turn, then the puzzle history", () => {
+      const base = { rating: 1400, recentAll: [], recentTraining: [], reviewDue: false };
+      expect(planTrainingPick({ ...base, trainingCount: 0, weakSpotThemes: ["fork", "pin"] })).toMatchObject({ slot: "WEAK", theme: "fork" });
+      expect(planTrainingPick({ ...base, trainingCount: 1, weakSpotThemes: ["fork", "pin"] })).toMatchObject({ slot: "WEAK", theme: "pin" });
+      // A theme not open at this rating is skipped.
+      expect(planTrainingPick({ ...base, rating: 600, trainingCount: 0, weakSpotThemes: ["mateIn3"] }).theme).not.toBe("mateIn3");
+      // No weak spot: unchanged (EXPLORE without puzzle history).
+      expect(planTrainingPick({ ...base, trainingCount: 0 })).toMatchObject({ slot: "EXPLORE" });
+      // Only WEAK slots: a MIXED one stays mixed.
+      expect(planTrainingPick({ ...base, trainingCount: 2, weakSpotThemes: ["fork"] })).toMatchObject({ slot: "MIXED", theme: null });
+    });
   });
 });

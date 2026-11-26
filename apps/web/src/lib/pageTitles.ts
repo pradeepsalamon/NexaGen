@@ -150,6 +150,7 @@ export const PAGE_TITLES = {
   "/student/practice/[id]": "Assignment",
   "/student/progress": "Progress",
   "/student/puzzles/[id]": "Solve puzzle",
+  "/student/reports": "Weekly reports",
   "/student/revision": "Smart revision",
   "/student/schedule": "Schedule",
   "/student/puzzle-rush": "Storm and Racer",

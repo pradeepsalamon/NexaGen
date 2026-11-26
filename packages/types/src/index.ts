@@ -2777,6 +2777,7 @@ export * from "./progress";
 export * from "./student-activity";
 export * from "./ai-review";
 export * from "./weak-spots";
+export * from "./weekly-reports";
 export * from "./ai-providers";
 export * from "./class-recap";
 export * from "./revision";

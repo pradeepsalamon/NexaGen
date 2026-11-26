@@ -419,7 +419,15 @@ export const queryKeys = {
     rollup: (studentId: string) => ["play-review", "rollup", studentId] as const,
     consent: (studentId: string) => ["play-review", "consent", studentId] as const,
     weakSpots: (studentId: string) => ["play-review", "weak-spots", studentId] as const,
+    weakSpotsMine: ["play-review", "weak-spots", "me"] as const,
+    weakSpotTips: ["play-review", "weak-spot-tips"] as const,
     settings: ["play-review", "settings"] as const
+  },
+  weeklyReports: {
+    all: ["weekly-reports"] as const,
+    mine: ["weekly-reports", "me"] as const,
+    forStudent: (studentId: string) => ["weekly-reports", "student", studentId] as const,
+    preview: (studentId: string) => ["weekly-reports", "preview", studentId] as const
   },
   progress: {
     mine: ["progress", "me"] as const,

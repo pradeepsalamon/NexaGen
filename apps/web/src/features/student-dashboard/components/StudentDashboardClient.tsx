@@ -12,6 +12,7 @@ import { DashboardFeedback } from "@/features/feedback/components/DashboardFeedb
 import { DailyPuzzleDashboardCard } from "@/features/daily-puzzle/components/DailyPuzzleDashboardCard";
 import { SoloRushDashboardCard } from "@/features/puzzle-rush-solo/components/SoloRushDashboardCard";
 import { RevisionDashboardCard } from "@/features/revision/components/RevisionDashboardCard";
+import { WeakSpotDashboardCard } from "@/features/weak-spots/components/WeakSpotDashboardCard";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/authStore";
 import { useStudentDashboard } from "../hooks/useStudentApi";
@@ -118,6 +119,7 @@ export function StudentDashboardClient() {
 
           <div className={cn("min-w-0 space-y-5", hasPastClasses && "lg:row-span-2")}>
             <DailyPuzzleDashboardCard />
+            <WeakSpotDashboardCard />
             <RevisionDashboardCard />
             <SoloRushDashboardCard />
             {courses.length > 0 ? <ContinueLearning courses={courses} /> : null}

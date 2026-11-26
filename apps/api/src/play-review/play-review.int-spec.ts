@@ -212,9 +212,48 @@ describe("AI play review: play feed, Storm moves, switch (real app, real Postgre
     expect(profile.weakSpots[0].examples[0]).toMatchObject({ bestMoveUci: "f3e5", playedUci: "a2a3", source: "CLASS_BOARD" });
     expect(profile.strengths.map((m) => m.motif)).toEqual(["PIN"]);
 
-    // A coach who doesn't teach the student, and the student themselves in phase A: refused.
+    // A coach who doesn't teach the student, and the student on the staff route: refused.
     expect((await t.call(w.b.coach, "GET", API_ROUTES.playReview.weakSpots(w.a.student.id))).status).toBeGreaterThanOrEqual(403);
     expect((await t.call(w.a.student, "GET", API_ROUTES.playReview.weakSpots(w.a.student.id))).status).toBe(403);
+
+    // The student's card: no tip until a coach of the academy reads it, then the coach's words.
+    const card = () => t.call(w.a.student, "GET", API_ROUTES.playReview.weakSpotsMine).then((r) => r.body as WeakSpotProfileResponse);
+    expect((await card()).weakSpots[0]).toMatchObject({ motif: "FORK", tip: null, tipStatus: "NOT_READ" });
+    const read = await t.call(w.a.coach, "PUT", API_ROUTES.playReview.weakSpotTip("FORK"), { text: "Knights fork two pieces; look for them." });
+    expect(read.status).toBe(200);
+    expect((await card()).weakSpots[0]).toMatchObject({ tip: "Knights fork two pieces; look for them.", tipStatus: "READ" });
+    expect((await t.call(w.a.coach, "DELETE", API_ROUTES.playReview.weakSpotTip("FORK"))).status).toBe(200);
+    expect((await card()).weakSpots[0].tip).toBeNull();
+
+    // Make homework: no catalogue here, so the academy's own shared fork puzzle; saved unassigned, no student name.
+    const shared = await t.prisma.puzzle.create({
+      data: {
+        createdByRole: "ADMIN",
+        difficulty: "EASY",
+        fen,
+        puzzleType: "TACTICAL",
+        solutionMovesJson: [{ san: "Nxe5", uci: "f3e5" }],
+        status: "PUBLISHED",
+        tags: ["fork"],
+        title: "Shared fork",
+        topicId: w.a.privatePuzzle.topicId,
+        visibility: "GLOBAL"
+      }
+    });
+    const made = await t.call(w.a.coach, "POST", API_ROUTES.playReview.weakSpotHomework(w.a.student.id), { motif: "FORK", count: 5 });
+    expect(made.status).toBe(201);
+    const { assignmentId } = made.body as { assignmentId: string };
+    const set = await t.prisma.assignment.findUniqueOrThrow({ include: { deployments: true, puzzles: true }, where: { id: assignmentId } });
+    expect(set).toMatchObject({ activityType: "PUZZLE_SET", createdById: w.a.coach.id, isLibrary: false, title: "Fork practice" });
+    expect(set.puzzles.map((p) => p.puzzleId)).toEqual([shared.id]);
+    expect(set.deployments).toEqual([]);
+    // Nothing new left for this student: a 409, not an empty set.
+    await t.prisma.puzzleAttempt.create({ data: { attemptNumber: 1, puzzleId: shared.id, studentId: w.a.student.id } });
+    expect((await t.call(w.a.coach, "POST", API_ROUTES.playReview.weakSpotHomework(w.a.student.id), { motif: "FORK" })).status).toBe(409);
+    expect((await t.call(w.b.coach, "POST", API_ROUTES.playReview.weakSpotHomework(w.a.student.id), { motif: "FORK" })).status).toBe(403);
+    await t.prisma.assignment.delete({ where: { id: assignmentId } });
+    await t.prisma.puzzleAttempt.deleteMany({ where: { puzzleId: shared.id } });
+    await t.prisma.puzzle.delete({ where: { id: shared.id } });
     // The tests share one world: leave the reviews as they were.
     await t.prisma.aiPlayReview.deleteMany({ where: { sourceId: { startsWith: "weak-spot-" } } });
   });

@@ -1075,9 +1075,22 @@ export const API_ROUTES = {
     rollup: (id: string = ":id") => `/play-review/students/${id}/rollup`,
     consentMine: "/play-review/me/consent",
     consent: (id: string = ":id") => `/play-review/students/${id}/consent`,
-    // Weak spots (docs/WEAK_SPOTS.md): coach / admin in phase A.
+    // Weak spots (docs/WEAK_SPOTS.md): coach / admin; the student's own card reads `weakSpotsMine`.
     weakSpots: (id: string = ":id") => `/play-review/students/${id}/weak-spots`,
+    weakSpotsMine: "/play-review/me/weak-spots",
+    /** POST: a puzzle-set homework draft for one weak spot (not assigned to anyone yet). */
+    weakSpotHomework: (id: string = ":id") => `/play-review/students/${id}/weak-spots/homework`,
+    /** The academy's tip reading list; PUT / DELETE one tip by motif. */
+    weakSpotTips: "/play-review/weak-spot-tips",
+    weakSpotTip: (motif: string = ":motif") => `/play-review/weak-spot-tips/${motif}`,
     settings: "/admin/play-review/settings"
+  },
+  // Weekly progress reports (docs/WEEKLY_REPORTS.md): the student's own, and staff for a student they may see.
+  weeklyReports: {
+    mine: "/weekly-reports/me",
+    forStudent: (id: string = ":id") => `/weekly-reports/students/${id}`,
+    /** Staff only: this week so far, built now and not stored. */
+    preview: (id: string = ":id") => `/weekly-reports/students/${id}/preview`
   },
   progress: {
     mine: "/progress/me",

@@ -539,6 +539,14 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.aiPlayComment;
   }
 
+  get weakSpotTipReview() {
+    return this.client.weakSpotTipReview;
+  }
+
+  get weeklyReport() {
+    return this.client.weeklyReport;
+  }
+
   get liveClassBoardMove() {
     return this.client.liveClassBoardMove;
   }

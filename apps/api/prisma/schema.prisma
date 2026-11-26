@@ -408,6 +408,7 @@ model User {
   aiReviewConsents                AiReviewConsent[]                @relation("AiReviewConsentStudent")
   aiReviewConsentsChanged         AiReviewConsent[]                @relation("AiReviewConsentChangedBy")
   aiPlayReviews                   AiPlayReview[]                   @relation("AiPlayReviewStudent")
+  weeklyReports                   WeeklyReport[]                   @relation("WeeklyReportStudent")
   aiPlayComments                  AiPlayComment[]                  @relation("AiPlayCommentStudent")
   liveClassBoardMoves             LiveClassBoardMove[]             @relation("LiveClassBoardMoveStudent")
   dailyPuzzleEntries              DailyPuzzleEntry[]               @relation("DailyPuzzleEntryStudent")
@@ -9761,4 +9762,59 @@ model AiFeatureModel {
   updatedAt        DateTime    @updatedAt
 
   @@map("ai_feature_models")
+}
+
+/// An academy's reading of one weak-spot tip (docs/WEAK_SPOTS.md § "Tips"):
+/// students see a tip only after a coach or admin of their academy read it.
+/// `baseText` is the built-in tip that was read; when the built-in text
+/// changes, the tip needs reading again. `text` is what students see (the
+/// built-in tip, or the reviewer's own wording).
+model WeakSpotTipReview {
+  id           String   @id @default(cuid())
+  tenantId     String   @default("tenant_nexa")
+  /// A `TacticMotif` (@nexa-chess/types game-tactics.ts).
+  motif        String
+  baseText     String
+  text         String
+  /// The coach or admin who read it (no relation; kept after that account goes).
+  reviewedById String?
+  reviewedAt   DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([tenantId, motif])
+  @@map("weak_spot_tip_reviews")
+}
+
+enum WeeklyReportStatus {
+  /// Built from the week's facts; phase A shows it in the student's own account.
+  DRAFT
+}
+
+/// A student's weekly progress report (docs/WEEKLY_REPORTS.md): a frozen
+/// snapshot of one academy week's facts (Monday–Sunday in the academy's time
+/// zone) and the template text made from them. Derived, never soft-deleted;
+/// kept a year (RETENTION_RULES).
+model WeeklyReport {
+  id           String             @id @default(cuid())
+  tenantId     String             @default("tenant_nexa")
+  studentId    String
+  student      User               @relation("WeeklyReportStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  /// The week's Monday, on the academy's calendar.
+  weekStart    DateTime           @db.Date
+  status       WeeklyReportStatus @default(DRAFT)
+  /// WeeklyFacts (@nexa-chess/types weekly-reports.ts).
+  factsJson    Json
+  /// `renderWeeklyReportText` of the facts.
+  templateText String
+  /// What the student reads (the template in phase A).
+  finalText    String
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@unique([tenantId, studentId, weekStart])
+  @@index([studentId, weekStart])
+  @@index([tenantId, weekStart])
+  @@index([createdAt])
+  @@map("weekly_reports")
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import type { AssignmentDeployment, AssignmentLibraryItem } from "@nexa-chess/types";
 import { Eye, Pencil, Plus, Send, Trash2, Users } from "lucide-react";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
@@ -17,6 +17,7 @@ import { queryKeys } from "@/lib/queryKeys";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { useCoachBatches } from "@/features/coach/hooks/useCoachApi";
 import { useAssignmentDeployments, useAssignmentLibrary } from "../hooks/useAssignmentsApi";
+import { useEditFromQuery } from "../hooks/useEditFromQuery";
 import { deleteAssignment, undeployAssignment } from "../api/assignmentApi";
 import { AssignmentFormDialog } from "./AssignmentFormDialog";
 import { AssignmentPreviewDialog } from "./AssignmentPreviewDialog";
@@ -78,10 +79,11 @@ export function CoachAssignmentsClient() {
     setFormOpen(true);
   };
 
-  const openEdit = (item: AssignmentLibraryItem) => {
+  const openEdit = useCallback((item: AssignmentLibraryItem) => {
     setEditing(item);
     setFormOpen(true);
-  };
+  }, []);
+  useEditFromQuery(library, openEdit);
 
   return (
     <div className="animate-fade-in pb-10">

@@ -732,3 +732,10 @@ ALTER TABLE "class_recaps" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_requi
 
 -- AlterTable
 ALTER TABLE "class_recap_settings" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();
+
+-- Added 2026-11-26 (weak-spot tips, docs/WEAK_SPOTS.md; weekly reports, docs/WEEKLY_REPORTS.md). Found by src/tenancy/d5-contract.spec.ts.
+-- AlterTable
+ALTER TABLE "weak_spot_tip_reviews" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();
+
+-- AlterTable
+ALTER TABLE "weekly_reports" ALTER COLUMN "tenantId" SET DEFAULT nexa_tenant_required();

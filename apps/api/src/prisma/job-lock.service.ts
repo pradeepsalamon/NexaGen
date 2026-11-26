@@ -45,6 +45,7 @@ export const JOB_LOCKS = {
   supportOutbox: "support.outbox",
   supportWebhookSweep: "support.webhook-sweep",
   tenantIntegrity: "platform.tenant-integrity",
+  weeklyReports: "weekly-reports.build",
   tenantUsageSnapshot: "platform.tenant-usage",
   tournamentTick: "tournaments.tick",
   trashCleanup: "trash.cleanup"

@@ -1,8 +1,10 @@
 "use client";
 
 import { PLAY_SOURCE_LABELS, type WeakSpotExample, type WeakSpotMotif, type WeakSpotTrend } from "@nexa-chess/types";
-import { Crosshair } from "lucide-react";
+import { BookOpenCheck, ClipboardPlus, Crosshair } from "lucide-react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -10,7 +12,12 @@ import { WidgetError } from "@/components/ui/WidgetError";
 import { PuzzleBoardTile } from "@/features/live-class/components/meeting/PuzzleBoardTile";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDayMonth } from "@/lib/datetime";
-import { useWeakSpots } from "../hooks/useWeakSpots";
+import { useRouter } from "@/lib/navigation";
+import { getErrorMessage } from "@/lib/errors";
+import { useToast } from "@/providers/ToastProvider";
+import { useAuthStore } from "@/stores/authStore";
+import { useMakeWeakSpotHomework, useWeakSpots } from "../hooks/useWeakSpots";
+import { WeakSpotTipsDialog } from "./WeakSpotTipsDialog";
 
 const percent = (rate: number | null) => (rate === null ? "–" : `${Math.round(rate * 100)}%`);
 const times = (n: number) => (n === 1 ? "once" : `${n} times`);
@@ -48,7 +55,43 @@ function Example({ example }: { example: WeakSpotExample }) {
   );
 }
 
-function WeakSpotCard({ spot }: { spot: WeakSpotMotif }) {
+/** Make homework (WS-5): a puzzle set for this weak spot, opened in the assignments page to edit and assign. */
+function MakeHomeworkButton({ spot, studentId }: { spot: WeakSpotMotif; studentId: string }) {
+  const router = useRouter();
+  const toast = useToast();
+  const role = useAuthStore((state) => state.user?.role);
+  const make = useMakeWeakSpotHomework(studentId);
+  if (spot.practiceThemes.length === 0) return null;
+  const base = role === "COACH" ? "/coach/assignments" : "/admin/assignments";
+  return (
+    <Button
+      isLoading={make.isPending}
+      onClick={() =>
+        make.mutate(
+          { motif: spot.motif },
+          {
+            onError: (e) => toast.error({ message: getErrorMessage(e), title: "Couldn't make the homework" }),
+            onSuccess: (result) => {
+              toast.success({
+                message: "Check the puzzles, then assign it to a batch. Nobody has it yet.",
+                title: `${result.title}: ${result.puzzleCount} puzzles saved`
+              });
+              router.push(`${base}?edit=${encodeURIComponent(result.assignmentId)}`);
+            }
+          }
+        )
+      }
+      size="sm"
+      type="button"
+      variant="outline"
+    >
+      <ClipboardPlus aria-hidden className="size-4" />
+      Make homework
+    </Button>
+  );
+}
+
+function WeakSpotCard({ spot, studentId }: { spot: WeakSpotMotif; studentId: string }) {
   const where = spot.bySource.map((s) => `${PLAY_SOURCE_LABELS[s.source]} ${s.missed}`).join(" · ");
   return (
     <article className="grid min-w-0 gap-4 rounded-app border border-app-border p-4">
@@ -64,7 +107,16 @@ function WeakSpotCard({ spot }: { spot: WeakSpotMotif }) {
           <TrendBadge trend={spot.trend} />
         </div>
       </div>
-      <p className="text-sm text-app-text">{spot.tip}</p>
+      <div className="grid gap-1">
+        <p className="text-sm text-app-text">{spot.tip}</p>
+        {spot.tipStatus !== "READ" ? (
+          <p className="text-xs text-app-muted">
+            {spot.tipStatus === "CHANGED"
+              ? "The student doesn't see this tip: its wording changed since it was read."
+              : "The student doesn't see this tip until a coach reads it (Tips students see)."}
+          </p>
+        ) : null}
+      </div>
       <dl className="grid gap-3 text-xs sm:grid-cols-3">
         <div className="min-w-0">
           <dt className="font-semibold text-app-text">Where</dt>
@@ -95,6 +147,9 @@ function WeakSpotCard({ spot }: { spot: WeakSpotMotif }) {
           ))}
         </div>
       ) : null}
+      <div className="flex flex-wrap gap-2">
+        <MakeHomeworkButton spot={spot} studentId={studentId} />
+      </div>
     </article>
   );
 }
@@ -126,11 +181,13 @@ function MotifRow({ spot }: { spot: WeakSpotMotif }) {
 /**
  * Weak spots (docs/WEAK_SPOTS.md): what this student keeps missing in all
  * their reviewed play (class board, Storm/Racer, homework, games…), with
- * example positions, their strengths and everything else they met. Phase A:
- * the student's coach and admins.
+ * example positions, their strengths and everything else they met; Make
+ * homework per weak spot, and the academy's tip reading list. The student's
+ * coach and admins (the student has their own card).
  */
 export function WeakSpotsPanel({ studentId }: { studentId: string }) {
   const query = useWeakSpots(studentId);
+  const [tipsOpen, setTipsOpen] = useState(false);
 
   if (query.isLoading) return <Skeleton className="h-72 w-full rounded-app" />;
   if (query.isError || !query.data) return <WidgetError message={query.error?.message} onRetry={() => void query.refetch()} />;
@@ -139,12 +196,19 @@ export function WeakSpotsPanel({ studentId }: { studentId: string }) {
 
   return (
     <div className="space-y-5">
-      <p className="text-sm text-app-muted">
+      {tipsOpen ? <WeakSpotTipsDialog onClose={() => setTipsOpen(false)} /> : null}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+      <p className="min-w-0 flex-1 basis-72 text-sm text-app-muted">
         From {profile.reviewedItems} reviewed {profile.reviewedItems === 1 ? "game or board" : "games and boards"} and{" "}
         {profile.puzzleAttempts} {profile.puzzleAttempts === 1 ? "puzzle" : "puzzles"} in the last {profile.windowDays} days. The chess
         engine decides every miss; play is reviewed overnight.
         {pending > 0 ? ` ${pending} older ${pending === 1 ? "review is" : "reviews are"} being checked again overnight and will count after that.` : ""}
       </p>
+      <Button onClick={() => setTipsOpen(true)} size="sm" type="button" variant="neutral">
+        <BookOpenCheck aria-hidden className="size-4" />
+        Tips students see
+      </Button>
+      </div>
 
       <SectionCard
         description="What the student keeps missing: at least half of the chances, three or more times, in three or more different games or boards."
@@ -164,7 +228,7 @@ export function WeakSpotsPanel({ studentId }: { studentId: string }) {
         ) : (
           <div className="grid gap-4">
             {profile.weakSpots.map((spot) => (
-              <WeakSpotCard key={spot.motif} spot={spot} />
+              <WeakSpotCard key={spot.motif} spot={spot} studentId={studentId} />
             ))}
           </div>
         )}

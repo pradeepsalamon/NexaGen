@@ -1,10 +1,13 @@
-import { Body, Controller, Get, Param, Patch, Put, Query, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req } from "@nestjs/common";
 import {
   API_ROUTES,
+  readWeakSpotTipRequestSchema,
   setAiReviewConsentRequestSchema,
   updateAiPlayReviewSettingsRequestSchema,
+  type ReadWeakSpotTipRequest,
   type SetAiReviewConsentRequest,
-  type UpdateAiPlayReviewSettingsRequest
+  type UpdateAiPlayReviewSettingsRequest,
+  type WeakSpotHomeworkRequest
 } from "@nexa-chess/types";
 import type { Request } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
@@ -66,6 +69,37 @@ export class PlayReviewController {
   @Get(API_ROUTES.playReview.weakSpots())
   weakSpotsFor(@Req() request: Request, @Param("id") id: string) {
     return this.weakSpots.getFor(this.getAccessToken(request), id);
+  }
+
+  /** The student's own card (tips only once their academy read them). */
+  @Get(API_ROUTES.playReview.weakSpotsMine)
+  weakSpotsMine(@Req() request: Request) {
+    return this.weakSpots.getMine(this.getAccessToken(request));
+  }
+
+  /** Make homework: a puzzle-set draft in the author's library (body checked in the service). */
+  @Post(API_ROUTES.playReview.weakSpotHomework())
+  weakSpotHomework(@Req() request: Request, @Param("id") id: string, @Body() body: WeakSpotHomeworkRequest) {
+    return this.weakSpots.makeHomework(this.getAccessToken(request), id, body);
+  }
+
+  @Get(API_ROUTES.playReview.weakSpotTips)
+  weakSpotTips(@Req() request: Request) {
+    return this.weakSpots.listTips(this.getAccessToken(request));
+  }
+
+  @Put(API_ROUTES.playReview.weakSpotTip())
+  readWeakSpotTip(
+    @Req() request: Request,
+    @Param("motif") motif: string,
+    @Body(new ZodBodyPipe(readWeakSpotTipRequestSchema)) body: ReadWeakSpotTipRequest
+  ) {
+    return this.weakSpots.readTip(this.getAccessToken(request), motif, body);
+  }
+
+  @Delete(API_ROUTES.playReview.weakSpotTip())
+  unreadWeakSpotTip(@Req() request: Request, @Param("motif") motif: string) {
+    return this.weakSpots.unreadTip(this.getAccessToken(request), motif);
   }
 
   @Get(API_ROUTES.playReview.consentMine)

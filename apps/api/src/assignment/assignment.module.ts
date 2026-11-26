@@ -35,6 +35,6 @@ import { TrashModule } from "../trash/trash.module";
     AssignmentPuzzleSetService,
     AssignmentReminderService
   ],
-  exports: [AssignmentEvaluationService, AssignmentPuzzleSetService]
+  exports: [AssignmentEvaluationService, AssignmentPuzzleSetService, AssignmentService]
 })
 export class AssignmentModule {}

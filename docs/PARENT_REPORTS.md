@@ -39,4 +39,6 @@ Therefore, today:
    reports goes through `MessagingDispatchService`, never direct email.
 
 Until 1–3 exist, a request for a parent report should be answered with this
-document rather than a workaround.
+document rather than a workaround. The weekly progress report
+([WEEKLY_REPORTS.md](WEEKLY_REPORTS.md)) keeps this rule: it lives in the
+student's own account and is sent nowhere.

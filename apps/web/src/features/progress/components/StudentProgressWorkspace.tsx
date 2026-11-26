@@ -11,6 +11,7 @@ import { GameInsightsPanel } from "@/features/game-analysis/components/GameInsig
 import { StudentGameSyncCard } from "@/features/game-analysis/components/StudentGameSyncCard";
 import { BoardPlayPanel } from "@/features/play-review/components/BoardPlayPanel";
 import { WeakSpotsPanel } from "@/features/weak-spots/components/WeakSpotsPanel";
+import { WeeklyReportsPanel } from "@/features/weekly-reports/components/WeeklyReportsPanel";
 import { RevisionReportPanel } from "@/features/revision/components/RevisionReportPanel";
 import { useActivitySummary, useProgressFor } from "../hooks/useProgress";
 import {
@@ -24,7 +25,7 @@ import { ActivityHistoryList } from "./ActivityHistoryList";
 import { ActivitySummaryPanel } from "./ActivitySummaryPanel";
 import { ProgressView } from "./ProgressView";
 
-type Tab = "overview" | "performance" | "history" | "board" | "weak" | "revision" | "games";
+type Tab = "overview" | "performance" | "history" | "board" | "weak" | "reports" | "revision" | "games";
 
 function LoadingTiles() {
   return (
@@ -73,6 +74,7 @@ export function StudentProgressWorkspace({
             <TabsTrigger value="history">Activity history</TabsTrigger>
             <TabsTrigger value="board">Board play</TabsTrigger>
             {studentId ? <TabsTrigger value="weak">Weak spots</TabsTrigger> : null}
+            {studentId ? <TabsTrigger value="reports">Weekly reports</TabsTrigger> : null}
             <TabsTrigger value="revision">Revision</TabsTrigger>
             <TabsTrigger value="games">Games</TabsTrigger>
           </TabsList>
@@ -122,7 +124,10 @@ export function StudentProgressWorkspace({
       </TabsContent>
 
       {studentId ? (
-        <TabsContent value="weak">{tab === "weak" ? <WeakSpotsPanel studentId={studentId} /> : null}</TabsContent>
+        <>
+          <TabsContent value="weak">{tab === "weak" ? <WeakSpotsPanel studentId={studentId} /> : null}</TabsContent>
+          <TabsContent value="reports">{tab === "reports" ? <WeeklyReportsPanel studentId={studentId} /> : null}</TabsContent>
+        </>
       ) : null}
 
       <TabsContent value="revision">
