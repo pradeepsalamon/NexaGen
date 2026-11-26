@@ -88,8 +88,10 @@ code on 2026-10-31.
    the batch view (a batch's most common weak spots). ~1 session.
 5. **Release `dev` → `main`** after 1–2: weak spots A+B, weekly reports A,
    board coordinate labels, error toasts + `WidgetError`, tabs, the Groq line on
-   the legal page (everything older is already on `main`). Production needs
-   the same migration + D5 lines. A PR into `main`; the owner merges.
+   the legal page (everything older is already on `main`). The deploy runs the
+   additive migration itself; the D5 lines wait for the SaaS cutover
+   ([SAAS_CUTOVER_RUNBOOK.md](SAAS_CUTOVER_RUNBOOK.md)). A PR into `main`; the
+   owner merges.
 
 ### P1 — data growth & privacy
 
