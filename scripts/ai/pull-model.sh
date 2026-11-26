@@ -39,10 +39,16 @@ docker volume create "$VOLUME" >/dev/null
 docker rm -f "$NAME" >/dev/null 2>&1 || true
 trap 'docker rm -f "$NAME" >/dev/null 2>&1 || true' EXIT
 docker run -d --name "$NAME" -v "$VOLUME:/root/.ollama" "$IMAGE" >/dev/null
+ready=false
 for _ in $(seq 1 30); do
-  docker exec "$NAME" ollama list >/dev/null 2>&1 && break
+  if docker exec "$NAME" ollama list >/dev/null 2>&1; then ready=true; break; fi
   sleep 1
 done
+if [ "$ready" != true ]; then
+  echo "ollama in $NAME did not become ready within 30 s" >&2
+  docker logs --tail 20 "$NAME" >&2 || true
+  exit 1
+fi
 
 if [ "$CHECK_ONLY" != true ]; then
   docker exec "$NAME" ollama pull "$MODEL"

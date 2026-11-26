@@ -64,7 +64,8 @@ services:
       AI_ENABLED: ${AI_ENABLED:-false}
       AI_RUNTIME_URL: http://ai-runtime:8000
       AI_RUNTIME_SHARED_SECRET: ${AI_RUNTIME_SHARED_SECRET:-}
-      AI_LOCAL_MODEL_URL: http://ollama:11434/v1
+      # The bundled ollama unless .env names another local model server.
+      AI_LOCAL_MODEL_URL: ${AI_LOCAL_MODEL_URL:-http://ollama:11434/v1}
 
 networks:
   ai_internal:

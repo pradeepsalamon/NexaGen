@@ -29,11 +29,17 @@ echo "Static checks"
 base_json=$("${BASE[@]}" config --format json 2>/dev/null)
 overlay_json=$("${OVERLAY[@]}" config --format json 2>/dev/null)
 profile_json=$("${OVERLAY[@]}" --profile ai config --format json 2>/dev/null)
+# Captured (a failed `config` stops here under set -e), then matched without a
+# pipeline: `cmd | grep -q` can fail for SIGPIPE under pipefail and skip a check.
+base_services=$("${BASE[@]}" config --services 2>/dev/null)
+overlay_services=$("${OVERLAY[@]}" config --services 2>/dev/null)
+profile_services=$("${OVERLAY[@]}" --profile ai config --services 2>/dev/null)
+has() { grep -qx "$2" <<<"$1"; }
 
 # 1. Invisible without the overlay *and* the profile.
-"${BASE[@]}" config --services 2>/dev/null | grep -qx ai-runtime && fail "1: ai-runtime is in docker-compose.yml"
-"${OVERLAY[@]}" config --services 2>/dev/null | grep -qx ai-runtime && fail "1: ai-runtime active without --profile ai"
-"${OVERLAY[@]}" --profile ai config --services 2>/dev/null | grep -qx ai-runtime || fail "1: ai-runtime missing with --profile ai"
+has "$base_services" ai-runtime && fail "1: ai-runtime is in docker-compose.yml"
+has "$overlay_services" ai-runtime && fail "1: ai-runtime active without --profile ai"
+has "$profile_services" ai-runtime || fail "1: ai-runtime missing with --profile ai"
 pass "1: ai-runtime only exists with the overlay and --profile ai"
 
 # 2. Hardening of the runtime service.
@@ -50,7 +56,8 @@ user=$(jq -r '.user // ""' <<<"$rt")
 pass "2: no ports, ai_internal only (internal), read-only, no caps, non-root, limited"
 
 # 2b. The local recap model (docs/CLASS_RECAPS.md): profile only, internal only, limited.
-"${OVERLAY[@]}" config --services 2>/dev/null | grep -qx ollama && fail "2b: ollama active without --profile ai"
+has "$base_services" ollama && fail "2b: ollama is in docker-compose.yml"
+has "$overlay_services" ollama && fail "2b: ollama active without --profile ai"
 om=$(jq '.services.ollama' <<<"$profile_json")
 [ "$om" != null ] || fail "2b: ollama missing with --profile ai"
 [ "$(jq '.ports // [] | length' <<<"$om")" = 0 ] || fail "2b: ollama publishes ports"

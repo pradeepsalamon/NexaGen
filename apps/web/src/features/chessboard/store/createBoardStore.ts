@@ -37,6 +37,9 @@ type FreeMoveSnapshot = {
   treeLinePath: MoveTreePath;
   historyIndex: number;
   gameId: string;
+  /** The coach's move credits when the board was left, so Undo back keeps them. */
+  moveCredits: BoardMoveCredit[];
+  moveCreditsGameId: string | null;
 };
 
 const FREE_MOVE_HISTORY_LIMIT = 200;
@@ -273,7 +276,14 @@ function snapshotOf(state: BoardState): FreeMoveSnapshot {
     treeLinePath: state.treeLinePath,
     historyIndex: state.historyIndex,
     gameId: state.gameId,
+    moveCredits: state.moveCredits,
+    moveCreditsGameId: state.moveCreditsGameId,
   };
+}
+
+/** The game and its move credits a free-move Undo / Redo returns to. */
+function restoredGame(target: FreeMoveSnapshot) {
+  return { gameId: target.gameId, moveCredits: target.moveCredits, moveCreditsGameId: target.moveCreditsGameId };
 }
 
 function uciParts(uci: string) {
@@ -521,7 +531,7 @@ export const createBoardStore = () => {
       if (!previous) return;
       set({
         ...deriveFromTree(state.chess, previous.tree, previous.treeLinePath, previous.historyIndex),
-        gameId: previous.gameId,
+        ...restoredGame(previous),
         freeMoveUndo: state.freeMoveUndo.slice(0, -1),
         freeMoveRedo: [...state.freeMoveRedo, snapshotOf(state)],
       });
@@ -537,7 +547,7 @@ export const createBoardStore = () => {
       if (!next) return;
       set({
         ...deriveFromTree(state.chess, next.tree, next.treeLinePath, next.historyIndex),
-        gameId: next.gameId,
+        ...restoredGame(next),
         freeMoveRedo: state.freeMoveRedo.slice(0, -1),
         freeMoveUndo: [...state.freeMoveUndo, snapshotOf(state)],
       });
@@ -868,7 +878,7 @@ export const createBoardStore = () => {
       if (key(targetFen) !== key(fen)) return false;
       set({
         ...deriveFromTree(state.chess, target.tree, target.treeLinePath, target.historyIndex),
-        gameId: target.gameId,
+        ...restoredGame(target),
         ...(direction === "undo"
           ? { freeMoveUndo: stack.slice(0, -1), freeMoveRedo: [...state.freeMoveRedo, snapshotOf(state)] }
           : { freeMoveRedo: stack.slice(0, -1), freeMoveUndo: [...state.freeMoveUndo, snapshotOf(state)] }),
