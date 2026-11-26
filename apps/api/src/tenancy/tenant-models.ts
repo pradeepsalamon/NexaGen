@@ -8,6 +8,8 @@ import { Prisma } from "@prisma/client";
  * the raw-SQL list.
  */
 export const PLATFORM_MODELS = {
+  AiFeatureModel: "Which outside AI model each platform AI feature uses (docs/AI_PROVIDERS.md), set by platform operators",
+  AiProviderCredential: "Outside AI provider keys the platform connects once for every academy (docs/AI_PROVIDERS.md)",
   ContentPack: "Nexa content the owner publishes to academies (§I), platform-wide",
   ContentPackItem: "An item of a content pack (points at a Nexa folder)",
   JobLock: "Cron single-runner locks for the whole process",

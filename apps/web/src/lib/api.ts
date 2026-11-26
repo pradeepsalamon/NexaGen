@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { API_ROUTES } from "@nexa-chess/types";
 import { useAuthStore } from "../stores/authStore";
 import { apiBaseUrl } from "./apiBase";
-import { isPublicPath } from "./routeAccess";
+import { isProtectedPath } from "./routeAccess";
 
 /** Absolute on Nexa's hosts, same-origin `/api` on an academy's own address (`lib/apiBase.ts`). */
 export const API_BASE_URL = apiBaseUrl();
@@ -95,7 +95,9 @@ apiClient.interceptors.response.use(
         useAuthStore.getState().clearSession();
 
         if (typeof window !== "undefined" && (wasAuthenticated || sessionGone)) {
-          if (!isPublicPath(window.location.pathname)) {
+          // Only a protected page sends the tab to /login. A public page, the 404
+          // page for a made-up URL and the recorder bot's page stay where they are.
+          if (isProtectedPath(window.location.pathname)) {
             if (wasAuthenticated) {
               toast.error("Session Expired", {
                 description: "Your session has expired. Please log in again to continue.",
@@ -163,6 +165,22 @@ export class ApiError extends Error {
     this.code = code;
     this.status = status;
   }
+}
+
+/** The HTTP status of a failed request, or undefined (network failure, not an API error). */
+export function errorStatus(error: unknown): number | undefined {
+  if (error instanceof ApiError) return error.status;
+  const status = (error as { status?: unknown } | null)?.status;
+  return typeof status === "number" ? status : undefined;
+}
+
+/**
+ * A 4xx that asking again won't change (not found, forbidden, invalid). 408 and
+ * 429 are worth another try; the query client's default retry skips the rest.
+ */
+export function isFinalClientError(error: unknown): boolean {
+  const status = errorStatus(error);
+  return status !== undefined && status >= 400 && status < 500 && status !== 408 && status !== 429;
 }
 
 export async function apiFetch<TResponse>(

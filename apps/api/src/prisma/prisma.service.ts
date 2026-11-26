@@ -515,6 +515,34 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.dailyPuzzleSettings;
   }
 
+  get aiReviewConsent() {
+    return this.client.aiReviewConsent;
+  }
+
+  get classRecap() {
+    return this.client.classRecap;
+  }
+
+  get classRecapSettings() {
+    return this.client.classRecapSettings;
+  }
+
+  get aiPlayReviewSettings() {
+    return this.client.aiPlayReviewSettings;
+  }
+
+  get aiPlayReview() {
+    return this.client.aiPlayReview;
+  }
+
+  get aiPlayComment() {
+    return this.client.aiPlayComment;
+  }
+
+  get liveClassBoardMove() {
+    return this.client.liveClassBoardMove;
+  }
+
   get liveClassPuzzleRushEntry() {
     return this.client.liveClassPuzzleRushEntry;
   }
@@ -901,6 +929,14 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
   get platformAuditLog() {
     return this.client.platformAuditLog;
+  }
+
+  get aiProviderCredential() {
+    return this.client.aiProviderCredential;
+  }
+
+  get aiFeatureModel() {
+    return this.client.aiFeatureModel;
   }
 
   get platformPlanVersion() {

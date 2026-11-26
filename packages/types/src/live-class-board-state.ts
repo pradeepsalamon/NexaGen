@@ -17,6 +17,21 @@ export const liveBoardClockSchema = z.object({
   updatedAt: z.number(),
 });
 
+/** Credited moves one board game keeps (oldest dropped first). */
+export const MAX_BOARD_MOVE_CREDITS = 300;
+
+export const boardMoveCreditSchema = z.object({
+  /** FEN before the move (only the first four fields are compared). */
+  fenBefore: z.string().min(1).max(100),
+  uci: z.string().regex(/^[a-h][1-8][a-h][1-8][qrbn]?$/),
+  /** The mover's user id (the LiveKit identity without its `_<tab>` suffix). */
+  userId: z.string().min(1).max(64),
+});
+export type BoardMoveCredit = z.infer<typeof boardMoveCreditSchema>;
+
+/** Position key for matching a credit to a mainline move: placement, side, castling, en passant. */
+export const boardCreditFenKey = (fen: string) => fen.trim().split(/\s+/).slice(0, 4).join(" ");
+
 export const liveBoardStateSchema = z.object({
   fen: z.string().min(1).max(100),
   /** Full mainline, so history can be stepped after a restore. */
@@ -39,6 +54,13 @@ export const liveBoardStateSchema = z.object({
   gameId: z.string().max(64).optional(),
   /** Client clock (epoch ms) when this snapshot was taken; newer always wins. */
   savedAt: z.number().int().min(0).optional(),
+  /**
+   * Moves a student with board control played in this game, as the coach's
+   * window accepted them (docs/AI_PLAY_REVIEW.md gap B). Matched to the
+   * mainline by position + move; the API credits a user only when they are a
+   * student of the class. Coach moves are never listed.
+   */
+  moveCredits: z.array(boardMoveCreditSchema).max(MAX_BOARD_MOVE_CREDITS).optional(),
 });
 
 export type LiveBoardState = z.infer<typeof liveBoardStateSchema>;

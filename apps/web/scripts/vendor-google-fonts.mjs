@@ -52,7 +52,9 @@ const GROUPS = {
     { id: "atkinson-hyperlegible" },
     { id: "jetbrains-mono" }
   ] },
-  ACADEMY: { file: "src/features/academy/fonts.generated.ts", fonts: [{ id: "inter", preload: true }, { id: "playfair" }] }
+  // Playfair preloads here: the academy page and the auth pages draw their headline in it
+  // as soon as the page shows, and a late font swaps visibly (owner 2026-11-24: "flicker").
+  ACADEMY: { file: "src/features/academy/fonts.generated.ts", fonts: [{ id: "inter", preload: true }, { id: "playfair", preload: true }] }
 };
 
 function cssUrl(font) {

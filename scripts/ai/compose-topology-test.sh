@@ -29,11 +29,17 @@ echo "Static checks"
 base_json=$("${BASE[@]}" config --format json 2>/dev/null)
 overlay_json=$("${OVERLAY[@]}" config --format json 2>/dev/null)
 profile_json=$("${OVERLAY[@]}" --profile ai config --format json 2>/dev/null)
+# Captured (a failed `config` stops here under set -e), then matched without a
+# pipeline: `cmd | grep -q` can fail for SIGPIPE under pipefail and skip a check.
+base_services=$("${BASE[@]}" config --services 2>/dev/null)
+overlay_services=$("${OVERLAY[@]}" config --services 2>/dev/null)
+profile_services=$("${OVERLAY[@]}" --profile ai config --services 2>/dev/null)
+has() { grep -qx "$2" <<<"$1"; }
 
 # 1. Invisible without the overlay *and* the profile.
-"${BASE[@]}" config --services 2>/dev/null | grep -qx ai-runtime && fail "1: ai-runtime is in docker-compose.yml"
-"${OVERLAY[@]}" config --services 2>/dev/null | grep -qx ai-runtime && fail "1: ai-runtime active without --profile ai"
-"${OVERLAY[@]}" --profile ai config --services 2>/dev/null | grep -qx ai-runtime || fail "1: ai-runtime missing with --profile ai"
+has "$base_services" ai-runtime && fail "1: ai-runtime is in docker-compose.yml"
+has "$overlay_services" ai-runtime && fail "1: ai-runtime active without --profile ai"
+has "$profile_services" ai-runtime || fail "1: ai-runtime missing with --profile ai"
 pass "1: ai-runtime only exists with the overlay and --profile ai"
 
 # 2. Hardening of the runtime service.
@@ -49,19 +55,33 @@ user=$(jq -r '.user // ""' <<<"$rt")
 [ "$(jq -r '.deploy.resources.limits.memory // ""' <<<"$rt")" != "" ] || fail "2: no memory limit"
 pass "2: no ports, ai_internal only (internal), read-only, no caps, non-root, limited"
 
-# 3. Nothing else changes; api gains exactly one network and three variables.
+# 2b. The local recap model (docs/CLASS_RECAPS.md): profile only, internal only, limited.
+has "$base_services" ollama && fail "2b: ollama is in docker-compose.yml"
+has "$overlay_services" ollama && fail "2b: ollama active without --profile ai"
+om=$(jq '.services.ollama' <<<"$profile_json")
+[ "$om" != null ] || fail "2b: ollama missing with --profile ai"
+[ "$(jq '.ports // [] | length' <<<"$om")" = 0 ] || fail "2b: ollama publishes ports"
+[ "$(jq -c '.networks | keys' <<<"$om")" = '["ai_internal"]' ] || fail "2b: ollama networks are not exactly [ai_internal]"
+[ "$(jq -r '.deploy.resources.limits.cpus // ""' <<<"$om")" != "" ] || fail "2b: ollama has no CPU limit"
+[ "$(jq -r '.deploy.resources.limits.memory // ""' <<<"$om")" != "" ] || fail "2b: ollama has no memory limit"
+pass "2b: ollama only with --profile ai, no ports, ai_internal only, limited"
+
+# 3. Nothing else changes; api gains exactly one network and three variables,
+# and its local-model address points at the internal ollama.
 for svc in $(jq -r '.services | keys[]' <<<"$base_json"); do
   [ "$svc" = api ] && continue
   a=$(jq -S ".services[\"$svc\"]" <<<"$base_json")
   b=$(jq -S ".services[\"$svc\"]" <<<"$profile_json")
   [ "$a" = "$b" ] || fail "3: service $svc differs with the overlay"
 done
-strip='del(.networks.ai_internal) | del(.environment.AI_ENABLED, .environment.AI_RUNTIME_URL, .environment.AI_RUNTIME_SHARED_SECRET)'
-a=$(jq -S '.services.api' <<<"$base_json")
+[ "$(jq -r '.services.api.environment.AI_LOCAL_MODEL_URL' <<<"$profile_json")" = "http://ollama:11434/v1" ] \
+  || fail "3: api AI_LOCAL_MODEL_URL is not the internal ollama"
+strip='del(.networks.ai_internal) | del(.environment.AI_ENABLED, .environment.AI_RUNTIME_URL, .environment.AI_RUNTIME_SHARED_SECRET, .environment.AI_LOCAL_MODEL_URL)'
+a=$(jq -S '.services.api | del(.environment.AI_LOCAL_MODEL_URL)' <<<"$base_json")
 b=$(jq -S ".services.api | $strip" <<<"$profile_json")
 [ "$a" = "$b" ] || fail "3: api differs by more than ai_internal + AI_*"
 [ "$(jq -S '.services.api' <<<"$overlay_json")" = "$(jq -S '.services.api' <<<"$profile_json")" ] || fail "3: api depends on the profile"
-pass "3: other services identical; api adds ai_internal and AI_ENABLED/AI_RUNTIME_URL/AI_RUNTIME_SHARED_SECRET"
+pass "3: other services identical; api adds ai_internal, AI_ENABLED/AI_RUNTIME_URL/AI_RUNTIME_SHARED_SECRET and the ollama AI_LOCAL_MODEL_URL"
 
 # 4. Nobody waits on the runtime.
 jq -e '[.services[] | (.depends_on // {}) | keys[]] | index("ai-runtime") | not' <<<"$profile_json" >/dev/null \

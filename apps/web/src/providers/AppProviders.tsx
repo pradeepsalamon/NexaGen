@@ -16,6 +16,7 @@ import { TenantBrandProvider } from "@/features/branding/context/TenantBrandProv
 import { ChessAppearanceProvider } from "@/features/chess-appearance/context/ChessAppearanceProvider";
 import { PresenceBridge } from "@/features/presence/components/PresenceBridge";
 import { TypographySync } from "@/features/typography/context/TypographySync";
+import { isFinalClientError } from "@/lib/api";
 
 import { AcquisitionCapture } from "./AcquisitionCapture";
 import { SessionBootstrap } from "./SessionBootstrap";
@@ -58,7 +59,8 @@ export function AppProviders({ children }: { children: ReactNode }) {
         defaultOptions: {
           queries: {
             refetchOnWindowFocus: false,
-            retry: 1,
+            // A 404 or 403 won't change on a second ask: show it straight away.
+            retry: (failureCount, error) => failureCount < 1 && !isFinalClientError(error),
             staleTime: 60_000
           }
         }

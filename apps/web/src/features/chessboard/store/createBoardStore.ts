@@ -14,6 +14,8 @@ import {
   promoteToMainline,
   setMoveComment,
   toggleMoveNag,
+  MAX_BOARD_MOVE_CREDITS,
+  type BoardMoveCredit,
   type MoveTree,
   type MoveTreePath,
 } from "@nexa-chess/types";
@@ -35,6 +37,9 @@ type FreeMoveSnapshot = {
   treeLinePath: MoveTreePath;
   historyIndex: number;
   gameId: string;
+  /** The coach's move credits when the board was left, so Undo back keeps them. */
+  moveCredits: BoardMoveCredit[];
+  moveCreditsGameId: string | null;
 };
 
 const FREE_MOVE_HISTORY_LIMIT = 200;
@@ -126,6 +131,13 @@ export interface BoardState {
    */
   freeMoveUndo: FreeMoveSnapshot[];
   freeMoveRedo: FreeMoveSnapshot[];
+  /**
+   * Coach's window only: the moves it accepted from a student with control in
+   * game `moveCreditsGameId`, saved with the board so the API can credit the
+   * student (docs/AI_PLAY_REVIEW.md gap B). Never broadcast.
+   */
+  moveCredits: BoardMoveCredit[];
+  moveCreditsGameId: string | null;
   pendingPromotion: { from: string, to: string } | null;
   isSetupPositionOpen: boolean;
   isDrawingMode: boolean;
@@ -220,6 +232,8 @@ export interface BoardActions {
    * move is taken from the packet — never its PGN or tree.
    */
   applyRemoteMove: (move: { from: string; to: string; promotion?: string }, moveType?: SoundType) => void;
+  /** Record that a student played `uci` from `fenBefore` in the current game (coach's window). */
+  creditMove: (credit: BoardMoveCredit) => void;
   /** A controlling student's free move (illegal moves allowed), replayed on this board. */
   applyRemoteFreeMove: (move: { from: string; to: string }, moveType?: SoundType) => void;
   /**
@@ -262,7 +276,14 @@ function snapshotOf(state: BoardState): FreeMoveSnapshot {
     treeLinePath: state.treeLinePath,
     historyIndex: state.historyIndex,
     gameId: state.gameId,
+    moveCredits: state.moveCredits,
+    moveCreditsGameId: state.moveCreditsGameId,
   };
+}
+
+/** The game and its move credits a free-move Undo / Redo returns to. */
+function restoredGame(target: FreeMoveSnapshot) {
+  return { gameId: target.gameId, moveCredits: target.moveCredits, moveCreditsGameId: target.moveCreditsGameId };
 }
 
 function uciParts(uci: string) {
@@ -421,6 +442,8 @@ export const createBoardStore = () => {
     allowIllegalMoves: false,
     freeMoveUndo: NO_SNAPSHOTS,
     freeMoveRedo: NO_SNAPSHOTS,
+    moveCredits: [],
+    moveCreditsGameId: null,
     pendingPromotion: null,
     isSetupPositionOpen: false,
 
@@ -508,7 +531,7 @@ export const createBoardStore = () => {
       if (!previous) return;
       set({
         ...deriveFromTree(state.chess, previous.tree, previous.treeLinePath, previous.historyIndex),
-        gameId: previous.gameId,
+        ...restoredGame(previous),
         freeMoveUndo: state.freeMoveUndo.slice(0, -1),
         freeMoveRedo: [...state.freeMoveRedo, snapshotOf(state)],
       });
@@ -524,7 +547,7 @@ export const createBoardStore = () => {
       if (!next) return;
       set({
         ...deriveFromTree(state.chess, next.tree, next.treeLinePath, next.historyIndex),
-        gameId: next.gameId,
+        ...restoredGame(next),
         freeMoveRedo: state.freeMoveRedo.slice(0, -1),
         freeMoveUndo: [...state.freeMoveUndo, snapshotOf(state)],
       });
@@ -814,6 +837,13 @@ export const createBoardStore = () => {
       }
     },
 
+    creditMove: (credit) => {
+      const state = get();
+      const same = state.moveCreditsGameId === state.gameId;
+      const kept = same ? state.moveCredits.filter((c) => !(c.fenBefore === credit.fenBefore && c.uci === credit.uci)) : [];
+      set({ moveCredits: [...kept, credit].slice(-MAX_BOARD_MOVE_CREDITS), moveCreditsGameId: state.gameId });
+    },
+
     applyRemoteFreeMove: ({ from, to }, moveType) => {
       const state = get();
       if (state.isDetached) return;
@@ -848,7 +878,7 @@ export const createBoardStore = () => {
       if (key(targetFen) !== key(fen)) return false;
       set({
         ...deriveFromTree(state.chess, target.tree, target.treeLinePath, target.historyIndex),
-        gameId: target.gameId,
+        ...restoredGame(target),
         ...(direction === "undo"
           ? { freeMoveUndo: stack.slice(0, -1), freeMoveRedo: [...state.freeMoveRedo, snapshotOf(state)] }
           : { freeMoveRedo: stack.slice(0, -1), freeMoveUndo: [...state.freeMoveUndo, snapshotOf(state)] }),

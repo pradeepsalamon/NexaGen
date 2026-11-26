@@ -163,6 +163,10 @@ function renderBoard(theme) {
       glow((yy * W + xx) * 4, c[0], c[1], c[2], a);
     }
   };
+  // The long streaks read as scratches, not sparks (owner 2026-11-24): skip any spark longer
+  // than this (radius x stretch). Every random number is still drawn first, so the sparks
+  // that stay keep their exact place, size and colour.
+  const MAX_STREAK = Number(process.env.AUTH_BOARD_MAX_STREAK ?? 5);
   const R = rng(42);
   // Embers rising off the board, around the warm light.
   const embers = dark ? 360 : 240;
@@ -174,6 +178,7 @@ function renderBoard(theme) {
     const ang = -Math.PI / 2 + (R() - 0.5) * 0.9;
     const heat = 0.55 + R() * 0.45;
     if (ex < 0 || ex >= W || ey < 0 || ey >= H) continue;
+    if (rad * len > MAX_STREAK) continue;
     spark(ex, ey, rad, len, ang, ramp(heat), 1 - clamp((HS[1] - ey) / (H * 0.85)) * 0.6);
   }
   // Fine sparkles along the bottom, the whole width: pale gold, not fire colours
@@ -187,7 +192,9 @@ function renderBoard(theme) {
     const rad = 0.6 + Math.pow(R2(), 3) * 2;
     const len = 1 + R2() * 3;
     const ang = -Math.PI / 2 + (R2() - 0.5) * 0.8;
-    spark(ex, ey, rad, len, ang, gold, (dark ? 0.55 : 0.6) + R2() * 0.4);
+    const alpha = (dark ? 0.55 : 0.6) + R2() * 0.4;
+    if (rad * len > MAX_STREAK) continue;
+    spark(ex, ey, rad, len, ang, gold, alpha);
   }
 
   const buf = Buffer.alloc(W * H * 4);

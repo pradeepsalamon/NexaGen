@@ -10,7 +10,8 @@ import { z } from "zod";
  * processor (the browser's speech service) or the retention window changes:
  * a coach who agreed to an older version is asked again.
  */
-export const TRANSCRIPT_CONSENT_VERSION = 1;
+// 2 (2026-11-25): the transcript drafts AI class recaps, maybe with an outside AI service.
+export const TRANSCRIPT_CONSENT_VERSION = 2;
 
 /** Days a transcript line is kept (`RETENTION_RULES`). */
 export const TRANSCRIPT_RETENTION_DAYS = 30;

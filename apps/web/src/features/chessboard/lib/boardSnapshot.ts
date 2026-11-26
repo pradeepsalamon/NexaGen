@@ -38,6 +38,8 @@ export function toLiveBoardState(s: BoardState): LiveBoardState {
     ...(treePgn ? { treePgn, treeLinePath: s.treeLinePath } : {}),
     gameId: s.gameId,
     savedAt: Date.now(),
+    // Moves a student with control played in this game (coach's window only).
+    ...(s.moveCreditsGameId === s.gameId && s.moveCredits.length > 0 ? { moveCredits: s.moveCredits } : {}),
   };
 }
 
@@ -54,7 +56,8 @@ export function boardStateChanged(a: BoardState, b: BoardState) {
     a.arrows !== b.arrows ||
     a.squareStyles !== b.squareStyles ||
     a.activeTab !== b.activeTab ||
-    a.clock !== b.clock
+    a.clock !== b.clock ||
+    a.moveCredits !== b.moveCredits
   );
 }
 
@@ -71,6 +74,7 @@ export function fromLiveBoardState(
     squareStyles: state.squares,
     ...(state.treePgn ? { treePgn: state.treePgn, treeLinePath: state.treeLinePath } : {}),
     ...(state.gameId ? { gameId: state.gameId } : {}),
+    ...(state.gameId && state.moveCredits?.length ? { moveCredits: state.moveCredits, moveCreditsGameId: state.gameId } : {}),
     ...(state.activeTab ? { activeTab: state.activeTab } : {}),
     ...(state.clock ? { clock: state.clock } : {}),
   };

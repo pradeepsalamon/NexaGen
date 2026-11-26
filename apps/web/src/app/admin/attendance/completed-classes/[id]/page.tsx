@@ -2,10 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { CalendarX } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { ResourceLoadError } from "@/components/common/ResourceLoadError";
 import { enumLabel } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
 import { formatLongDate, formatTime } from "@/lib/datetime";
@@ -16,6 +15,7 @@ import { CoachAttendanceCard } from "@/features/attendance/components/class-deta
 import { ClassStudentTable } from "@/features/attendance/components/class-detail/ClassStudentTable";
 import { StudentAttendanceDialog } from "@/features/attendance/components/StudentAttendanceDialog";
 import { Spinner } from "@/components/ui/Spinner";
+import { ClassRecapCard } from "@/features/class-recap/components/ClassRecapCard";
 
 export default function ClassDetailPage() {
   const params = useParams();
@@ -23,6 +23,7 @@ export default function ClassDetailPage() {
   const tz = useUserTimeZone();
   const [data, setData] = useState<ClassDetailReport | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<unknown>(null);
   const [drilldownStudent, setDrilldownStudent] = useState<{ id: string; name: string } | null>(null);
   const [version, setVersion] = useState(0);
   const correction = useMemo(
@@ -39,8 +40,9 @@ export default function ClassDetailPage() {
           API_ROUTES.attendance.classDetail(classId)
         );
         setData(result);
+        setLoadError(null);
       } catch (error) {
-        console.error("Failed to load class detail", error);
+        setLoadError(error);
       } finally {
         setIsLoading(false);
       }
@@ -65,10 +67,12 @@ export default function ClassDetailPage() {
     return (
       <div className="animate-fade-in pb-10">
         <PageHeader breadcrumbs={[...crumbs, { label: "Class" }]} title="Class report" />
-        <EmptyState
-          description="The requested class report could not be loaded."
-          icon={CalendarX}
-          title="Class not found"
+        <ResourceLoadError
+          backHref="/admin/attendance/completed-classes"
+          backLabel="Completed classes"
+          error={loadError}
+          onRetry={() => setVersion((v) => v + 1)}
+          resource="class report"
         />
       </div>
     );
@@ -90,6 +94,8 @@ export default function ClassDetailPage() {
         }
         title={data.topic}
       />
+
+      <ClassRecapCard classId={classId} />
 
       <ClassSummaryCards data={data} />
 

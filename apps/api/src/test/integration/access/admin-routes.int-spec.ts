@@ -49,6 +49,9 @@ const under = (path: string, prefixes: string[]) =>
 // Valid bodies, so each /platform write reaches its role check (validation runs first).
 const PLATFORM_SAMPLE_BODIES: Record<string, unknown> = {
   "PATCH /platform/plans/:id": { name: "x" },
+  "POST /platform/ai/test": { model: "qwen/qwen3.8-27b", provider: "GROQ" },
+  "PUT /platform/ai/features/:feature": { fallback: null, fallbackOff: false, primary: null },
+  "PUT /platform/ai/providers/:provider": { enabled: false },
   "PATCH /platform/tenants/:tenantId": { name: "Academy" },
   "POST /platform/content-packs": { name: "Pack" },
   "POST /platform/content-packs/:id/items": { kind: "PUZZLE_FOLDER", sourceId: "x" },

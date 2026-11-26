@@ -1,5 +1,6 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
 import {
+  boardCreditFenKey,
   lineThroughPath,
   moveTreeFromMoves,
   moveTreeHasVariations,
@@ -279,6 +280,67 @@ export class GameRecorderService {
       whiteName: "White",
       whitePlayerId: null,
     });
+    await this.recordBoardCredits(sourceKey, cls, tree.rootFen, mainline, state.moveCredits);
+  }
+
+  /**
+   * Who played which class-board move while holding control
+   * (docs/AI_PLAY_REVIEW.md gap B). The coach's window lists the moves it
+   * accepted from a student (position + move + mover); each is matched to
+   * the current mainline and credited only to a STUDENT of this class (its
+   * batch, or someone who attended it). The game's rows are replaced, so a
+   * take-back or a new line never leaves a stale credit. Without a list
+   * (an older client, or no student moved) nothing changes.
+   */
+  private async recordBoardCredits(
+    sourceKey: string,
+    cls: { id: string; batchId: string | null },
+    rootFen: string,
+    mainline: { uci: string; san: string; fen: string }[],
+    credits: LiveBoardState["moveCredits"],
+  ): Promise<void> {
+    if (!credits?.length) return;
+    const game = await this.prisma.chessGame.findUnique({
+      select: { id: true },
+      where: { tenantId_sourceKey: { sourceKey, tenantId: requireTenantId("chessGame") } },
+    });
+    if (!game) return;
+
+    const candidates = [...new Set(credits.map((c) => c.userId))];
+    const students = await this.prisma.user.findMany({
+      select: { id: true },
+      where: {
+        id: { in: candidates },
+        role: "STUDENT",
+        OR: [
+          ...(cls.batchId ? [{ studentBatches: { some: { batchId: cls.batchId, isDeleted: false } } }] : []),
+          { classAttendances: { some: { classId: cls.id } } },
+        ],
+      },
+    });
+    const allowed = new Set(students.map((u) => u.id));
+    const byMove = new Map(credits.filter((c) => allowed.has(c.userId)).map((c) => [`${boardCreditFenKey(c.fenBefore)}|${c.uci}`, c.userId]));
+
+    const rows: Prisma.LiveClassBoardMoveCreateManyInput[] = [];
+    let before = rootFen;
+    for (const [index, node] of mainline.entries()) {
+      const userId = byMove.get(`${boardCreditFenKey(before)}|${node.uci}`);
+      if (userId) rows.push({ chessGameId: game.id, fenBefore: before, ply: index + 1, san: node.san, studentId: userId, uci: node.uci });
+      before = node.fen;
+    }
+    // The board saves every couple of seconds: write only when the credits changed.
+    const existing = await this.prisma.liveClassBoardMove.findMany({
+      orderBy: { ply: "asc" },
+      select: { ply: true, studentId: true, uci: true },
+      where: { chessGameId: game.id },
+    });
+    const same = (a: { ply: number; studentId: string; uci: string }[], b: typeof a) =>
+      a.length === b.length && a.every((row, i) => row.ply === b[i].ply && row.studentId === b[i].studentId && row.uci === b[i].uci);
+    if (same(existing, rows.map((r) => ({ ply: r.ply, studentId: r.studentId, uci: r.uci })))) return;
+    await this.prisma.$transaction([
+      this.prisma.liveClassBoardMove.deleteMany({ where: { chessGameId: game.id } }),
+      ...(rows.length ? [this.prisma.liveClassBoardMove.createMany({ data: rows, skipDuplicates: true })] : []),
+    ]);
   }
 
   private boardTree(state: LiveBoardState): MoveTree | null {

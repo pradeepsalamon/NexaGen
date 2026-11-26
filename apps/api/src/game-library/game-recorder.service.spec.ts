@@ -166,6 +166,84 @@ describe("GameRecorderService", () => {
       expect(prisma.chessGame.create).not.toHaveBeenCalled();
     });
 
+    describe("moves a student played with board control (docs/AI_PLAY_REVIEW.md gap B)", () => {
+      const AFTER_E4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1";
+      let boardMoves: { createMany: jest.Mock; deleteMany: jest.Mock; findMany: jest.Mock };
+      let users: jest.Mock;
+
+      beforeEach(() => {
+        boardMoves = { createMany: jest.fn(), deleteMany: jest.fn(), findMany: jest.fn().mockResolvedValue([]) };
+        users = jest.fn().mockResolvedValue([{ id: "student-1" }]);
+        Object.assign(prisma, {
+          $transaction: jest.fn(async (ops: unknown[]) => ops),
+          liveClassBoardMove: boardMoves,
+          user: { findMany: users },
+        });
+        // First lookup: the game doesn't exist yet (create); second: its id for the credits.
+        prisma.chessGame.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "game-1" });
+      });
+
+      it("credits the student's move and not the coach's", async () => {
+        await service.recordBoardState(
+          "session-1",
+          "class-1",
+          state({ moveCredits: [{ fenBefore: AFTER_E4, uci: "e7e5", userId: "student-1" }] }),
+        );
+        expect(boardMoves.deleteMany).toHaveBeenCalledWith({ where: { chessGameId: "game-1" } });
+        expect(boardMoves.createMany).toHaveBeenCalledWith({
+          data: [{ chessGameId: "game-1", fenBefore: AFTER_E4, ply: 2, san: "e5", studentId: "student-1", uci: "e7e5" }],
+          skipDuplicates: true,
+        });
+      });
+
+      it("credits only a student of this class (its batch or attendance)", async () => {
+        users.mockResolvedValue([]);
+        await service.recordBoardState(
+          "session-1",
+          "class-1",
+          state({ moveCredits: [{ fenBefore: AFTER_E4, uci: "e7e5", userId: "someone-else" }] }),
+        );
+        expect(users.mock.calls[0][0].where).toMatchObject({ id: { in: ["someone-else"] }, role: "STUDENT" });
+        expect(boardMoves.createMany).not.toHaveBeenCalled();
+      });
+
+      it("clears a game's credits once none of them match any more", async () => {
+        boardMoves.findMany.mockResolvedValue([{ ply: 2, studentId: "student-1", uci: "e7e5" }]);
+        await service.recordBoardState(
+          "session-1",
+          "class-1",
+          state({ moveCredits: [{ fenBefore: AFTER_E4, uci: "c7c5", userId: "student-1" }] }),
+        );
+        expect(boardMoves.deleteMany).toHaveBeenCalledWith({ where: { chessGameId: "game-1" } });
+        expect(boardMoves.createMany).not.toHaveBeenCalled();
+      });
+
+      it("ignores a credit that doesn't match the mainline (a taken-back move)", async () => {
+        await service.recordBoardState(
+          "session-1",
+          "class-1",
+          state({ moveCredits: [{ fenBefore: AFTER_E4, uci: "c7c5", userId: "student-1" }] }),
+        );
+        expect(boardMoves.createMany).not.toHaveBeenCalled();
+      });
+
+      it("writes nothing when the credits haven't changed since the last save", async () => {
+        boardMoves.findMany.mockResolvedValue([{ ply: 2, studentId: "student-1", uci: "e7e5" }]);
+        await service.recordBoardState(
+          "session-1",
+          "class-1",
+          state({ moveCredits: [{ fenBefore: AFTER_E4, uci: "e7e5", userId: "student-1" }] }),
+        );
+        expect(boardMoves.deleteMany).not.toHaveBeenCalled();
+      });
+
+      it("leaves credits alone when an older client sends none", async () => {
+        await service.recordBoardState("session-1", "class-1", state());
+        expect(boardMoves.findMany).not.toHaveBeenCalled();
+        expect(users).not.toHaveBeenCalled();
+      });
+    });
+
     it("never re-opens a board game that the class end already closed", async () => {
       prisma.chessGame.findUnique.mockResolvedValue({ sourceRevision: BigInt(10) });
       await service.recordBoardState("session-1", "class-1", state({ savedAt: 2_000 }));

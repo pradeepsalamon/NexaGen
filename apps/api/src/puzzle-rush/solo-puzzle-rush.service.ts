@@ -33,6 +33,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { tenantFilter } from "../tenancy/tenant-sql";
 import { assertStudent, authenticateUser, isAdminRole } from "../puzzle/puzzle-auth.helper";
 import { MIN_RUN_SIZE, selectPuzzleRushRun } from "./puzzle-rush-run";
+import { mergeRushPlayed } from "./rush-played";
 
 const GRACE_MS = PUZZLE_RUSH_GRACE_SECONDS * 1000;
 const LEADERBOARD_LIMIT = 50;
@@ -155,9 +156,13 @@ export class SoloPuzzleRushService {
     }
     const puzzles = Array.isArray(run.puzzles) ? (run.puzzles as unknown as PuzzleRushPuzzle[]) : [];
     const totals = this.clamp(run.mode, puzzles, dto, run, now);
+    // Each finished puzzle's line (docs/AI_PLAY_REVIEW.md gap A), checked
+    // against the run's own puzzles before a finish clears them.
+    const played = mergeRushPlayed(run.movesJson, dto.played, puzzles, totals.puzzleIndex);
 
     const updated = await this.prisma.soloPuzzleRushRun.updateMany({
       data: {
+        ...(played ? { movesJson: played as unknown as Prisma.InputJsonValue } : {}),
         bestCombo: totals.bestCombo,
         clockEndsAt: totals.clockEndsAt,
         errors: totals.errors,

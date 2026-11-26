@@ -7,6 +7,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { WidgetError } from "@/components/ui/WidgetError";
+import { AiProvidersTab } from "@/features/ai-providers/components/AiProvidersTab";
 import { useAuthStore } from "@/stores/authStore";
 import { useEndSupportSession, usePlatformSupportSessions, usePlatformTenants } from "../hooks/usePlatformApi";
 import { AcademiesTab } from "./AcademiesTab";
@@ -19,7 +20,7 @@ import { PlansTab } from "./PlansTab";
 import { SupportVisitsTable } from "./SupportVisitsTable";
 import { UsageTab } from "./UsageTab";
 
-const TABS = ["academies", "usage", "plans", "packs", "billing", "support", "closures", "audit", "integrity"] as const;
+const TABS = ["academies", "usage", "plans", "packs", "billing", "ai", "support", "closures", "audit", "integrity"] as const;
 type Tab = (typeof TABS)[number];
 
 /** The academy name for an id, from the (small) academy list the console already holds. */
@@ -58,7 +59,7 @@ export function PlatformConsoleClient() {
   }, []);
 
   const headerProps = {
-    description: "Academies, usage, plans, content packs and support visits across the whole platform.",
+    description: "Academies, usage, plans, content packs, AI providers and support visits across the whole platform.",
     title: "Platform console"
   };
 
@@ -82,6 +83,7 @@ export function PlatformConsoleClient() {
                 <TabsTrigger value="plans">Plans</TabsTrigger>
                 <TabsTrigger value="packs">Content packs</TabsTrigger>
                 <TabsTrigger value="billing">Billing</TabsTrigger>
+                <TabsTrigger value="ai">AI</TabsTrigger>
                 <TabsTrigger value="support">Support visits</TabsTrigger>
                 <TabsTrigger value="closures">Closures</TabsTrigger>
                 <TabsTrigger value="audit">Audit log</TabsTrigger>
@@ -103,6 +105,9 @@ export function PlatformConsoleClient() {
           </TabsContent>
           <TabsContent value="billing">
             <BillingTab />
+          </TabsContent>
+          <TabsContent value="ai">
+            <AiProvidersTab />
           </TabsContent>
           <TabsContent value="support">
             <SupportTab />

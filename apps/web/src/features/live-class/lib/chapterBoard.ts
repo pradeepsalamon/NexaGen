@@ -5,7 +5,7 @@ import { moveTreeFromPgn, type BoardStore } from "@/features/chessboard/store/cr
 
 /** What a chapter keeps of the board: the durable snapshot minus clock and UI tab. */
 export function chapterStateFromBoard(board: BoardStore): LiveClassChapterState {
-  const { activeTab: _tab, clock: _clock, savedAt: _savedAt, ...state } = toLiveBoardState(board);
+  const { activeTab: _tab, clock: _clock, moveCredits: _credits, savedAt: _savedAt, ...state } = toLiveBoardState(board);
   return state;
 }
 

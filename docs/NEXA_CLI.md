@@ -9,6 +9,8 @@ Dev and stage run in the tmux session `nexa-dev` — web on **3010**, API on
 **3011** — and log to `{api,web}-dev.log` / `{api,web}-prod.log` in the repo root.
 Prod is the Docker Compose stack.
 
+Type `nexa` (or `nexa help`) for the menu of every command.
+
 ```bash
 nexa status                              # tmux session + HTTP health of dev (3010/3011) and prod (3000/3001)
 nexa start   <dev|stage|prod> [api|web]  # component target: dev/stage only
@@ -29,6 +31,12 @@ nexa attach                              # attach to the nexa-dev tmux session
   `.env`; Postgres and LiveKit keep running), `stop` = `down`. New code goes out
   only through the deploy workflow (CLAUDE.md §6); never run this from an agent
   ([.agents/SAFETY.md](../.agents/SAFETY.md)).
+  Compose always runs in the production checkout, `/opt/nexa-chess/NexaGen`
+  (`NEXA_PROD_DIR` overrides), so prod commands work from any folder. Run from
+  this checkout, compose read the wrong `.env` (missing `LIVEKIT_NODE_IP`).
+- **Every prod change asks you to type `prod`**: `start`/`stop`/`restart prod`,
+  `maintenance on|off prod` and `status-pages prod`. Anything else cancels; with no
+  terminal (a script, an agent) it refuses. `status` and `maintenance status` don't ask.
 
 `start`/`restart stage` first fast-forwards the checkout to its branch's upstream
 (`git pull --ff-only`) — staging serves this checkout, so without it new pushes never

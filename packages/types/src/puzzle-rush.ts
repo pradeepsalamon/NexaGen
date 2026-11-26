@@ -190,6 +190,39 @@ export type StartPuzzleRushRequest = z.infer<typeof startPuzzleRushRequestSchema
 
 const count = z.number().int().min(0).max(10_000);
 
+/** Finished puzzles a report may carry (a run is well under this). */
+export const PUZZLE_RUSH_MAX_PLAYED = 300;
+
+/** One finished puzzle: the player's own moves (a Racer skip is marked), in order. */
+export const rushPlayedPuzzleSchema = z.object({
+  /** Index of the puzzle in the run. */
+  i: z.number().int().min(0).max(1000),
+  moves: z
+    .array(
+      z.object({
+        uci: z.string().regex(/^[a-h][1-8][a-h][1-8][qrbn]?$/),
+        skipped: z.boolean().optional()
+      })
+    )
+    .max(30),
+  solved: z.boolean()
+});
+export type RushPlayedPuzzle = z.infer<typeof rushPlayedPuzzleSchema>;
+
+/**
+ * What the server stores per finished puzzle (`movesJson` on a run / entry):
+ * the puzzle's position and the whole line as played from it — the setup
+ * move, each move the player tried, and the replies — rebuilt server-side.
+ */
+export type RushPlayedRecord = {
+  i: number;
+  puzzleId: string;
+  fen: string;
+  rating: number;
+  solved: boolean;
+  line: { uci: string; san: string; by: "SETUP" | "STUDENT" | "SKIP" | "REPLY"; correct: boolean | null }[];
+};
+
 export const reportPuzzleRushProgressRequestSchema = z.object({
   rushId: z.string().min(1).max(64),
   score: count,
@@ -202,7 +235,13 @@ export const reportPuzzleRushProgressRequestSchema = z.object({
   skipsUsed: z.number().int().min(0).max(10),
   /** Storm only: when the player's clock runs out; null before the first move. */
   clockEndsAt: z.string().datetime().nullable(),
-  finished: z.boolean()
+  finished: z.boolean(),
+  /**
+   * The moves the player tried in each puzzle they finished (docs/AI_PLAY_REVIEW.md
+   * gap A). Optional: older clients send totals only. The server checks every
+   * entry against the run's own puzzles and only ever adds to what it has.
+   */
+  played: z.array(rushPlayedPuzzleSchema).max(PUZZLE_RUSH_MAX_PLAYED).optional()
 });
 export type ReportPuzzleRushProgressRequest = z.infer<typeof reportPuzzleRushProgressRequestSchema>;
 

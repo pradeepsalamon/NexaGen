@@ -28,10 +28,15 @@ Labels:
 
 ## 0a. Owner scope change, 2026-10-31: v1 is a student recap from the coach's voice
 
-**Steps 1 and 2 of the pipeline below are built (2026-11-12): the coach's
-Chrome transcribes, the API stores the lines for 30 days
-(docs/LIVE_CLASS.md § "Class transcript"). Steps 3 to 5 (the summary) are
-not built; the next step is to test a summary on a real stored transcript.**
+**All five steps are built (2026-11-25): docs/CLASS_RECAPS.md.** Steps 1–2
+(2026-11-12): the coach's Chrome transcribes, the API stores the lines for 30
+days (docs/LIVE_CLASS.md § "Class transcript"). Steps 3–5 (2026-11-25): names
+pseudonymised, map → reduce, a student-only recap reviewed before publishing.
+Owner decisions: DECISIONS.md §4, 2026-11-25. As built, v1 differs from §1–§14
+where those describe the full version: the transcript is the only evidence, no
+coach view, no `AiUsageEvent` table (the recap row keeps model, calls and
+time), the model is called through an OpenAI-compatible API (Ollama's, or the
+outside AI an academy chooses), not through `ai-runtime`.
 The rest of this section is still planning, and v1 doesn't go further until
 the open items below are decided. On 2026-10-31 the owner narrowed v1. Where this section
 conflicts with §1–§14, it wins for v1. The rest of the spec stays the target

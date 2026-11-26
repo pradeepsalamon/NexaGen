@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ResourceLoadError } from "@/components/common/ResourceLoadError";
 import { PageHeader, type PageHeaderProps } from "@/components/layout/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
@@ -8,6 +9,7 @@ import { WidgetError } from "@/components/ui/WidgetError";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { GameInsightsPanel } from "@/features/game-analysis/components/GameInsightsPanel";
 import { StudentGameSyncCard } from "@/features/game-analysis/components/StudentGameSyncCard";
+import { BoardPlayPanel } from "@/features/play-review/components/BoardPlayPanel";
 import { RevisionReportPanel } from "@/features/revision/components/RevisionReportPanel";
 import { useActivitySummary, useProgressFor } from "../hooks/useProgress";
 import {
@@ -21,7 +23,7 @@ import { ActivityHistoryList } from "./ActivityHistoryList";
 import { ActivitySummaryPanel } from "./ActivitySummaryPanel";
 import { ProgressView } from "./ProgressView";
 
-type Tab = "overview" | "performance" | "history" | "revision" | "games";
+type Tab = "overview" | "performance" | "history" | "board" | "revision" | "games";
 
 function LoadingTiles() {
   return (
@@ -36,8 +38,9 @@ function LoadingTiles() {
 /**
  * One student's progress: rating + streak (Overview), period summary and
  * insights (Performance), the filterable activity history (History), and
- * Smart Revision (scheduled items + recall; staff also recommend from here),
- * and Games (evidence across their engine-analysed games).
+ * Board play (every board move, with the nightly engine review —
+ * docs/AI_PLAY_REVIEW.md), Smart Revision (scheduled items + recall; staff
+ * also recommend from here), and Games (evidence across their engine-analysed games).
  * `studentId` null = the signed-in student. The period and filters are shared
  * by Performance and History, so switching tabs keeps the same slice.
  * It renders the page header too, so the tab strip can sit in it.
@@ -67,6 +70,7 @@ export function StudentProgressWorkspace({
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="performance">Performance</TabsTrigger>
             <TabsTrigger value="history">Activity history</TabsTrigger>
+            <TabsTrigger value="board">Board play</TabsTrigger>
             <TabsTrigger value="revision">Revision</TabsTrigger>
             <TabsTrigger value="games">Games</TabsTrigger>
           </TabsList>
@@ -77,7 +81,7 @@ export function StudentProgressWorkspace({
         {progress.isLoading ? (
           <LoadingTiles />
         ) : progress.isError || !progress.data ? (
-          <WidgetError message={progress.error?.message} onRetry={() => progress.refetch()} />
+          <ResourceLoadError error={progress.error} onRetry={() => void progress.refetch()} resource="student" />
         ) : (
           <ProgressView progress={progress.data.progress} />
         )}
@@ -109,6 +113,10 @@ export function StudentProgressWorkspace({
           status={filters.status}
           studentId={studentId}
         />
+      </TabsContent>
+
+      <TabsContent value="board">
+        {tab === "board" ? <BoardPlayPanel studentId={studentId} /> : null}
       </TabsContent>
 
       <TabsContent value="revision">

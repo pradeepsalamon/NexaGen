@@ -29,6 +29,28 @@ export async function getDemoClasses(params: ListParams = {}): Promise<ListDemoC
   return apiFetch<ListDemoClassesResponse>(API_ROUTES.admin.demoClasses + toQueryString(params));
 }
 
+/**
+ * Every demo class overlapping [from, to), all pages (100 at a time): the
+ * Upcoming classes page shows a window, never a silently capped first page.
+ */
+export async function getDemoClassesInWindow(window: { from: string; to: string }): Promise<DemoClass[]> {
+  const classes: DemoClass[] = [];
+  for (let page = 1; ; page += 1) {
+    const query = new URLSearchParams({
+      from: window.from,
+      page: String(page),
+      pageSize: "100",
+      order: "asc",
+      sort: "startsAt",
+      to: window.to
+    });
+    const res = await apiFetch<ListDemoClassesResponse>(`${API_ROUTES.admin.demoClasses}?${query.toString()}`);
+    classes.push(...res.classes);
+    if (page >= (res.pagination?.totalPages ?? 1) || res.classes.length === 0) break;
+  }
+  return classes;
+}
+
 export async function createDemoClass(data: CreateDemoClassRequest): Promise<DemoClass> {
   const res = await apiFetch<{ class: DemoClass }>(API_ROUTES.admin.demoClasses, {
     body: JSON.stringify(data),

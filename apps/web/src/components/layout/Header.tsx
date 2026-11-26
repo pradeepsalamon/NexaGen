@@ -78,7 +78,10 @@ export function Header({
       {/* Docked nav: the menu button and logo sit over the nav column, not in the centred page width. */}
       <div
         className={cn(
-          "mx-auto flex h-full w-full items-center justify-between gap-2",
+          // Three columns, the outer two always equal, so the page name sits in the header's true
+          // centre whatever width the logo side and the account side have. The middle cell is
+          // always rendered (empty when its content is hidden), so the right group stays in column 3.
+          "mx-auto grid h-full w-full grid-cols-[1fr_minmax(0,auto)_1fr] items-center gap-2",
           hasSidebar && navDocked ? "max-w-none" : "max-w-7xl"
         )}
       >
@@ -130,16 +133,18 @@ export function Header({
 
         {/* Center: the caller's slot, else the page name from PAGE_TITLES. Not a
             heading: each page's PageHeader owns the one <h1>. */}
-        {centerSlot ? (
-          <div className="hidden min-w-0 truncate md:block">{centerSlot}</div>
-        ) : (
-          <p className="hidden min-w-0 truncate text-center font-display text-base font-bold text-app-text lg:block">
-            {activeUser ? pageTitle : null}
-          </p>
-        )}
+        <div className="min-w-0">
+          {centerSlot ? (
+            <div className="hidden min-w-0 truncate md:block">{centerSlot}</div>
+          ) : (
+            <p className="hidden min-w-0 truncate text-center font-display text-base font-bold text-app-text lg:block">
+              {activeUser ? pageTitle : null}
+            </p>
+          )}
+        </div>
 
         {/* Right: the caller's slot, then account controls */}
-        <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+        <div className="flex shrink-0 items-center justify-self-end gap-1 sm:gap-1.5">
           {rightSlot}
 
           {activeUser && !pathname.startsWith("/help") && (

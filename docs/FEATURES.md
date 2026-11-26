@@ -593,6 +593,44 @@ JSON-LD, so search engines only ever see `/`.
 - **Verification**: `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` /
   `NEXT_PUBLIC_BING_SITE_VERIFICATION` (build-time) render the meta tags.
 
+**Adding a public page.** `app/sitemap.ts` is a hand-written list, so a new
+page is invisible to it until added there. Per page: a sitemap entry, a title
+and description (rules above), a `robots.ts` check that its path isn't under a
+disallowed prefix, and JSON-LD or an `/llms.txt` line only for facts the page
+itself shows (through `content.ts`). Then audit it (below).
+
+### Audit tool: claude-seo plugin
+
+[AgriciDaniel/claude-seo](https://github.com/AgriciDaniel/claude-seo) (MIT,
+v2.6.2) is a Claude Code plugin that audits a live site: technical SEO, speed,
+E-E-A-T, Schema.org, AI-search readiness, local SEO. It writes Markdown reports
+with a prioritised fix list. Installed 2026-11-24 on the VPS checkout with
+`--scope local` (this repo only, not committed); its Python runtime and Chromium
+live in `~/.claude-b/plugins/data/claude-seo-agricidaniel-claude-seo`
+(`claude-seo doctor` = ready). It also adds a PostToolUse hook that validates
+JSON-LD whenever a `.tsx`/`.html` file is edited.
+
+- **It can't audit nexachess.in from the VPS.** `/etc/hosts` there maps
+  nexachess.in and its subdomains to 127.0.0.1, and the plugin's SSRF guard
+  refuses any site that resolves to a local address (`DNS rebinding refused`);
+  page rendering of local hosts stays off even with `CLAUDE_SEO_LOCAL_TARGETS`.
+  Never edit `/etc/hosts` for this; production relies on it. Run audits from a
+  laptop instead (also more realistic, since it sees what Google sees):
+  ```
+  /plugin marketplace add AgriciDaniel/claude-seo
+  /plugin install claude-seo@agricidaniel-claude-seo
+  /seo setup
+  /seo audit https://nexachess.in
+  ```
+- **Linux setup** needed `sudo apt-get install libatomic1` for Playwright's
+  Chromium driver (`error while loading shared libraries: libatomic.so.1`).
+- **Optional real data**: `/seo google setup` connects Search Console,
+  PageSpeed, CrUX and GA4 (keys stay on that machine).
+- **After changes**: `/seo page <url>` for a new page; `/seo drift baseline
+  https://nexachess.in` once, then `/seo drift compare` after each release.
+- **Cost**: a full `/seo audit` runs up to 17 agents, some on Opus; try
+  `/seo page` or `/seo geo` first.
+
 
 ## Live captions: browser speech test (admin only)
 

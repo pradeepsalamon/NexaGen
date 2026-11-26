@@ -42,6 +42,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/AlertDialog";
+import { ResourceLoadError } from "@/components/common/ResourceLoadError";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -52,7 +53,6 @@ import { Label } from "@/components/ui/Label";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
-import { WidgetError } from "@/components/ui/WidgetError";
 import { useAllBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDateTime } from "@/lib/datetime";
@@ -184,7 +184,17 @@ function settingsPayload(s: SettingsDraft) {
 
 export function KnowledgeArticleEditorClient({ id }: { id: string | null }) {
   const detail = useKnowledgeArticle(id);
-  if (id && detail.isError) return <WidgetError message="The article could not be loaded." onRetry={() => void detail.refetch()} />;
+  if (id && detail.isError) {
+    return (
+      <ResourceLoadError
+        backHref="/admin/knowledge"
+        backLabel="Knowledge base"
+        error={detail.error}
+        onRetry={() => void detail.refetch()}
+        resource="article"
+      />
+    );
+  }
   if (id && !detail.data) return <Skeleton className="h-[600px]" />;
   return <Editor article={detail.data ?? null} key={detail.data?.id ?? "new"} />;
 }

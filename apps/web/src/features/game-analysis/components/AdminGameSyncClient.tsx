@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { useGameSources, useSetAutoSyncPolicy } from "../hooks/useGameAnalysis";
 import { Spinner } from "@/components/ui/Spinner";
+import { AiPlayReviewSettingsCard } from "@/features/play-review/components/AiPlayReviewSettingsCard";
 
 const POLICY_OPTIONS: { label: string; value: GameAutoSyncPolicy }[] = [
   { label: "Off", value: "OFF" },
@@ -84,6 +85,7 @@ export function AdminGameSyncClient() {
           </div>
         </Card>
       )}
+      <AiPlayReviewSettingsCard />
     </div>
   );
 }

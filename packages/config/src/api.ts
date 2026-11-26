@@ -122,6 +122,42 @@ const apiEnvSchema = z.object({
   AI_RUNTIME_URL: z.string().default("http://ai-runtime:8000"),
   AI_RUNTIME_SHARED_SECRET: z.string().optional(),
   AI_RUNTIME_TIMEOUT_MS: z.coerce.number().int().min(500).max(30000).default(5000),
+  // AI play review (docs/AI_PLAY_REVIEW.md): the nightly engine review of
+  // students' play (our own Stockfish; needs GAME_ANALYSIS_ENABLED). Its
+  // outside-AI comments use the providers connected in the platform console
+  // (docs/AI_PROVIDERS.md), not env keys.
+  PLAY_REVIEW_JOB_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
+  /** One call to an outside AI provider (console-connected), before the route's fallback is tried. */
+  AI_OUTSIDE_CALL_TIMEOUT_MS: z.coerce.number().int().min(5000).max(600000).default(120000),
+  // AI class recaps (docs/CLASS_RECAPS.md). The job is off until this is
+  // true; each academy then picks our own server (LOCAL: an OpenAI-compatible
+  // model server such as Ollama on the AI network, no key) or the outside AI
+  // the platform console maps to class recaps (OUTSIDE). LOCAL is set up once
+  // AI_LOCAL_MODEL_URL is set.
+  AI_CLASS_RECAPS_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  AI_LOCAL_MODEL_URL: z
+    .string()
+    .optional()
+    .refine((value) => !value?.trim() || /^https?:\/\//.test(value.trim()), {
+      message: "AI_LOCAL_MODEL_URL must start with http:// or https://."
+    }),
+  AI_LOCAL_MODEL: z.string().default("qwen2.5:3b"),
+  /** Estimated tokens of transcript per model call on our own server (keep under its context). */
+  AI_CLASS_RECAP_CHUNK_TOKENS: z.coerce.number().int().min(500).max(30000).default(2500),
+  /**
+   * The same for an outside model: they take far more context, so a real class
+   * needs fewer calls (docs/ai/PROVIDER_EVAL.md §7.5). Keep under Groq's free
+   * 8,000 tokens a minute with the prompt and the answer.
+   */
+  AI_CLASS_RECAP_OUTSIDE_CHUNK_TOKENS: z.coerce.number().int().min(500).max(30000).default(5000),
+  /** One model call; a CPU-only local model is slow. */
+  AI_CLASS_RECAP_CALL_TIMEOUT_MS: z.coerce.number().int().min(10000).max(3600000).default(900000),
   COOKIE_DOMAIN: z.string().optional(),
   // Web and API are same-site subdomains, so Lax is enough and blocks cross-site form posts.
   // "none" only for a deployment where the API sits on a different registrable domain.

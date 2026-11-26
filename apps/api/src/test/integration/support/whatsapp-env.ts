@@ -16,6 +16,10 @@ const OVERRIDES: Record<string, string> = {
   SUPPORT_TEST_NUMBERS_ALLOWLIST: `${ALLOWED_NUMBER},${OTHER_ALLOWED_NUMBER}`,
   WHATSAPP_ACCESS_TOKEN: "integration-whatsapp-token",
   WHATSAPP_API_BASE_URL: TEST_GRAPH_BASE,
+  // A local .env must not change what the specs expect: the stubs match `/v21.0/`
+  // paths, and numbers are stored as sent (no default country code).
+  WHATSAPP_API_VERSION: "v21.0",
+  WHATSAPP_DEFAULT_COUNTRY_CODE: "",
   WHATSAPP_APP_SECRET: TEST_APP_SECRET,
   WHATSAPP_PHONE_NUMBER_ID: TEST_PHONE_NUMBER_ID,
   WHATSAPP_WEBHOOK_VERIFY_TOKEN: TEST_VERIFY_TOKEN

@@ -6,6 +6,7 @@ import { ArrowLeft, CheckCircle2, Lightbulb, RotateCcw, XCircle } from "lucide-r
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { ResourceLoadError } from "@/components/common/ResourceLoadError";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { PRACTICE_BOARD_GRID, PracticeBoard } from "@/features/chessboard/components/board/PracticeBoard";
@@ -42,6 +43,21 @@ export function StudentPuzzleSolveClient({ id }: { id: string }) {
     submitting
   } = attempt;
 
+  // A bad id fails here first; the attempt start would fail too, but later.
+  if (detail.isError && !detail.data) {
+    return (
+      <ResourceLoadError
+        backHref="/student/puzzles"
+        backLabel="All puzzles"
+        error={detail.error}
+        onRetry={() => {
+          void begin();
+          void detail.refetch();
+        }}
+        resource="puzzle"
+      />
+    );
+  }
   if (detail.isLoading || (!session && !startError)) {
     return <Skeleton className="h-96 w-full" />;
   }

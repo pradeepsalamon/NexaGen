@@ -274,6 +274,9 @@ export const queryKeys = {
   },
   platform: {
     all: ["platform"] as const,
+    ai: ["platform", "ai"] as const,
+    aiModels: (provider: string) => ["platform", "ai", "models", provider] as const,
+    aiModelsAll: ["platform", "ai", "models"] as const,
     audit: (tenantId?: string) => ["platform", "audit", tenantId ?? "all"] as const,
     closures: (params: { page?: number; status?: string; tenantId?: string }) => ["platform", "closures", params] as const,
     contentPacks: ["platform", "content-packs"] as const,
@@ -400,6 +403,22 @@ export const queryKeys = {
     all: ["retention"] as const,
     policies: ["retention", "policies"] as const,
     preview: (category: string, days: number) => ["retention", "preview", category, days] as const,
+  },
+  classRecaps: {
+    all: ["class-recaps"] as const,
+    list: (params: Record<string, unknown>) => ["class-recaps", "list", params] as const,
+    forClass: (classId: string) => ["class-recaps", "class", classId] as const,
+    feedMine: ["class-recaps", "feed", "me"] as const,
+    reviewCount: ["class-recaps", "review-count"] as const,
+    settings: ["class-recaps", "settings"] as const
+  },
+  playReview: {
+    all: ["play-review"] as const,
+    feed: (studentId: string, source: string) => ["play-review", "feed", studentId, source] as const,
+    item: (studentId: string, key: string) => ["play-review", "item", studentId, key] as const,
+    rollup: (studentId: string) => ["play-review", "rollup", studentId] as const,
+    consent: (studentId: string) => ["play-review", "consent", studentId] as const,
+    settings: ["play-review", "settings"] as const
   },
   progress: {
     mine: ["progress", "me"] as const,

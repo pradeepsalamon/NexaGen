@@ -576,6 +576,8 @@ export function supportOptCommand(text: string | null | undefined): "START" | "S
 }
 
 function globalCommand(input: SupportInput): GlobalCommand | null {
+  // A Cancel button cancels wherever the chat is, even on an earlier message.
+  if (input.kind === "reply") return input.id === "confirm.cancel" ? "CANCEL" : null;
   if (input.kind !== "text") return null;
   return GLOBAL_WORDS[normalizeSupportText(input.text)] ?? null;
 }
@@ -588,6 +590,10 @@ const MENU_KEYWORDS: { category: SupportCategory; words: string[] }[] = [
   { category: "CLASS", words: ["class", "reschedule", "missed"] },
   { category: "TECH", words: ["login", "log in", "sign in", "password", "app", "not working"] }
 ];
+
+/** A whole message that is one of these is a topic, never a name ("fees"). */
+const MENU_TOPIC_WORDS = new Set(MENU_KEYWORDS.flatMap((entry) => entry.words));
+const QUESTION_NOT_NAME = "That looks like a question, not a name. Reply MENU to ask it, or type the name.";
 
 /** A main-menu option picked exactly: a tapped row, its number or its title. */
 function menuChoice(input: SupportInput, menu: SupportMenuEntry[]): SupportCategory | null {
@@ -967,6 +973,9 @@ function handoff(draft: SupportDraft): SupportTransitionResult {
   );
 }
 
+/** A tap on an older message's button while the bot waits for typed text. */
+const EARLIER_BUTTON = "That button is from an earlier message. Please type your answer instead.";
+
 function invalid(
   snapshot: SupportConversationSnapshot,
   message: string,
@@ -994,6 +1003,8 @@ export function transitionSupport(
   const command = globalCommand(input);
   // nosemgrep: ajinabraham.njsscan.dos.regex_dos.regex_dos -- the regexes below (\p{L}, \s+) run in linear time
   const draft = current.draft ?? {};
+  // Steps that read typed text explain a stale button tap instead of the length rule.
+  const typed = (message: string): string => (input.kind === "reply" ? EARLIER_BUTTON : message);
   const warning: SupportReply[] = ctx.redacted
     ? [{ body: `For your safety I removed a card number or code from your message. ${NEVER_SEND}`, kind: "text" }]
     : [];
@@ -1006,6 +1017,17 @@ export function transitionSupport(
     withWarning(result(courseMenuState(), [...intro, ...answerReplies(answer)]));
   // No exact keyword: maybe a spelling slip. The bot asks rather than answers.
   const typedSuggestion = input.kind === "text" && !typedAnswer ? suggestSupportAnswer(input.text, ctx.answers) : null;
+  // Name steps: a saved answer's keyword or a topic word ("fees") is a question, not a name.
+  // The saved answer (if any) is sent and the form stays where it was.
+  const questionInsteadOfName = (): SupportTransitionResult | null => {
+    if (input.kind !== "text") return null;
+    const question = questionFor(current.state, draft, ctx);
+    if (typedAnswer) return withWarning(result(current, [...answerReplies(typedAnswer), question]));
+    if (input.text.trim().endsWith("?") || MENU_TOPIC_WORDS.has(normalizeSupportText(input.text))) {
+      return withWarning(result(current, [{ body: QUESTION_NOT_NAME, kind: "text" }, question]));
+    }
+    return null;
+  };
   const suggested = (answer: SupportBotAnswer, intro: SupportReply[] = []): SupportTransitionResult =>
     withWarning(
       result(
@@ -1240,11 +1262,13 @@ export function transitionSupport(
 
     case "DEMO_STUDENT":
     case "DEMO_PARENT": {
+      const notName = questionInsteadOfName();
+      if (notName) return notName;
       const name = input.kind === "text" ? input.text.trim().replace(/\s+/g, " ") : "";
       const limits = current.state === "DEMO_STUDENT" ? SUPPORT_INPUT_LIMITS.studentName : SUPPORT_INPUT_LIMITS.parentName;
       if (name.length < limits.min || name.length > limits.max) {
         return withWarning(
-          invalid(current, `Please reply with a name (${limits.min}–${limits.max} characters).`, questionFor(current.state, draft, ctx))
+          invalid(current, typed(`Please reply with a name (${limits.min}–${limits.max} characters).`), questionFor(current.state, draft, ctx))
         );
       }
       const [nextDraft, state]: [SupportDraft, SupportFlowState] =
@@ -1258,7 +1282,7 @@ export function transitionSupport(
       const age = readAge(input);
       const { max, min } = SUPPORT_INPUT_LIMITS.studentAge;
       if (age === null || age < min || age > max) {
-        return withWarning(invalid(current, `Please reply with the age as a number (${min}–${max}).`, questionFor("DEMO_AGE", draft, ctx)));
+        return withWarning(invalid(current, typed(`Please reply with the age as a number (${min}–${max}).`), questionFor("DEMO_AGE", draft, ctx)));
       }
       const nextDraft: SupportDraft = { ...draft, invalidCount: 0, studentAge: age };
       return withWarning(result({ draft: nextDraft, state: "DEMO_LEVEL", status: "BOT" }, [questionFor("DEMO_LEVEL", nextDraft, ctx)]));
@@ -1291,7 +1315,7 @@ export function transitionSupport(
       const { max, min } = SUPPORT_INPUT_LIMITS.preferredTime;
       if (time.length < min || time.length > max) {
         return withWarning(
-          invalid(current, `Please tell us a day and time that suits you (under ${max} characters).`, questionFor("DEMO_TIME", draft, ctx))
+          invalid(current, typed(`Please tell us a day and time that suits you (under ${max} characters).`), questionFor("DEMO_TIME", draft, ctx))
         );
       }
       // Typed words are a preferred time even while the list is showing.
@@ -1339,11 +1363,13 @@ export function transitionSupport(
     }
 
     case "ASK_STUDENT": {
+      const notName = questionInsteadOfName();
+      if (notName) return notName;
       const name = input.kind === "text" ? input.text.trim().replace(/\s+/g, " ") : "";
       const { max, min } = SUPPORT_INPUT_LIMITS.studentName;
       if (name.length < min || name.length > max) {
         return withWarning(
-          invalid(current, `Please reply with the student's name (${min}–${max} characters).`, questionFor("ASK_STUDENT", draft, ctx))
+          invalid(current, typed(`Please reply with the student's name (${min}–${max} characters).`), questionFor("ASK_STUDENT", draft, ctx))
         );
       }
       const nextDraft: SupportDraft = { ...draft, invalidCount: 0, studentName: name };
@@ -1354,7 +1380,7 @@ export function transitionSupport(
       const details = input.kind === "text" ? input.text.trim() : "";
       const { max, min } = SUPPORT_INPUT_LIMITS.details;
       if (details.length < min) {
-        return withWarning(invalid(current, "Please tell us a little more.", questionFor("ASK_DETAILS", draft, ctx)));
+        return withWarning(invalid(current, typed("Please tell us a little more."), questionFor("ASK_DETAILS", draft, ctx)));
       }
       if (details.length > max) {
         return withWarning(

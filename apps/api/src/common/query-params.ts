@@ -38,6 +38,17 @@ export function optionalQueryString(value: unknown, name: string): string | unde
   return value;
 }
 
+/** An ISO date-time, or undefined when absent / empty. Anything unreadable is a 400. */
+export function optionalQueryDate(value: unknown, name: string): Date | undefined {
+  const raw = optionalQueryString(value, name);
+  if (raw === undefined) return undefined;
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) {
+    throw new BadRequestException(`${name} must be an ISO date-time.`);
+  }
+  return date;
+}
+
 export function optionalQueryEnum<T extends string>(
   value: unknown,
   allowed: Readonly<Record<string, T>> | readonly T[],

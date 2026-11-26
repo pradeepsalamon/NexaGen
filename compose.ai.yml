@@ -34,6 +34,28 @@ services:
       timeout: 5s
       retries: 3
 
+  # The local model for AI class recaps (docs/CLASS_RECAPS.md): the image the
+  # 2026-10-25 capacity benchmark passed with, pinned by digest, on the
+  # internal network only (no ports, no internet). The weights live in the
+  # named volume, filled once by scripts/ai/pull-model.sh (this container can't
+  # download them). CPU-capped below the live classes; one request at a time.
+  ollama:
+    profiles: ["ai"]
+    image: ollama/ollama:0.34.4@sha256:8262851b2846b87c649eddf3e76beb270c52f4d1bc94559f47efde16b0841551
+    networks: [ai_internal]
+    volumes: ["ollama_models:/root/.ollama"]
+    cpu_shares: 512
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 5G
+    environment:
+      OLLAMA_CONTEXT_LENGTH: "8192"
+      OLLAMA_KEEP_ALIVE: "5m"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_NUM_PARALLEL: "1"
+
   # Merged into the base `api` service: one more network and the AI_* variables.
   # No depends_on: the API must boot and pass /health/ready without the runtime.
   api:
@@ -42,7 +64,13 @@ services:
       AI_ENABLED: ${AI_ENABLED:-false}
       AI_RUNTIME_URL: http://ai-runtime:8000
       AI_RUNTIME_SHARED_SECRET: ${AI_RUNTIME_SHARED_SECRET:-}
+      # The bundled ollama unless .env names another local model server.
+      AI_LOCAL_MODEL_URL: ${AI_LOCAL_MODEL_URL:-http://ollama:11434/v1}
 
 networks:
   ai_internal:
     internal: true
+
+volumes:
+  ollama_models:
+    name: nexa_ollama_models

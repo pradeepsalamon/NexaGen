@@ -134,7 +134,7 @@ export class AdminController {
 
   @Get(API_ROUTES.admin.demoClasses)
   async listDemoClasses(
-    @Query() query: PaginatedQuery & { status?: string },
+    @Query() query: PaginatedQuery & { status?: string; from?: string; to?: string },
     @Req() request: Request
   ) {
     await this.getAdminId(request);

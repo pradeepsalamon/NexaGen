@@ -17,6 +17,7 @@ import {
   type ScheduleCalendarClass,
   type ScheduleOccurrenceActionRequest
 } from "@nexa-chess/types";
+import { ResourceLoadError } from "@/components/common/ResourceLoadError";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -65,7 +66,7 @@ const STATUS_BADGE: Record<string, "default" | "success" | "secondary" | "destru
 
 export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
   const toast = useToast();
-  const { data, isLoading } = useBatchScheduleQuery(scheduleId);
+  const { data, error, isError, isLoading, refetch } = useBatchScheduleQuery(scheduleId);
   const schedule = data?.schedule;
 
   const regenerate = useRegenerateScheduleMutation();
@@ -168,6 +169,19 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
     [scheduleClasses]
   );
 
+  if (isError) {
+    return (
+      <ResourceLoadError
+        backHref="/admin/schedule"
+        backLabel="All schedules"
+        className="mx-auto max-w-5xl"
+        error={error}
+        onRetry={() => void refetch()}
+        resource="schedule"
+      />
+    );
+  }
+
   if (isLoading || !schedule) {
     return (
       <div>
@@ -257,9 +271,8 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
               </Button>
             )}
             <Button
-              variant="outline"
+              variant="danger-outline"
               size="sm"
-              className="border-app-danger text-app-danger-ink hover:bg-app-danger-soft"
               onClick={() => runDeactivate(scheduleId)}
             >
               <Ban className="size-4" aria-hidden="true" />
@@ -335,9 +348,8 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
                           Reschedule
                         </Button>
                         <Button
-                          variant="neutral"
+                          variant="danger-outline"
                           size="sm"
-                          className="border-app-danger text-app-danger hover:bg-app-soft"
                           onClick={() =>
                             runOccurrenceAction({ classId: cls.id, payload: { action: "CANCEL" } })
                           }

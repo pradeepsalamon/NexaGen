@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import { BarChart3, Crown, ShieldCheck, TrendingUp, Trophy, Users, type LucideIcon } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -61,22 +60,6 @@ export function LoginHeroTop({ className, copy }: { className?: string; copy: Au
 
   return (
     <div className={cn("text-login-on-hero", className)}>
-      {/* Phones and tablets: the gold knight, kept to the right behind a fade of the hero colour
-          (the knight-and-board picture in dark, the knight in its rings in light). */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit] lg:hidden">
-        <div className="absolute inset-0 hidden dark:block">
-          <Image alt="" className="object-cover object-[right_bottom]" fill priority sizes="(min-width: 1024px) 1px, 100vw" src="/auth/hero-mobile.webp" />
-        </div>
-        <div className="absolute bottom-[6%] right-[2%] aspect-square h-[62%] dark:hidden">
-          <span className="auth-knight-glow absolute inset-0" />
-          <span className="auth-knight-ring absolute inset-[12%]" />
-          <span className="auth-knight-ring absolute inset-[20%] opacity-70" />
-          <div className="absolute inset-y-[14%] left-1/2 aspect-[707/1100] -translate-x-1/2">
-            <Image alt="" className="object-contain" fill sizes="(min-width: 1024px) 1px, 40vw" src="/auth/hero-knight-light.webp" />
-          </div>
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-r from-login-hero from-40% via-login-hero/85 via-65% to-login-hero/20" />
-      </div>
       <div className="relative flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-6 xl:gap-12">
           {/* From `lg` the hero shows the logo large instead (AuthFrame's HeroLogo). */}
@@ -85,7 +68,9 @@ export function LoginHeroTop({ className, copy }: { className?: string; copy: Au
             className="shrink-0 rounded-control transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-login-gold lg:hidden"
             href="/"
           >
-            <Logo mobileSize={36} size={48} />
+            {/* No preload: a preload fetches both theme variants on every screen, this one included
+                where it's hidden (desktop). Lazy, only the visible one loads. */}
+            <Logo mobileSize={36} priority={false} size={48} />
           </Link>
           <div className="auth-badge hidden md:block">
             <AcademyBadge />
@@ -98,7 +83,7 @@ export function LoginHeroTop({ className, copy }: { className?: string; copy: Au
 
       <motion.div
         animate="animate"
-        className="relative mt-7 lg:mt-10"
+        className="auth-hero-copy relative mt-7 lg:mt-10"
         initial="initial"
         transition={{ duration: 0.6, ease: "easeOut" }}
         variants={rise}
@@ -133,7 +118,7 @@ export function LoginHeroTop({ className, copy }: { className?: string; copy: Au
         animate="animate"
         aria-label="Highlights"
         className={cn(
-          "relative mt-6 hidden flex-wrap gap-3 sm:flex lg:mt-8"
+          "auth-hero-extra relative mt-6 hidden flex-wrap gap-3 sm:flex lg:mt-8"
         )}
         initial="initial"
         transition={{ delay: 0.15, duration: 0.6, ease: "easeOut" }}

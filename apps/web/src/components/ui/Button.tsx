@@ -9,6 +9,9 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
+        // Red border on the surface; fills solid red on hover, like `outline` fills blue.
+        "danger-outline":
+          "border-app-danger bg-app-surface text-app-danger-ink hover:bg-app-danger hover:text-on-danger [&:hover_svg]:text-on-danger",
         "danger-soft":
           "border-transparent bg-app-danger-soft text-app-danger-ink hover:bg-app-danger/20",
         destructive:
@@ -18,7 +21,8 @@ const buttonVariants = cva(
         neutral:
           "border-app-line-strong bg-app-surface text-app-text hover:bg-app-soft",
         outline:
-          "border-button bg-app-surface text-primary-ink hover:bg-primary-soft",
+          // Fills solid on hover; icons with their own colour turn white with the text.
+          "border-button bg-app-surface text-primary-ink hover:bg-button hover:text-on-button [&:hover_svg]:text-on-button",
         primary:
           "border-transparent bg-button text-on-button hover:bg-button-hover active:bg-button-dark",
         secondary:

@@ -304,6 +304,29 @@ describe("free demo booking", () => {
     expect(prompt.replies[0].body).toContain("booking a free demo class");
   });
 
+  it("explains a tap on an earlier message's button while waiting for a typed answer", () => {
+    // Owner's test 2026-11-24: "Edit details", then "Book demo" on the old summary.
+    const next = transitionSupport(at("DEMO_STUDENT", { category: "COURSE" }), tap("confirm.send"), ctx);
+    expect(next.state).toBe("DEMO_STUDENT");
+    expect(next.replies.map(supportReplyText)[0]).toBe("That button is from an earlier message. Please type your answer instead.");
+    expect(transitionSupport(at("DEMO_STUDENT", { category: "COURSE" }), text("A"), ctx).replies.map(supportReplyText)[0]).toMatch(/^Please reply with a name/);
+  });
+
+  it("an old Cancel button cancels, and a question is never taken as a name", () => {
+    // Owner's test 2026-11-24: "Cancel" on the old summary, then "fees" while the bot asked the student's name.
+    const asking = at("DEMO_STUDENT", { category: "COURSE" });
+    expect(transitionSupport(asking, tap("confirm.cancel"), ctx)).toMatchObject({ draft: {}, state: "MAIN_MENU" });
+    const fees = transitionSupport(asking, text("fees"), ctx);
+    expect(fees.state).toBe("DEMO_STUDENT");
+    expect(fees.draft).not.toHaveProperty("studentName");
+    expect(supportReplyText(fees.replies[0])).toMatch(/^That looks like a question/);
+    expect(transitionSupport(asking, text("what time are classes?"), ctx).state).toBe("DEMO_STUDENT");
+    const answered = transitionSupport(asking, text("fees"), { ...ctx, answers: [FEES] });
+    expect(answered.state).toBe("DEMO_STUDENT");
+    expect(supportReplyText(answered.replies[0])).toContain("₹2,000");
+    expect(transitionSupport(asking, text("Aarav"), ctx).state).toBe("DEMO_AGE");
+  });
+
   describe("with the academy's real demo times", () => {
     const slots: SupportTransitionContext = {
       ...ctx,

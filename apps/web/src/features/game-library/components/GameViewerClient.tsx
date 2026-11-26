@@ -44,6 +44,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/AlertDialog";
+import { ResourceLoadError } from "@/components/common/ResourceLoadError";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -97,13 +98,13 @@ function parseGame(pgn: string): { tree: MoveTree; headers: PgnHeaders } | null 
 }
 
 export function GameViewerClient({ id }: { id: string }) {
-  const { data, isLoading, isError, refetch } = useGame(id);
+  const { data, error, isLoading, isError, refetch } = useGame(id);
 
   if (isError) {
     return (
       <div className="space-y-4">
         <BackLink />
-        <WidgetError message="This game could not be loaded, or you don't have access to it." onRetry={() => void refetch()} />
+        <ResourceLoadError backHref="/games" backLabel="Game library" error={error} onRetry={() => void refetch()} resource="game" />
       </div>
     );
   }

@@ -80,25 +80,45 @@ function HeroLogo() {
 
   return (
     <div className="auth-hero-logo-cell pointer-events-none relative z-10 hidden items-center justify-center pr-[10%] lg:col-start-1 lg:row-start-2 lg:flex">
-      <div className="auth-hero-logo relative">
-        <span aria-hidden="true" className="auth-knight-glow absolute -inset-x-[30%] -inset-y-[80%] opacity-60 dark:opacity-35" />
-        <Link
-          aria-label={`${brandName} home`}
-          className="pointer-events-auto relative block rounded-control transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-login-gold"
-          href="/"
-        >
-          {/* Desktop only: no preload, so phones never fetch it. */}
-          <Logo priority={false} size={192} />
-        </Link>
-      </div>
+      {/* Rises into place after the hero text (the scale stays on the inner box). */}
+      <motion.div
+        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, y: 32 }}
+        transition={{ delay: 0.3, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <div className="auth-hero-logo relative">
+          <span aria-hidden="true" className="auth-knight-glow absolute -inset-x-[30%] -inset-y-[80%] opacity-60 dark:opacity-35" />
+          <Link
+            aria-label={`${brandName} home`}
+            className="pointer-events-auto relative block rounded-control transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-login-gold"
+            href="/"
+          >
+            {/* Desktop only: no preload, so phones never fetch it. */}
+            <Logo priority={false} size={192} />
+          </Link>
+        </div>
+      </motion.div>
     </div>
   );
 }
 
 /**
- * The glowing chessboard along the foot of the page (desktop), with embers rising off it,
- * one transparent picture per theme (`apps/web/scripts/build-auth-board.mjs`). It starts
- * under the hero, so the hero's curve is where it ends on the left.
+ * The glowing chessboard with embers rising off it, one transparent picture per theme
+ * (`apps/web/scripts/build-auth-board.mjs`). Lazy: only the visible theme's copy, on the
+ * screen size that shows it, is ever fetched.
+ */
+function BoardPicture({ className, sizes }: { className: string; sizes: string }) {
+  return (
+    <>
+      <Image alt="" className={cn(className, "dark:hidden")} fill sizes={sizes} src="/auth/board-light.webp" />
+      <Image alt="" className={cn(className, "hidden dark:block")} fill sizes={sizes} src="/auth/board-dark.webp" />
+    </>
+  );
+}
+
+/**
+ * Desktop: the board along the foot of the page. It starts under the hero, so the hero's
+ * curve is where it ends on the left.
  */
 function PageBoard() {
   return (
@@ -106,21 +126,23 @@ function PageBoard() {
       aria-hidden="true"
       className="pointer-events-none absolute bottom-0 right-0 hidden aspect-[1600/1000] w-[calc(100%_-_var(--auth-hero-w)_*_0.7)] lg:block"
     >
-      <Image alt="" className="object-contain dark:hidden" fill sizes="70vw" src="/auth/board-light.webp" />
-      <Image alt="" className="hidden object-contain dark:block" fill sizes="70vw" src="/auth/board-dark.webp" />
+      <BoardPicture className="object-contain" sizes="70vw" />
     </div>
   );
 }
 
 /**
- * The form side's background: a soft champagne light, and below `lg` a faint
- * checkerboard (from `lg` the page's `PageBoard` runs under it instead).
+ * The form side's background: a soft champagne light, and on phones and tablets the
+ * board behind the card (from `lg` the page's `PageBoard` runs under it instead). It
+ * fills the lower part of the form side and is cropped to its glowing right-hand end.
  */
 function FormSideDecor() {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
       <div className="auth-sweep absolute inset-0" />
-      <div className="auth-checker absolute bottom-0 right-0 h-2/5 w-3/4 lg:hidden" />
+      <div className="auth-board-mobile absolute inset-x-0 bottom-0 lg:hidden">
+        <BoardPicture className="object-cover object-[72%_100%]" sizes="(min-width: 640px) 150vw, 200vw" />
+      </div>
     </div>
   );
 }
@@ -135,8 +157,8 @@ function FooterLinks() {
 
   return (
     <footer className="flex justify-center text-sm text-app-muted">
-      {/* From `lg` the links sit on the glowing board, so they get a soft page-coloured backing. */}
-      <nav aria-label="Legal and help" className="lg:rounded-full lg:bg-login-page/80 lg:px-4 lg:py-1.5 lg:backdrop-blur-sm">
+      {/* The links sit on the glowing board on every screen, so they get a soft page-coloured backing. */}
+      <nav aria-label="Legal and help" className="rounded-full bg-login-page/80 px-4 py-1.5 backdrop-blur-sm">
         <ul className="flex items-center">
           {links.map((link, index) => (
             <li className={index > 0 ? "ml-4 border-l border-app-border pl-4" : undefined} key={link.href}>
@@ -175,11 +197,11 @@ export function AuthFrame({ children }: { children: ReactNode }) {
 
         <div className="relative flex min-h-dvh flex-col lg:grid lg:grid-cols-[minmax(0,var(--auth-hero-w))_minmax(0,1fr)] lg:grid-rows-[auto_minmax(0,1fr)]">
           <LoginHeroTop
-            className="auth-hero-mobile relative z-10 px-4 pb-10 pt-4 sm:px-8 sm:pt-6 lg:col-start-1 lg:row-start-1 lg:px-12 lg:pb-0 lg:pr-[7%] lg:pt-10 xl:px-16"
+            className="auth-hero-mobile relative z-10 px-4 pb-6 pt-4 sm:px-8 md:pb-10 sm:pt-6 lg:col-start-1 lg:row-start-1 lg:px-12 lg:pb-0 lg:pr-[7%] lg:pt-10 xl:px-16"
             copy={HERO_COPY}
           />
 
-          <div className="auth-form-side relative flex flex-col lg:col-start-2 lg:row-span-2 lg:row-start-1">
+          <div className="auth-form-side relative flex flex-1 flex-col lg:col-start-2 lg:row-span-2 lg:row-start-1">
             <FormSideDecor />
             {/* The page's card, centred: the space around it is even on opposite sides and at
                 least --auth-gap. The Privacy/Terms/Help links sit under it, outside the card:

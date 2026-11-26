@@ -405,6 +405,11 @@ model User {
   startedPuzzleRushes             LiveClassPuzzleRush[]            @relation("LiveClassPuzzleRushStartedBy")
   puzzleRushEntries               LiveClassPuzzleRushEntry[]       @relation("LiveClassPuzzleRushEntryStudent")
   soloPuzzleRushRuns              SoloPuzzleRushRun[]              @relation("SoloPuzzleRushRunStudent")
+  aiReviewConsents                AiReviewConsent[]                @relation("AiReviewConsentStudent")
+  aiReviewConsentsChanged         AiReviewConsent[]                @relation("AiReviewConsentChangedBy")
+  aiPlayReviews                   AiPlayReview[]                   @relation("AiPlayReviewStudent")
+  aiPlayComments                  AiPlayComment[]                  @relation("AiPlayCommentStudent")
+  liveClassBoardMoves             LiveClassBoardMove[]             @relation("LiveClassBoardMoveStudent")
   dailyPuzzleEntries              DailyPuzzleEntry[]               @relation("DailyPuzzleEntryStudent")
   dailyPuzzlesSet                 DailyPuzzle[]                    @relation("DailyPuzzleSetBy")
   activities                      StudentActivity[]                @relation("StudentActivity")
@@ -1165,6 +1170,7 @@ model CoachClass {
   cancellationReason String?
 
   liveSession              LiveSession?                     @relation("LiveSessionSchedule")
+  classRecap               ClassRecap?
   attendances              ClassAttendance[]
   coachAttendance          CoachAttendance?
   recordingWatchProgresses RecordingWatchProgress[]
@@ -3310,6 +3316,9 @@ model LiveClassPuzzleRushEntry {
   startedAt     DateTime?
   clockEndsAt   DateTime?
   finishedAt    DateTime?
+  /// RushPlayedRecord[]: each finished puzzle's line as played (docs/AI_PLAY_REVIEW.md gap A).
+  /// Only ever grows, in the same claimed update as the totals; [] for runs before it.
+  movesJson     Json      @default("[]")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3349,6 +3358,9 @@ model SoloPuzzleRushRun {
   playedAt      DateTime?
   clockEndsAt   DateTime?
   finishedAt    DateTime?
+  /// RushPlayedRecord[]: each finished puzzle's line as played (docs/AI_PLAY_REVIEW.md gap A).
+  /// Only ever grows, in the same claimed update as the totals; [] for runs before it.
+  movesJson     Json      @default("[]")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -5764,6 +5776,8 @@ model ChessGame {
   blackRating Int?
 
   analyses GameAnalysis[]
+  /// Moves a student played on the class board while holding control (LIVE_BOARD only).
+  boardMoves LiveClassBoardMove[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -9488,4 +9502,259 @@ model DailyPuzzleSettings {
   updatedAt           DateTime         @updatedAt
 
   @@map("daily_puzzle_settings")
+}
+
+// ──────────────────────────────────────────────────────────────
+// AI play review (docs/AI_PLAY_REVIEW.md)
+// ──────────────────────────────────────────────────────────────
+
+enum AiConsentChangedBy {
+  STUDENT
+  COACH
+  ADMIN
+}
+
+enum PlaySource {
+  PUZZLE
+  ASSIGNMENT
+  PLAYOUT
+  POLL
+  MATCH
+  SIMUL
+  TOURNAMENT
+  OWN_GAME
+  RUSH
+  CLASS_BOARD
+}
+
+enum AiPlayReviewStatus {
+  DONE
+  FAILED
+  SKIPPED
+}
+
+/// The outside-AI switch for one student, append-only: the latest row is the
+/// state (`aiConsentIsCurrent`). Recording and the engine review need no switch.
+model AiReviewConsent {
+  id                String             @id @default(cuid())
+  tenantId          String             @default("tenant_nexa")
+  studentId         String
+  student           User               @relation("AiReviewConsentStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  allowed           Boolean
+  /// AI_REVIEW_CONSENT_VERSION the person agreed to (or withdrew from).
+  version           Int
+  /// The outside AI providers named when the person agreed (`AiProvider` values);
+  /// play only goes to these (`aiConsentCoveredProviders`).
+  providers         String[]           @default([])
+  /// "My parent or guardian agrees" (student) / "a parent agreed" (staff).
+  guardianConfirmed Boolean            @default(false)
+  changedById       String?
+  changedBy         User?              @relation("AiReviewConsentChangedBy", fields: [changedById], references: [id], onDelete: SetNull)
+  changedByRole     AiConsentChangedBy
+  createdAt         DateTime           @default(now())
+
+  @@index([studentId, createdAt])
+  @@index([changedById])
+  @@map("ai_review_consents")
+}
+
+/// Per-academy switches: the nightly engine review (on) and outside-AI comments (off).
+model AiPlayReviewSettings {
+  id                  String   @id @default(cuid())
+  tenantId            String   @unique @default("tenant_nexa")
+  engineReviewEnabled Boolean  @default(true)
+  outsideAiEnabled    Boolean  @default(false)
+  updatedById         String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("ai_play_review_settings")
+}
+
+/// The engine review of one play item (a game, a puzzle attempt, a Storm run…).
+/// The item itself stays in its feature's own table (`source` + `sourceId`);
+/// this row is derived and can be re-made.
+model AiPlayReview {
+  id            String             @id @default(cuid())
+  tenantId      String             @default("tenant_nexa")
+  studentId     String
+  student       User               @relation("AiPlayReviewStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  source        PlaySource
+  sourceId      String
+  playedAt      DateTime
+  status        AiPlayReviewStatus
+  attempts      Int                @default(1)
+  accuracy      Int?
+  blunders      Int                @default(0)
+  mistakes      Int                @default(0)
+  inaccuracies  Int                @default(0)
+  missedTactics Int                @default(0)
+  studentMoves  Int                @default(0)
+  /// PlayFinding[], worst first.
+  findingsJson  Json               @default("[]")
+  /// Engine, classification, accuracy, tactics and rules versions.
+  versionsJson  Json               @default("{}")
+  error         String?
+  reviewedAt    DateTime           @default(now())
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  comment       AiPlayComment?
+
+  @@unique([tenantId, studentId, source, sourceId])
+  @@index([studentId, playedAt])
+  @@index([reviewedAt])
+  @@map("ai_play_reviews")
+}
+
+/// Outside-AI comment on one review; only while the student's switch is on.
+/// Withdrawing the switch deletes them.
+model AiPlayComment {
+  id        String       @id @default(cuid())
+  tenantId  String       @default("tenant_nexa")
+  reviewId  String       @unique
+  review    AiPlayReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User         @relation("AiPlayCommentStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  provider  String
+  model     String
+  text      String
+  createdAt DateTime     @default(now())
+
+  @@index([studentId])
+  @@index([createdAt])
+  @@map("ai_play_comments")
+}
+
+/// A move a student played on the coach's class board while holding control
+/// (docs/AI_PLAY_REVIEW.md gap B), one row per mainline ply of the board game.
+model LiveClassBoardMove {
+  id          String    @id @default(cuid())
+  tenantId    String    @default("tenant_nexa")
+  chessGameId String
+  chessGame   ChessGame @relation(fields: [chessGameId], references: [id], onDelete: Cascade)
+  studentId   String
+  student     User      @relation("LiveClassBoardMoveStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  /// Half-moves from the game's start position, 1-based.
+  ply         Int
+  uci         String
+  san         String
+  fenBefore   String
+  createdAt   DateTime  @default(now())
+
+  @@unique([chessGameId, ply])
+  @@index([studentId])
+  @@map("live_class_board_moves")
+}
+
+enum ClassRecapStatus {
+  QUEUED
+  RUNNING
+  READY
+  PUBLISHED
+  DISCARDED
+  FAILED
+  SKIPPED
+}
+
+enum ClassRecapProvider {
+  LOCAL
+  OUTSIDE
+}
+
+/// The AI recap of one class, drafted from the coach's transcript
+/// (docs/CLASS_RECAPS.md). Students see `contentJson` only once PUBLISHED.
+/// Derived data: deleted with its class, never soft-deleted.
+model ClassRecap {
+  id            String              @id @default(cuid())
+  tenantId      String              @default("tenant_nexa")
+  classId       String              @unique
+  class         CoachClass          @relation(fields: [classId], references: [id], onDelete: Cascade)
+  status        ClassRecapStatus    @default(QUEUED)
+  /// Not picked up before this (the coach's last transcript lines may still arrive).
+  notBefore     DateTime            @default(now())
+  /// Runs started for the current draft; reset by a regeneration.
+  attempts      Int                 @default(0)
+  regenerations Int                 @default(0)
+  /// NO_TRANSCRIPT | TOO_SHORT | MODEL_ERROR | INVALID_OUTPUT | NO_PROVIDER
+  failureCode   String?
+  provider      ClassRecapProvider?
+  providerName  String?
+  model         String?
+  promptVersion String?
+  modelCalls    Int?
+  latencyMs     Int?
+  /// Sentences/items the clean-up removed (naming a student code or writing notation).
+  removedCount  Int?
+  /// The model's draft as generated (ClassRecapContent); never edited.
+  draftJson     Json?
+  /// What students see once published: the draft with the reviewer's edits.
+  contentJson   Json?
+  editedAt      DateTime?
+  editedById    String?
+  generatedAt   DateTime?
+  publishedAt   DateTime?
+  publishedById String?
+  /// The reviewer's thumbs: 1 up, -1 down.
+  rating        Int?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@index([status, notBefore])
+  @@index([tenantId, status, updatedAt])
+  @@map("class_recaps")
+}
+
+/// An academy's class recap switches (one row per academy; defaults when absent).
+model ClassRecapSettings {
+  id          String             @id @default(cuid())
+  tenantId    String             @unique @default("tenant_nexa")
+  enabled     Boolean            @default(true)
+  provider    ClassRecapProvider @default(LOCAL)
+  updatedById String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@map("class_recap_settings")
+}
+
+/// An outside AI provider the platform's AI features may call (docs/AI_PROVIDERS.md).
+enum AiProvider {
+  GROQ
+  GEMINI
+  OPENROUTER
+}
+
+/// A provider's API key, connected by a platform operator in the console and
+/// used by every academy. Platform table (no tenantId).
+model AiProviderCredential {
+  id              String     @id @default(cuid())
+  provider        AiProvider @unique
+  enabled         Boolean    @default(true)
+  /// AES-256-GCM encrypted key (`AiProvidersService`); never returned.
+  apiKeyEncrypted String
+  /// The key's last 4 characters, to recognise it in the console.
+  keyHint         String
+  updatedById     String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@map("ai_provider_credentials")
+}
+
+/// The model a platform AI feature uses (`resolveAiFeatureRoute`). No row, or
+/// a null model, means "Auto". Platform table (no tenantId).
+model AiFeatureModel {
+  id               String      @id @default(cuid())
+  /// `AiFeatureId` in @nexa-chess/types (text, so a new feature needs no migration).
+  feature          String      @unique
+  primaryProvider  AiProvider?
+  primaryModel     String?
+  fallbackProvider AiProvider?
+  fallbackModel    String?
+  fallbackOff      Boolean     @default(false)
+  updatedById      String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@map("ai_feature_models")
 }

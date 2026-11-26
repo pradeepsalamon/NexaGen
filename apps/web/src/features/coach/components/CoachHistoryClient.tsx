@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Download, Eye, History, Info, NotebookPen } from "lucide-react";
+import { Download, Eye, History, Info, NotebookPen, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import type { CoachClass } from "@nexa-chess/types";
 import { getRecordingDownloadUrl } from "@/features/live-class/api/live-class";
@@ -24,6 +24,8 @@ import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { ClassNotesDialog } from "./ClassNotesDialog";
 import { coachClassTitle } from "./CoachClassRow";
 import { CoachClassDetailsDialog } from "./CoachClassDetailsDialog";
+import { ClassRecapDialog } from "@/features/class-recap/components/ClassRecapDialog";
+import { useCurrentEntitlements } from "@/features/subscription/hooks/useSubscription";
 
 export function CoachHistoryClient() {
   // Server-side pagination and sorting (AUDIT H26): a coach's history grows without bound.
@@ -37,6 +39,8 @@ export function CoachHistoryClient() {
   const tz = useUserTimeZone();
   const [detailsClassId, setDetailsClassId] = useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [recapClassId, setRecapClassId] = useState<string | null>(null);
+  const hasRecaps = useCurrentEntitlements().data?.features.includes("aiClassRecaps") ?? false;
   const [notesClass, setNotesClass] = useState<CoachClass | null>(null);
 
   const handleDownload = async (classId: string) => {
@@ -114,6 +118,9 @@ export function CoachHistoryClient() {
               }
             });
           }
+          if (cls.status === "COMPLETED" && hasRecaps) {
+            actions.push({ ariaLabel: `Class recap of ${title}`, icon: Sparkles, label: "Class recap", onSelect: () => setRecapClassId(cls.id) });
+          }
           if (cls.status !== "CANCELLED") {
             actions.push({ ariaLabel: "Edit class notes", icon: NotebookPen, label: "Edit notes", onSelect: () => setNotesClass(cls) });
           }
@@ -129,7 +136,7 @@ export function CoachHistoryClient() {
         }
       }
     ],
-    [tz]
+    [hasRecaps, tz]
   );
 
   const classes = useMemo(() => data?.classes ?? [], [data]);
@@ -181,6 +188,7 @@ export function CoachHistoryClient() {
           if (!open) setNotesClass(null);
         }}
       />
+      <ClassRecapDialog classId={recapClassId} onOpenChange={(open) => !open && setRecapClassId(null)} />
       <CoachClassDetailsDialog
         classId={detailsClassId}
         isOpen={isDetailsOpen}

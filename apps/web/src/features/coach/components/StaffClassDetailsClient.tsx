@@ -10,12 +10,12 @@ import {
   getClassStartAvailability,
   resolveClassDisplayStatus
 } from "@nexa-chess/types";
+import { ResourceLoadError } from "@/components/common/ResourceLoadError";
 import { BackButton } from "@/components/ui/BackButton";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { WidgetError } from "@/components/ui/WidgetError";
 import { LiveClassMonitor } from "@/features/attendance/components/LiveClassMonitor";
 import { EndClassButton } from "@/features/live-class/components/EndClassButton";
 import { useStartLiveClass } from "@/features/live-class/hooks/useLiveClassApi";
@@ -61,10 +61,7 @@ export function StaffClassDetailsClient({ classId, isCoach }: { classId: string;
     return (
       <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
         <BackButton />
-        <WidgetError
-          message="We couldn't load this class. It may have been removed, or it isn't one of your classes."
-          onRetry={() => refetch()}
-        />
+        <ResourceLoadError error={error} onRetry={() => void refetch()} resource="class" />
       </div>
     );
   }

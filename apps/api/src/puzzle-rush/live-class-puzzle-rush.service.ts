@@ -29,6 +29,7 @@ import { LiveClassService } from "../live-class/live-class.service";
 import { LiveKitService } from "../live-class/livekit.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { MIN_RUN_SIZE, selectPuzzleRushRun } from "./puzzle-rush-run";
+import { mergeRushPlayed } from "./rush-played";
 import { fullName } from "../puzzle/puzzle-auth.helper";
 
 const entryInclude = {
@@ -182,6 +183,8 @@ export class LiveClassPuzzleRushService {
 
     const puzzles = this.puzzlesOf(rush.puzzles);
     const data = this.clamp(rush.mode, puzzles, dto, entry, now);
+    // Each finished puzzle's line (docs/AI_PLAY_REVIEW.md gap A), rebuilt from the round's own puzzles.
+    const played = mergeRushPlayed(entry.movesJson, dto.played, puzzles, data.puzzleIndex);
     const updated = await this.prisma.liveClassPuzzleRushEntry.updateMany({
       where: {
         id: entry.id,
@@ -189,7 +192,7 @@ export class LiveClassPuzzleRushService {
         moves: { lte: data.moves },
         puzzleIndex: { lte: data.puzzleIndex }
       },
-      data
+      data: { ...data, ...(played ? { movesJson: played as unknown as Prisma.InputJsonValue } : {}) }
     });
     entry = await this.prisma.liveClassPuzzleRushEntry.findUniqueOrThrow({
       where: { id: entry.id },

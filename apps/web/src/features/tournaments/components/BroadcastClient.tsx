@@ -19,7 +19,7 @@ export function BroadcastClient({ tournamentId }: { tournamentId: string }) {
   const featuredId = feed.data?.pages[0]?.featured.gameId ?? live.data?.ongoingGames[0]?.id ?? "";
   const game = useGame(tournamentId, featuredId, { live: false, realtime: connected });
 
-  if (tournament.isError) return <Alert variant="error">This tournament isn&apos;t available.</Alert>;
+  if (tournament.isError || (live.isError && !live.data)) return <Alert variant="error">This tournament isn&apos;t available.</Alert>;
   if (!tournament.data || !live.data) return <Skeleton className="h-96 w-full" />;
   const t = tournament.data.tournament;
   const arena = t.format === "ARENA";

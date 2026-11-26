@@ -20,6 +20,7 @@ import {
   resolveClassDisplayStatus,
   type StudentClassDetail
 } from "@nexa-chess/types";
+import { ResourceLoadError } from "@/components/common/ResourceLoadError";
 import { BackButton } from "@/components/ui/BackButton";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -27,7 +28,6 @@ import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
 import { LinkedText } from "@/components/ui/FormattedText";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
-import { WidgetError } from "@/components/ui/WidgetError";
 import { AttendanceStatusBadge } from "@/features/attendance/components/AttendanceStatusBadge";
 import { BatchTypeBadge } from "@/features/batches/components/BatchTypeBadge";
 import { getRecordingDownloadUrl } from "@/features/live-class/api/live-class";
@@ -63,20 +63,13 @@ export function StudentClassDetailsClient({ classId }: { classId: string }) {
       {isLoading ? (
         <DetailsSkeleton />
       ) : error || !cls ? (
-        <div className="space-y-4">
-          <WidgetError
-            message="We couldn't load this class. It may have been removed, or you may no longer be enrolled in its batch."
-            onRetry={() => refetch()}
-          />
-          <div className="flex justify-center">
-            <Button asChild variant="outline">
-              <Link href="/student/schedule">
-                <CalendarDays aria-hidden="true" className="size-4" strokeWidth={2.5} />
-                Back to your schedule
-              </Link>
-            </Button>
-          </div>
-        </div>
+        <ResourceLoadError
+          backHref="/student/schedule"
+          backLabel="Back to your schedule"
+          error={error}
+          onRetry={() => void refetch()}
+          resource="class"
+        />
       ) : (
         <ClassDetails cls={cls} />
       )}

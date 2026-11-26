@@ -1049,6 +1049,34 @@ export const API_ROUTES = {
     policy: (category: string = ":category") => `/admin/retention/policies/${category}`,
     preview: (category: string = ":category") => `/admin/retention/policies/${category}/preview`
   },
+  // AI play review (docs/AI_PLAY_REVIEW.md): the play feed + engine review
+  // (student own, their coach, admins), the outside-AI switch, academy settings.
+  // AI class recaps from the coach's transcript (docs/CLASS_RECAPS.md).
+  classRecaps: {
+    list: "/class-recaps",
+    reviewCount: "/class-recaps/review-count",
+    feedMine: "/class-recaps/me",
+    forClass: (classId: string = ":classId") => `/class-recaps/class/${classId}`,
+    publish: (classId: string = ":classId") => `/class-recaps/class/${classId}/publish`,
+    unpublish: (classId: string = ":classId") => `/class-recaps/class/${classId}/unpublish`,
+    discard: (classId: string = ":classId") => `/class-recaps/class/${classId}/discard`,
+    restore: (classId: string = ":classId") => `/class-recaps/class/${classId}/restore`,
+    regenerate: (classId: string = ":classId") => `/class-recaps/class/${classId}/regenerate`,
+    rating: (classId: string = ":classId") => `/class-recaps/class/${classId}/rating`,
+    settings: "/admin/class-recaps/settings"
+  },
+  playReview: {
+    feedMine: "/play-review/me/feed",
+    feed: (id: string = ":id") => `/play-review/students/${id}/feed`,
+    itemMine: (source: string = ":source", sourceId: string = ":sourceId") => `/play-review/me/items/${source}/${sourceId}`,
+    item: (id: string = ":id", source: string = ":source", sourceId: string = ":sourceId") =>
+      `/play-review/students/${id}/items/${source}/${sourceId}`,
+    rollupMine: "/play-review/me/rollup",
+    rollup: (id: string = ":id") => `/play-review/students/${id}/rollup`,
+    consentMine: "/play-review/me/consent",
+    consent: (id: string = ":id") => `/play-review/students/${id}/consent`,
+    settings: "/admin/play-review/settings"
+  },
   progress: {
     mine: "/progress/me",
     student: (id: string = ":id") => `/progress/students/${id}`,
@@ -1187,7 +1215,14 @@ export const API_ROUTES = {
     closureReopen: (id: string = ":id") => `/platform/closures/${id}/reopen`,
     /** POST: record a request made by email/phone and decide it at once. */
     tenantClose: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/close`,
-    tenantExport: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/export`
+    tenantExport: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/export`,
+    // Outside AI keys and the model per feature (docs/AI_PROVIDERS.md), platform operators only.
+    ai: "/platform/ai",
+    aiProvider: (provider: string = ":provider") => `/platform/ai/providers/${provider}`,
+    aiProviderModels: (provider: string = ":provider") => `/platform/ai/providers/${provider}/models`,
+    aiFeature: (feature: string = ":feature") => `/platform/ai/features/${feature}`,
+    /** POST {provider, model}: one tiny request, to check a key and model work. */
+    aiTest: "/platform/ai/test"
   },
   // The owner's gateway account (SaaS Phase 6): public, signature-verified.
   platformBilling: {

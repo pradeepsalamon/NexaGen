@@ -202,14 +202,17 @@ export class SupportSettingsService {
 
   private async view(): Promise<SupportSettingsResponse> {
     const tenantId = requireTenantId("supportSettings");
-    const [row, whatsapp] = await Promise.all([
+    const [row, whatsapp, academy] = await Promise.all([
       this.prisma.supportSettings.findUnique({ where: { tenantId } }),
-      tenantId === DEFAULT_TENANT_ID ? null : this.prisma.whatsAppSettings.findUnique({ where: { tenantId } })
+      tenantId === DEFAULT_TENANT_ID ? null : this.prisma.whatsAppSettings.findUnique({ where: { tenantId } }),
+      this.prisma.tenant.findUnique({ select: { name: true }, where: { id: tenantId } })
     ]);
     const { source, ...values } = resolveSupportSettings(row, tenantId, this.env);
     const usesPlatformNumber = tenantId === DEFAULT_TENANT_ID;
     return {
       ...values,
+      // Same fallback as the bot's greeting (support-conversation.service.ts).
+      academyName: academy?.name ?? "academy",
       connection: {
         lastWebhookAt: whatsapp?.lastWebhookAt?.toISOString() ?? null,
         receiving: usesPlatformNumber

@@ -235,6 +235,18 @@ export function useBoardSyncEngine(): BoardSyncActions {
           const move = legalMoveBetween(current.fen, fen);
           if (move) {
             current.applyRemoteMove(move, msg.payload?.moveType);
+            // The coach's window credits the student with the move it just
+            // accepted, saved with the board (docs/AI_PLAY_REVIEW.md gap B).
+            // The id is the LiveKit identity without its `_<tab>` suffix; the
+            // API credits it only to a student of this class.
+            const userId = fromIdentity?.split("_")[0];
+            if (isCoach && userId && store.getState().fen !== current.fen) {
+              store.getState().creditMove({
+                fenBefore: current.fen,
+                uci: `${move.from}${move.to}${move.promotion ?? ""}`,
+                userId,
+              });
+            }
           } else {
             const free = current.allowIllegalMoves && fen ? freeMoveBetween(current.fen, fen) : null;
             if (!free) return;

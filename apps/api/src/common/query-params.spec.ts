@@ -1,6 +1,6 @@
 import { BadRequestException } from "@nestjs/common";
 import { UserStatus } from "@prisma/client";
-import { optionalQueryEnum, optionalQueryString } from "./query-params";
+import { optionalQueryDate, optionalQueryEnum, optionalQueryString } from "./query-params";
 
 describe("optionalQueryString", () => {
   it("passes a single value through and treats empty as absent", () => {
@@ -25,5 +25,18 @@ describe("optionalQueryEnum", () => {
   it("rejects an unknown value with a 400", () => {
     expect(() => optionalQueryEnum("NOPE", UserStatus, "status")).toThrow(BadRequestException);
     expect(() => optionalQueryEnum(["ACTIVE"], UserStatus, "status")).toThrow(BadRequestException);
+  });
+});
+
+describe("optionalQueryDate", () => {
+  it("reads an ISO date-time and treats absent/empty as no value", () => {
+    expect(optionalQueryDate("2026-11-24T10:00:00.000Z", "from")?.toISOString()).toBe("2026-11-24T10:00:00.000Z");
+    expect(optionalQueryDate(undefined, "from")).toBeUndefined();
+    expect(optionalQueryDate("", "from")).toBeUndefined();
+  });
+
+  it("turns an unreadable or repeated value into a 400", () => {
+    expect(() => optionalQueryDate("next tuesday", "from")).toThrow(BadRequestException);
+    expect(() => optionalQueryDate(["2026-11-24", "2026-11-25"], "from")).toThrow(BadRequestException);
   });
 });

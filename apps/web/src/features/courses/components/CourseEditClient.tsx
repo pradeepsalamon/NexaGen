@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "@/lib/navigation";
 import { Save } from "lucide-react";
+import { ResourceLoadError } from "@/components/common/ResourceLoadError";
 import { FormPageShell } from "@/components/layout/FormPageShell";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -69,7 +70,7 @@ export function CourseCreateClient() {
 }
 
 export function CourseEditClient({ id }: { id: string }) {
-  const { data, isLoading } = useCourse(id);
+  const { data, error, isError, isLoading, refetch } = useCourse(id);
   const update = useUpdateCourse();
 
   const [title, setTitle] = useState("");
@@ -85,6 +86,15 @@ export function CourseEditClient({ id }: { id: string }) {
       setDescription(data.course.description ?? "");
     }
   }, [data?.course]);
+
+  if (isError) {
+    return (
+      <div className="animate-fade-in pb-10">
+        <PageHeader breadcrumbs={[{ href: "/admin/courses", label: "Courses" }, { label: "Course" }]} title="Course" />
+        <ResourceLoadError backHref="/admin/courses" backLabel="All courses" error={error} onRetry={() => void refetch()} resource="course" />
+      </div>
+    );
+  }
 
   if (isLoading || !data) {
     return (

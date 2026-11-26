@@ -39,8 +39,11 @@ stay as written; the living doc for that area wins where they disagree.
 | [PUZZLE_RUSH_SOLO.md](PUZZLE_RUSH_SOLO.md) | Puzzle Storm / Racer played alone, with a batch leaderboard |
 | [SMART_REVISION.md](SMART_REVISION.md) | Spaced-repetition revision |
 | [STUDENT_ACTIVITY_HISTORY.md](STUDENT_ACTIVITY_HISTORY.md) | Student activity history and progress summary |
-| [FEATURES.md](FEATURES.md) | Feedback, Game Library, chat, reminders, revision, analysis, PDF import, SEO, privacy |
+| [FEATURES.md](FEATURES.md) | Feedback, Game Library, chat, reminders, revision, analysis, PDF import, SEO (and the claude-seo audit tool), privacy |
 | [GAME_ANALYSIS.md](GAME_ANALYSIS.md) | Engine evaluation, move classification, accuracy, tactics |
+| [CLASS_RECAPS.md](CLASS_RECAPS.md) | AI class recaps from the coach's transcript: drafted between classes, reviewed and published by the coach or an admin |
+| [AI_PLAY_REVIEW.md](AI_PLAY_REVIEW.md) | One record of every board move, the nightly engine review, outside-AI comments behind a consent switch |
+| [AI_PROVIDERS.md](AI_PROVIDERS.md) | Outside AI keys (Groq, Gemini, OpenRouter) entered by platform operators in the console, and the main + fallback model per AI feature (Auto by default) |
 | [GAME_SOURCES.md](GAME_SOURCES.md) | Importing a student's own games |
 | [TOURNAMENTS.md](TOURNAMENTS.md) | Tournament platform (Swiss, Arena, Round Robin, Knockout): assessment and phased plan — not built yet |
 | [APPEARANCE.md](APPEARANCE.md) | Board appearance and typography resolvers |

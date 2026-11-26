@@ -2731,6 +2731,7 @@ export * from "./messaging";
 export * from "./system-messages";
 export * from "./support";
 export * from "./support-flows";
+export * from "./support-bot-script";
 export * from "./support-hours";
 export * from "./whatsapp-template";
 
@@ -2774,6 +2775,9 @@ export * from "./class-requests";
 // ──────────────────────────────────────────────
 export * from "./progress";
 export * from "./student-activity";
+export * from "./ai-review";
+export * from "./ai-providers";
+export * from "./class-recap";
 export * from "./revision";
 
 // ──────────────────────────────────────────────

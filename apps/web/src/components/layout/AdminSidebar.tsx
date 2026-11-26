@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { NavDrawer, NavDrawerAccordion, NavDrawerLink } from "@/components/layout/Sidebar";
 import { activeNavHref, getAdminNavGroups } from "@/components/layout/navItems";
 import { useChatNavBadge } from "@/features/chat/hooks/useChat";
+import { useClassRecapNavBadge } from "@/features/class-recap/hooks/useClassRecaps";
 import { useLiveClassesMonitor } from "@/features/live-monitor/hooks/useLiveMonitor";
 import { useCurrentEntitlements } from "@/features/subscription/hooks/useSubscription";
 import { useAuthStore } from "@/stores/authStore";
@@ -24,6 +25,7 @@ export function AdminSidebar() {
   const liveCount = live?.classes.length ?? 0;
   const chatBadge = useChatNavBadge(role === "ADMIN" || role === "SUPER_ADMIN");
   const planFeatures = useCurrentEntitlements().data?.features;
+  const recapBadge = useClassRecapNavBadge((role === "ADMIN" || role === "SUPER_ADMIN") && !!planFeatures?.includes("aiClassRecaps"));
   const groups = useMemo(
     () =>
       getAdminNavGroups(role, planFeatures, isPlatformOperator).map((group) => ({
@@ -33,10 +35,12 @@ export function AdminSidebar() {
             ? { ...item, badge: { label: String(liveCount), pulse: true, tone: "danger" as const } }
             : item.href === "/messages" && chatBadge
               ? { ...item, badge: chatBadge }
-              : item
+              : item.href === "/admin/class-recaps" && recapBadge
+                ? { ...item, badge: recapBadge }
+                : item
         )
       })),
-    [role, liveCount, chatBadge, planFeatures, isPlatformOperator]
+    [role, liveCount, chatBadge, recapBadge, planFeatures, isPlatformOperator]
   );
 
   // Only the most specific match is active, so a nested link and its parent

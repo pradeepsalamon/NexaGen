@@ -1,10 +1,10 @@
 "use client";
 
+import { ResourceLoadError } from "@/components/common/ResourceLoadError";
 import { LineChartCard } from "@/components/charts/Charts";
 import { ChartContainer } from "@/components/charts/ChartContainer";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { KpiCardRow } from "@/components/ui/KpiCardRow";
-import { WidgetError } from "@/components/ui/WidgetError";
 import { AnalyticsPageShell } from "@/features/analytics/components/AnalyticsPageShell";
 import { useBatchDetailQuery } from "@/features/analytics/hooks/useAnalyticsApi";
 import {
@@ -38,7 +38,7 @@ function Body({
   batchId: string;
   query: Parameters<typeof useBatchDetailQuery>[1];
 }) {
-  const { data, isLoading, isError, refetch } = useBatchDetailQuery(batchId, query);
+  const { data, error, isLoading, isError, refetch } = useBatchDetailQuery(batchId, query);
   const tz = useUserTimeZone();
   const b = data?.batch;
   const { rows: students, sortProps } = useTableSort({
@@ -52,7 +52,15 @@ function Body({
   });
 
   if (isError) {
-    return <WidgetError message="Couldn't load this batch." onRetry={() => refetch()} />;
+    return (
+      <ResourceLoadError
+        backHref="/admin/analytics/batches"
+        backLabel="All batches"
+        error={error}
+        onRetry={() => void refetch()}
+        resource="batch"
+      />
+    );
   }
 
   return (

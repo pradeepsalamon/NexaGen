@@ -9,6 +9,7 @@ export function AcademyInvoiceClient({ id }: { id: string }) {
     <PlatformInvoiceDocument
       backHref="/admin/subscription"
       backLabel="Subscription"
+      error={query.error}
       invoice={query.data}
       isLoading={query.isLoading}
       onRetry={() => void query.refetch()}

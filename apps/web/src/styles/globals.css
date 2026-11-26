@@ -519,11 +519,14 @@ html[data-theme-reveal]::view-transition-new(root) {
     @apply outline outline-2 outline-offset-2 outline-app-focus;
   }
 
-  /* Disable Chrome autofill background */
+  /* Disable Chrome autofill background. The inset shadow covers Chrome's blue fill; it must
+     apply at once, so the fields' box-shadow transition is replaced here (otherwise the blue
+     shows for a moment and then fades away), and Chrome's own background change is held off. */
   input:-webkit-autofill,
   input:-webkit-autofill:hover,
   input:-webkit-autofill:focus,
   input:-webkit-autofill:active {
+    transition: background-color 600000s 0s, color 600000s 0s !important;
     -webkit-box-shadow: 0 0 0 50px var(--color-surface) inset !important;
     -webkit-text-fill-color: var(--color-text) !important;
     caret-color: var(--color-text) !important;
