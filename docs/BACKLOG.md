@@ -66,6 +66,30 @@ edit it here. A Resolved entry records what shipped and links back here. It
 does not keep its own "still open" list. Each item was re-checked against the
 code on 2026-10-31.
 
+### Next up (owner, 2026-11-26) — in this order
+
+1. **Staging migration (owner runs it).** Weak spots phase B + weekly reports
+   need `20261126160428_weak_spot_tips_weekly_reports` on staging
+   (`npx prisma migrate deploy` in `apps/api` + the 2 D5 contract lines); the
+   agent's attempt was refused by the permission check. Until then `/student`
+   and `/student/reports` on staging show the error toast + `WidgetError`.
+   Then browser-check both features on staging with real data.
+2. **Underline tabs: keep or drop.** Trial on the student progress page only
+   (`TabsList variant="line"` + `PageHeader tabsBelow`, phones keep the blue
+   menu button; [UI_RULES.md](UI_RULES.md) Tabs row). If kept: move every
+   page-section tab strip to it, keep the segmented chip for 2–4 option
+   toggles; if dropped: remove the variant.
+3. **Weekly reports phase B** ([FAMILY_PROGRESS_REPORT_PLAN.md](FAMILY_PROGRESS_REPORT_PLAN.md) §3–4, §7):
+   coach review list (edit, note, approve one / approve all per batch,
+   status-filtered 409), AI paragraph with the grounding check, Groq named on
+   the privacy page. ~1 session.
+4. **Weak spots, rest of phase B** ([WEAK_SPOTS_PLAN.md](WEAK_SPOTS_PLAN.md) §3.2, §3.4):
+   weekly snapshot `StudentWeakSpotWeek` + better/same/worse trend chart, and
+   the batch view (a batch's most common weak spots). ~1 session.
+5. **Release `dev` → `main`** after 1–2: AI play review, AI providers console,
+   AI class recaps, weak spots, weekly reports, error toasts + `WidgetError`,
+   tabs. A PR into `main`; the owner merges.
+
 ### P1 — data growth & privacy
 
 - **Retention windows are built but off.** Admin-set windows shipped on
