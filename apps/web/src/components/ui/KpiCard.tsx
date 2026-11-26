@@ -139,7 +139,8 @@ function DeltaChip({
       ) : (
         <ArrowDownRight className="size-3.5" strokeWidth={2.5} />
       )}
-      {Math.abs(kpi.deltaPct)}%
+      {/* From a near-zero previous period the % means nothing ("2566.7%"); cap it (owner 2026-11-26). */}
+      {Math.abs(kpi.deltaPct) > 999 ? ">999%" : `${Math.abs(kpi.deltaPct)}%`}
     </span>
   );
 }

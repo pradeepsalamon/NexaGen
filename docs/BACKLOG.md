@@ -98,7 +98,7 @@ code on 2026-10-31.
 From a 17-page staging sweep; mark each done here as it lands.
 
 1. **Row actions**: 4–5 outlined icon buttons per row (Users) → 1–2 visible + "⋯" menu, delete last in it (`RowActions`).
-2. **Stat cards**: `KpiCard` vs `StatTile` look different → one card; a change from a 0/tiny previous period shows "New", not "2566.7%".
+2. **Stat cards**: `KpiCard` vs `StatTile` look different → one card; a change from a 0/tiny previous period shows "New", not "2566.7%". *Step 1 done 2026-11-26: `KpiCard` caps the change at ">999%"; merging the two cards still open.*
 3. **Page header controls**: Users' "Create"/"Import" sit in the view tab strip; admin dashboard has 4 blue outline buttons + a lone Filters row; one filter-bar style.
 4. **Form fields**: `Select` border heavier than `Input`; Leads search cuts off its placeholder.
 5. **Empty states**: mixed (small icon / illustration / plain text, blank "Last 30 days" chart) → `EmptyState` everywhere, matching `WidgetError`.
