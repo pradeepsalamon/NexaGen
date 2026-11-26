@@ -186,7 +186,12 @@ describe("AI play review: play feed, Storm moves, switch (real app, real Postgre
     const refused = await t.call(w.a.student, "PUT", API_ROUTES.playReview.consentMine, { allowed: true });
     expect(refused.status).toBe(400);
 
-    const on = await t.call(w.a.student, "PUT", API_ROUTES.playReview.consentMine, { allowed: true, guardianConfirmed: true });
+    const shown = (await t.call(w.a.student, "GET", API_ROUTES.playReview.consentMine)).body as AiReviewConsentState;
+    const on = await t.call(w.a.student, "PUT", API_ROUTES.playReview.consentMine, {
+      allowed: true,
+      guardianConfirmed: true,
+      providers: shown.providers
+    });
     expect(on.status).toBe(200);
     expect(on.body as AiReviewConsentState).toMatchObject({ allowed: true, changedBy: "STUDENT" });
 

@@ -226,12 +226,38 @@ function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function nameForms(person: RecapPerson): string[] {
+/** Two-letter English words a two-letter name must not erase, even capitalised at a sentence start. */
+const SHORT_WORDS = new Set([
+  "am", "an", "as", "at", "be", "by", "do", "go", "he", "hi", "if", "in", "is", "it", "me", "my", "no", "of", "oh", "ok", "on",
+  "or", "so", "to", "up", "us", "we"
+]);
+
+type NameForm = { form: string; caseSensitive: boolean };
+
+function nameForms(person: RecapPerson): NameForm[] {
   const first = person.firstName.trim();
   const last = person.lastName?.trim() ?? "";
   const forms = [first, last, `${first} ${last}`.trim(), person.username?.trim() ?? ""];
-  // A one- or two-letter name would erase ordinary words.
-  return forms.filter((f) => f.length >= 3);
+  const result: NameForm[] = [];
+  for (const form of forms) {
+    // Three letters or more: any case.
+    if (form.length >= 3) result.push({ caseSensitive: false, form });
+    // Two letters ("Bo", "Om"): only capitalised, as speech recognition writes a
+    // name, and never a common word. One letter would erase ordinary text.
+    else if (form.length === 2 && !SHORT_WORDS.has(form.toLowerCase())) {
+      result.push({ caseSensitive: true, form: form[0].toUpperCase() + form.slice(1).toLowerCase() });
+    }
+  }
+  return result;
+}
+
+/** Email addresses and phone numbers a coach may say aloud: never sent to a model. */
+const EMAIL = /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.[\p{L}]{2,}/gu;
+const PHONE = /(?<![\p{L}\p{N}])\+?\d(?:[\s-]?\d){7,14}(?![\p{L}\p{N}])/gu;
+
+/** Removes spoken email addresses and phone numbers. */
+export function redactContactDetails(text: string): string {
+  return text.replace(EMAIL, "[email]").replace(PHONE, "[phone]");
 }
 
 /**
@@ -239,19 +265,21 @@ function nameForms(person: RecapPerson): string[] {
  * S1, S2…, and the coach's with "Coach". `students` must come in a stable
  * order (by id): the codes carry no rank. Names written in another script
  * (Tamil) aren't matched; the model is told never to name anyone, and the
- * reviewer reads every recap.
+ * reviewer reads every recap. Spoken email addresses and phone numbers are
+ * removed too (`redactContactDetails`).
  */
 export function pseudonymiseTranscript(text: string, students: RecapPerson[], coach: RecapPerson | null): string {
-  const replacements: { form: string; code: string }[] = [];
+  const replacements: (NameForm & { code: string })[] = [];
   students.forEach((student, index) => {
-    for (const form of nameForms(student)) replacements.push({ code: `S${index + 1}`, form });
+    for (const name of nameForms(student)) replacements.push({ code: `S${index + 1}`, ...name });
   });
-  if (coach) for (const form of nameForms(coach)) replacements.push({ code: "Coach", form });
+  if (coach) for (const name of nameForms(coach)) replacements.push({ code: "Coach", ...name });
   // Longest first, so "Asha Kumar" goes before "Asha".
   replacements.sort((a, b) => b.form.length - a.form.length);
-  let result = text;
-  for (const { form, code } of replacements) {
-    const pattern = new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(form)}(?![\\p{L}\\p{N}])`, "giu");
+  // Contact details first: an address may hold a name ("asha.k@…").
+  let result = redactContactDetails(text);
+  for (const { caseSensitive, code, form } of replacements) {
+    const pattern = new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(form)}(?![\\p{L}\\p{N}])`, caseSensitive ? "gu" : "giu");
     result = result.replace(pattern, code);
   }
   return result;
@@ -295,7 +323,13 @@ export function chunkTranscript(lines: string[], maxTokens: number): string[] {
     if (tokens > maxTokens) {
       flush();
       const step = Math.max(1, Math.floor((line.length * maxTokens) / tokens));
-      for (let i = 0; i < line.length; i += step) chunks.push(line.slice(i, i + step));
+      for (let i = 0; i < line.length; ) {
+        // The average step can overshoot where one script is denser: shrink to fit.
+        let end = Math.min(line.length, i + step);
+        while (end - i > 1 && estimateTokens(line.slice(i, end)) > maxTokens) end -= Math.max(1, Math.floor((end - i) / 10));
+        chunks.push(line.slice(i, end));
+        i = end;
+      }
       continue;
     }
     if (currentTokens + tokens > maxTokens) flush();
@@ -354,19 +388,37 @@ export function recapFinalPrompt(source: { transcript: string } | { points: stri
 /** The first JSON object in a model's answer (code fences and chatter around it are ignored). */
 export function parseModelJson(text: string): unknown {
   const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if (start < 0 || end <= start) return null;
-  try {
-    return JSON.parse(text.slice(start, end + 1)) as unknown;
-  } catch {
-    return null;
+  if (start < 0) return null;
+  // Find the brace that closes the first object (braces inside strings don't count).
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i += 1) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+    } else if (ch === '"') inString = true;
+    else if (ch === "{") depth += 1;
+    else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        try {
+          return JSON.parse(text.slice(start, i + 1)) as unknown;
+        } catch {
+          return null;
+        }
+      }
+    }
   }
+  return null;
 }
 
 const MOVE_NOTATION =
-  /(?<![\p{L}\p{N}])(?:O-O(?:-O)?|0-0(?:-0)?|[KQRBN][a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?[+#]?|[a-h]x[a-h][1-8](?:=[QRBN])?[+#]?|[a-hA-H][1-8](?:=[QRBN])?[+#]?)(?![\p{L}\p{N}])/u;
+  /(?<![\p{L}\p{N}])(?:O-O(?:-O)?|0-0(?:-0)?|[a-h][1-8][a-h][1-8][qrbnQRBN]?|[KQRBN][a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?[+#]?|[a-h]x[a-h][1-8](?:=[QRBN])?[+#]?|[a-hA-H][1-8](?:=[QRBN])?[+#]?)(?![\p{L}\p{N}])/u;
 
-/** True when the text writes a move or a square (e4, Nf3, exd5, O-O). */
+/** True when the text writes a move or a square (e4, Nf3, exd5, O-O, e2e4). */
 export function containsMoveNotation(text: string): boolean {
   return MOVE_NOTATION.test(text);
 }

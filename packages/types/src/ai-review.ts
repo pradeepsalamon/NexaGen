@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AiProviderId } from "./ai-providers";
+import { aiProviderIdSchema, type AiProviderId } from "./ai-providers";
 
 // ──────────────────────────────────────────────────────────────
 // AI play review (docs/AI_PLAY_REVIEW.md).
@@ -192,6 +192,9 @@ export type PlayReviewRollup = {
 
 // ── Outside-AI switch (consent) ─────────────────────────────
 
+/** More than every provider there is: a bound for the request list. */
+const AI_PROVIDER_ID_LIMIT = 10;
+
 export const AI_CONSENT_CHANGED_BY = ["STUDENT", "COACH", "ADMIN"] as const;
 export type AiConsentChangedBy = (typeof AI_CONSENT_CHANGED_BY)[number];
 
@@ -199,11 +202,21 @@ export const setAiReviewConsentRequestSchema = z
   .object({
     allowed: z.boolean(),
     /** Switching ON needs "my parent or guardian agrees" (or, for staff, "a parent agreed"). */
-    guardianConfirmed: z.boolean().optional()
+    guardianConfirmed: z.boolean().optional(),
+    /**
+     * Switching ON: the providers the confirmation named (`AiReviewConsentState.providers`).
+     * The server refuses (409) when they are no longer the route's, so a consent
+     * never records a service the student wasn't shown.
+     */
+    providers: z.array(aiProviderIdSchema).max(AI_PROVIDER_ID_LIMIT).optional()
   })
   .refine((v) => !v.allowed || v.guardianConfirmed === true, {
     message: "A parent or guardian must agree before the outside AI is switched on.",
     path: ["guardianConfirmed"]
+  })
+  .refine((v) => !v.allowed || v.providers !== undefined, {
+    message: "Say which AI services were shown.",
+    path: ["providers"]
   });
 export type SetAiReviewConsentRequest = z.infer<typeof setAiReviewConsentRequestSchema>;
 
@@ -225,6 +238,8 @@ export type AiReviewConsentState = {
   providerConfigured: boolean;
   /** The providers the student's play would go to now, named ("Groq or Google Gemini"). */
   providerName: string | null;
+  /** The same providers by id, main first: sent back when switching on. */
+  providers: AiProviderId[];
 };
 
 // ── Academy settings ────────────────────────────────────────

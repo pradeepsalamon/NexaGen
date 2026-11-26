@@ -7,6 +7,7 @@ import {
   parseModelJson,
   pseudonymiseTranscript,
   readRecapPoints,
+  redactContactDetails,
   recapFinalPrompt,
   usableRecapProvider
 } from "@nexa-chess/types";
@@ -36,10 +37,21 @@ describe("pseudonymiseTranscript", () => {
     expect(pseudonymiseTranscript("Ashadeep plays Ravikumar", students, coach)).toBe("Ashadeep plays Ravikumar");
   });
 
-  it("skips names under three letters (they would erase ordinary words)", () => {
-    expect(pseudonymiseTranscript("an ox is on the board", [{ firstName: "Ox", lastName: "An" }], null)).toBe(
-      "an ox is on the board"
+  it("leaves ordinary words alone for names under three letters", () => {
+    expect(pseudonymiseTranscript("an ox is on the board. An ox!", [{ firstName: "Ox", lastName: "An" }], null)).toBe(
+      "an ox is on the board. An ox!"
     );
+  });
+
+  it("replaces a two-letter name written as a name", () => {
+    expect(pseudonymiseTranscript("Bo explained it to Li, then Om", [{ firstName: "Bo", lastName: "Li" }, { firstName: "Om" }], null)).toBe(
+      "S1 explained it to S1, then S2"
+    );
+  });
+
+  it("removes spoken email addresses and phone numbers", () => {
+    expect(pseudonymiseTranscript("mail asha.k@example.com or call +91 98765 43210", students, coach)).toBe("mail [email] or call [phone]");
+    expect(redactContactDetails("we play 3 games, 10 minutes each, at 5 pm")).toBe("we play 3 games, 10 minutes each, at 5 pm");
   });
 });
 
@@ -57,13 +69,20 @@ describe("chunkTranscript", () => {
     for (const chunk of chunks) expect(estimateTokens(chunk)).toBeLessThanOrEqual(500);
   });
 
+  it("keeps every slice of a mixed-script line within the budget", () => {
+    const line = `${"a".repeat(3000)}${"ராஜா".repeat(500)}`;
+    const chunks = chunkTranscript([line], 300);
+    for (const chunk of chunks) expect(estimateTokens(chunk)).toBeLessThanOrEqual(300);
+    expect(chunks.join("")).toBe(line);
+  });
+
   it("counts Tamil script as more tokens per character than English", () => {
     expect(estimateTokens("ராஜா முக்கியம்")).toBeGreaterThan(estimateTokens("king matters!"));
   });
 });
 
 describe("containsMoveNotation", () => {
-  it.each(["Play e4 first", "then Nf3", "Bxf7+ wins", "castle with O-O", "exd5 opens it", "the E4 square", "e8=Q"])(
+  it.each(["Play e4 first", "then Nf3", "Bxf7+ wins", "castle with O-O", "exd5 opens it", "the E4 square", "e8=Q", "e2e4 opens", "then e7e8q"])(
     "finds notation in %p",
     (text) => expect(containsMoveNotation(text)).toBe(true)
   );
@@ -111,6 +130,9 @@ describe("model answers", () => {
   it("parseModelJson reads the JSON inside fences and chatter", () => {
     expect(parseModelJson('Sure!\n```json\n{"points": ["a"]}\n```')).toEqual({ points: ["a"] });
     expect(parseModelJson("no json here")).toBeNull();
+    // Only the first object, even with a trailing example or braces inside strings.
+    expect(parseModelJson('{"points": ["use {braces}"]}\nFor example: {"points": []}')).toEqual({ points: ["use {braces}"] });
+    expect(parseModelJson('{"recap": "a \\"quoted\\" word"} done')).toEqual({ recap: 'a "quoted" word' });
   });
 
   it("readRecapPoints keeps usable strings only", () => {

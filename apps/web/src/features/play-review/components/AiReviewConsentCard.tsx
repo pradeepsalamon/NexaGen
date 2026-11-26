@@ -52,9 +52,13 @@ export function AiReviewConsentCard({ studentId, compact = false }: { studentId:
 
   const turnOn = () =>
     change.mutate(
-      { allowed: true, guardianConfirmed: true },
+      { allowed: true, guardianConfirmed: true, providers: state?.providers ?? [] },
       {
-        onError: (error) => toast.error({ message: getErrorMessage(error), title: "Couldn't switch it on" }),
+        onError: (error) => {
+          toast.error({ message: getErrorMessage(error), title: "Couldn't switch it on" });
+          // The service may have changed (409): show the current one.
+          void consent.refetch();
+        },
         onSuccess: () => {
           setAsking(false);
           setGuardian(false);
@@ -132,7 +136,7 @@ export function AiReviewConsentCard({ studentId, compact = false }: { studentId:
             onCheckedChange={(v) => setGuardian(v === true)}
           />
           <DialogFooter>
-            <Button onClick={() => setAsking(false)} variant="ghost">
+            <Button onClick={() => (setAsking(false), setGuardian(false))} variant="ghost">
               Cancel
             </Button>
             <Button disabled={!guardian || change.isPending} onClick={turnOn}>

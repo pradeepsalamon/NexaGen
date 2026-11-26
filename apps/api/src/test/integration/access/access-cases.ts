@@ -130,7 +130,7 @@ export const CROSS_USER: Case[] = [
   { name: "student reads another student's play item as their own", as: (w) => w.a.student, path: (w) => API_ROUTES.playReview.itemMine("PUZZLE", w.b.attempt.id) },
   { name: "coach reads the weekly review of another coach's student", as: (w) => w.a.coach, path: (w) => API_ROUTES.playReview.rollup(w.b.student.id) },
   { name: "coach reads another coach's student's AI switch", as: (w) => w.a.coach, path: (w) => API_ROUTES.playReview.consent(w.b.student.id) },
-  { name: "coach switches on the outside AI for another coach's student", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.playReview.consent(w.b.student.id), body: { allowed: true, guardianConfirmed: true } },
+  { name: "coach switches on the outside AI for another coach's student", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.playReview.consent(w.b.student.id), body: { allowed: true, guardianConfirmed: true, providers: [] } },
   // AI class recaps (docs/CLASS_RECAPS.md): the class's coach and admins review; its students read once published
   { name: "coach reads another coach's class recap", as: (w) => w.a.coach, path: (w) => API_ROUTES.classRecaps.forClass(w.b.class.id) },
   { name: "student reads another batch's class recap", as: (w) => w.a.student, path: (w) => API_ROUTES.classRecaps.forClass(w.b.class.id) },
@@ -429,7 +429,7 @@ export const WRONG_ROLE: Case[] = [
   { name: "coach reads a student-only class recap feed", as: (w) => w.a.coach, path: () => API_ROUTES.classRecaps.feedMine },
   { name: "student lists class recaps for review", as: (w) => w.a.student, path: () => API_ROUTES.classRecaps.list },
   { name: "coach reads a student-only AI switch", as: (w) => w.a.coach, path: () => API_ROUTES.playReview.consentMine },
-  { name: "student uses the staff route for their own AI switch", as: (w) => w.a.student, method: "PUT", path: (w) => API_ROUTES.playReview.consent(w.a.student.id), body: { allowed: true, guardianConfirmed: true } },
+  { name: "student uses the staff route for their own AI switch", as: (w) => w.a.student, method: "PUT", path: (w) => API_ROUTES.playReview.consent(w.a.student.id), body: { allowed: true, guardianConfirmed: true, providers: [] } },
   { name: "student reads own class's transcript", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.transcript(w.a.liveClass.id) },
   { name: "student writes to own class's transcript", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.liveClass.transcript(w.a.liveClass.id), body: { lines: [{ clientId: "student-0001", lang: "en-IN", spokenAt: "2026-11-12T10:00:00.000Z", text: "hijacked" }] } },
   { name: "student gives a coach's transcript consent", as: (w) => w.a.student, method: "PUT", path: () => API_ROUTES.liveClass.transcriptConsent(), body: { consent: true } },

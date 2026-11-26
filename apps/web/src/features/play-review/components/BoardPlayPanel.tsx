@@ -108,7 +108,8 @@ export function BoardPlayPanel({ studentId }: { studentId: string | null }) {
         <Skeleton className="h-28 w-full rounded-app" />
       ) : null}
 
-      <AiReviewConsentCard compact studentId={studentId} />
+      {/* Keyed: an open confirmation never carries over to another student. */}
+      <AiReviewConsentCard compact key={studentId} studentId={studentId} />
 
       <section className="rounded-app border border-app-border bg-app-surface p-4 shadow-card">
         <div className="flex flex-wrap items-end justify-between gap-3">
